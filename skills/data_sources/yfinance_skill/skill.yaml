@@ -1,0 +1,16 @@
+name: yfinance_ohlcv
+version: "0.1.0"
+description: "Yahoo Finance OHLCV and options chain data source"
+type: data_source
+dependencies:
+  - yfinance>=0.2.40
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+config:
+  requires_env: []
+  cache_ttl: 300
+  max_retries: 3
+  retry_delay: 1
+  default_period: "60d"
+  default_interval: "1d"
+  option_chain_max_expiry: 730  # ~2 years

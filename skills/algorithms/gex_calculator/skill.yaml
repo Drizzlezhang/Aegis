@@ -1,0 +1,12 @@
+name: gex_calculator
+version: "0.1.0"
+description: "GEX (Gamma Exposure) calculation algorithm"
+type: algorithm
+dependencies:
+  - numpy>=1.24.0
+  - pandas>=2.0.0
+config:
+  requires_env: []
+  calculation_method: "simplified"  # simplified | black_scholes
+  spot_price_weight: true
+  min_open_interest: 100

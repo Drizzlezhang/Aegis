@@ -1,0 +1,12 @@
+name: volume_profile
+version: "0.1.0"
+description: "Volume Profile algorithm for calculating POC, VAH, VAL"
+type: algorithm
+dependencies:
+  - numpy>=1.24.0
+  - pandas>=2.0.0
+config:
+  requires_env: []
+  default_bins: 100
+  value_area_percentage: 0.7
+  min_data_points: 20

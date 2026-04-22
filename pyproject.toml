@@ -1,0 +1,101 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aegis-trader"
+version = "0.1.0"
+description = "Multi-Agent quant trading system for US stocks & options with left-side bottom fishing strategy"
+readme = "CLAUDE.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Drizzlezhang", email = ""},
+]
+dependencies = [
+    "yfinance>=0.2.40",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "aiohttp>=3.9.0",
+    "aiofiles>=23.0.0",
+    "pyyaml>=6.0",
+    "structlog>=24.0.0",
+    "tenacity>=8.2.0",
+    "cachetools>=5.3.0",
+    "scipy>=1.11.0",
+    "scikit-learn>=1.3.0",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
+]
+llm = [
+    "openai>=1.0.0",
+    "anthropic>=0.7.0",
+    "google-generativeai>=0.3.0",
+]
+data = [
+    "alpha-vantage>=2.3.0",
+    "youtube-transcript-api>=0.6.0",
+    "beautifulsoup4>=4.12.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+aegis-trader = "src.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+
+[project.urls]
+"Homepage" = "https://github.com/Drizzlezhang/Aegis-Trader"
+"Issues" = "https://github.com/Drizzlezhang/Aegis-Trader/issues"
+"Documentation" = "https://github.com/Drizzlezhang/Aegis-Trader#readme"
