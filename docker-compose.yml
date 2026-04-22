@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  aegis-trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    environment:
+      - AEGIS_ENVIRONMENT=production
+      - AEGIS_LOG_LEVEL=INFO
+      - AEGIS_LLM_PROVIDER=${AEGIS_LLM_PROVIDER:-deepseek}
+      - AEGIS_LLM_API_KEY=${AEGIS_LLM_API_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    mem_limit: 1g
+    cpus: 0.5
+
+  # PostgreSQL for production (optional, can be replaced with SQLite for low memory)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=aegis
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=aegis_trader
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.3
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.2
+
+volumes:
+  postgres_data:

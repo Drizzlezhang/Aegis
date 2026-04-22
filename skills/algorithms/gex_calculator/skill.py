@@ -145,6 +145,10 @@ class GEXCalculatorSkill(BaseSkill):
                 if contract.open_interest:
                     total_oi += contract.open_interest
 
+            # Skip strikes with zero GEX (filtered by min OI)
+            if abs(total_gex) < 0.001:
+                continue
+
             # Determine wall type
             if total_gex > 0:
                 wall_type = "support"  # Positive GEX = support
