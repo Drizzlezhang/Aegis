@@ -1,7 +1,7 @@
 """Global configuration management."""
 
 from typing import Dict, Any, Optional, List
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 import os
 from pathlib import Path
@@ -61,6 +61,12 @@ class AgentConfig(BaseModel):
 
 class Config(BaseSettings):
     """Main configuration."""
+    model_config = ConfigDict(
+        env_prefix="AEGIS_",
+        env_nested_delimiter="__",
+        case_sensitive=False
+    )
+
     # Project
     project_name: str = "Aegis-Trader"
     version: str = "0.1.0"
@@ -93,24 +99,21 @@ class Config(BaseSettings):
     call_delta_range: List[float] = Field(default=[0.6, 0.8])
     support_distance_threshold: float = 0.02  # 2%
 
-    @validator("skill_dirs", "data_dir", "cache_dir", "log_dir", pre=True)
+    @field_validator("skill_dirs", "data_dir", "cache_dir", "log_dir", mode="before")
+    @classmethod
     def resolve_paths(cls, value):
         """Resolve paths to absolute paths."""
         if isinstance(value, list):
             return [Path(str(v)).expanduser().resolve() for v in value]
         return Path(str(value)).expanduser().resolve()
 
-    @validator("core_symbols")
+    @field_validator("core_symbols")
+    @classmethod
     def validate_symbols(cls, value):
         """Validate core symbols."""
         if not value:
             raise ValueError("core_symbols cannot be empty")
         return [s.upper() for s in value]
-
-    class Config:
-        env_prefix = "AEGIS_"
-        env_nested_delimiter = "__"
-        case_sensitive = False
 
 
 # Global config instance
@@ -141,7 +144,7 @@ def reload_config() -> Config:
 def get_config_dict() -> Dict[str, Any]:
     """Get configuration as dictionary."""
     config = get_config()
-    return config.dict()
+    return config.model_dump()
 
 
 # Initialize paths on import
