@@ -1,12 +1,12 @@
 module.exports = {
   apps: [
     {
-      name: 'aegis-trader-api',
+      name: 'aegis-trader-analyzer',
       script: 'python',
-      args: '-m src.api',
+      args: '-m src.cli analyze --all',
       cwd: '/app',
       instances: 1,
-      autorestart: true,
+      autorestart: false,
       watch: false,
       max_memory_restart: '1G',
       env: {
@@ -19,34 +19,12 @@ module.exports = {
         AEGIS_ENVIRONMENT: 'production',
         AEGIS_LOG_LEVEL: 'INFO',
       },
-      error_file: '/app/logs/err.log',
-      out_file: '/app/logs/out.log',
-      log_file: '/app/logs/combined.log',
+      error_file: '/app/logs/analyzer-err.log',
+      out_file: '/app/logs/analyzer-out.log',
+      log_file: '/app/logs/analyzer-combined.log',
       time: true,
-    },
-    {
-      name: 'aegis-trader-scheduler',
-      script: 'python',
-      args: '-m src.scheduler',
-      cwd: '/app',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '512M',
-      env: {
-        NODE_ENV: 'production',
-        AEGIS_ENVIRONMENT: 'production',
-        AEGIS_LOG_LEVEL: 'INFO',
-      },
-      env_production: {
-        NODE_ENV: 'production',
-        AEGIS_ENVIRONMENT: 'production',
-        AEGIS_LOG_LEVEL: 'INFO',
-      },
-      error_file: '/app/logs/scheduler-err.log',
-      out_file: '/app/logs/scheduler-out.log',
-      log_file: '/app/logs/scheduler-combined.log',
-      time: true,
+      // Run as a cron-like job (every day at 09:30 UTC, before US market open)
+      cron_restart: '30 9 * * 1-5',
     },
     {
       name: 'aegis-trader-web',
@@ -81,7 +59,7 @@ module.exports = {
       ref: 'origin/master',
       repo: 'https://github.com/Drizzlezhang/Aegis-Trader.git',
       path: '/home/ubuntu/aegis-trader',
-      'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
+      'post-deploy': 'docker-compose -f docker-compose.yml up -d --build && pm2 reload ecosystem.config.js --env production',
       env: {
         NODE_ENV: 'production',
         AEGIS_ENVIRONMENT: 'production',

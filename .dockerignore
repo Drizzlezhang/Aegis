@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Tests (not needed in production image)
+tests/
+.coverage
+htmlcov/
+
+# Documentation (keep CLAUDE.md for pyproject.toml)
+*.md
+!CLAUDE.md
+
+# Deploy scripts (not needed inside image)
+deploy/
+
+# Node.js (web is built separately or mounted)
+web/node_modules
+web/.next
+web/dist
+
+# Local data/cache/logs (mounted as volumes)
+data/
+cache/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
