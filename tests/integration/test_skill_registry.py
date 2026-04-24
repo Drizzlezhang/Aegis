@@ -1,17 +1,16 @@
 """Integration tests for skill registry and dynamic loading."""
 
-import pytest
 import sys
-import asyncio
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+import pytest
 import yaml
-import json
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.skills.registry import SkillRegistry, SkillMeta
-from src.skills.base import BaseSkill, SkillType, SkillResult
+from src.skills.base import SkillResult, SkillType
+from src.skills.registry import SkillRegistry
 
 
 class TestDynamicSkill:
@@ -97,7 +96,7 @@ class TestSkillRegistry:
             temp_path = Path(temp_dir)
 
             # Create test skill
-            skill_dir = create_test_skill_dir(temp_path)
+            _skill_dir = create_test_skill_dir(temp_path)
 
             # Create registry with temp directory
             registry = SkillRegistry(skill_dirs=[temp_path])

@@ -1,25 +1,23 @@
 """Enhanced LLM integration for Quant-Brain Agent."""
 
-from typing import Dict, List, Any, Optional
 import logging
-from datetime import datetime
+from typing import Any
 
-from src.llm import generate, TaskType
-from src.models import SupportResistanceLevel, VolumeProfile, GEXWall, ValuationRange
-
+from src.llm import TaskType, generate
+from src.models import AgentState, GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
 
 logger = logging.getLogger(__name__)
 
 
 async def generate_llm_enhanced_report(
     symbol: str,
-    ohlcv_data: Optional[List[Any]] = None,
-    options_chain: Optional[Any] = None,
-    support_levels: Optional[List[SupportResistanceLevel]] = None,
-    resistance_levels: Optional[List[SupportResistanceLevel]] = None,
-    volume_profile: Optional[VolumeProfile] = None,
-    gex_walls: Optional[List[GEXWall]] = None,
-    valuation_range: Optional[ValuationRange] = None
+    ohlcv_data: list[Any] | None = None,
+    options_chain: Any | None = None,
+    support_levels: list[SupportResistanceLevel] | None = None,
+    resistance_levels: list[SupportResistanceLevel] | None = None,
+    volume_profile: VolumeProfile | None = None,
+    gex_walls: list[GEXWall] | None = None,
+    valuation_range: ValuationRange | None = None
 ) -> str:
     """
     Generate enhanced analysis report using LLM.
@@ -51,7 +49,7 @@ async def generate_llm_enhanced_report(
 
     try:
         # Generate enhanced report using LLM
-        report = await generate(
+        report: str = await generate(
             prompt=f"""You are a senior quantitative analyst. Analyze this market data and provide a professional trading analysis report.
 
 Data Summary:
@@ -108,13 +106,13 @@ Provide professional, data-driven insights suitable for institutional investors.
 
 def _create_data_summary(
     symbol: str,
-    ohlcv_data: Optional[List[Any]] = None,
-    options_chain: Optional[Any] = None,
-    support_levels: Optional[List[SupportResistanceLevel]] = None,
-    resistance_levels: Optional[List[SupportResistanceLevel]] = None,
-    volume_profile: Optional[VolumeProfile] = None,
-    gex_walls: Optional[List[GEXWall]] = None,
-    valuation_range: Optional[ValuationRange] = None
+    ohlcv_data: list[Any] | None = None,
+    options_chain: Any | None = None,
+    support_levels: list[SupportResistanceLevel] | None = None,
+    resistance_levels: list[SupportResistanceLevel] | None = None,
+    volume_profile: VolumeProfile | None = None,
+    gex_walls: list[GEXWall] | None = None,
+    valuation_range: ValuationRange | None = None
 ) -> str:
     """Create a structured data summary for LLM analysis."""
     summary = f"ANALYSIS DATA FOR {symbol}\n"
@@ -132,7 +130,7 @@ def _create_data_summary(
 
     # Options Data
     if options_chain:
-        summary += f"\nOPTIONS CHAIN\n"
+        summary += "\nOPTIONS CHAIN\n"
         summary += "-" * 20 + "\n"
         summary += f"Spot Price: {options_chain.spot_price:.2f}\n"
         summary += f"Calls: {len(options_chain.calls)} contracts\n"
@@ -141,21 +139,21 @@ def _create_data_summary(
 
     # Support Levels
     if support_levels:
-        summary += f"\nSUPPORT LEVELS (Top 5 by confidence)\n"
+        summary += "\nSUPPORT LEVELS (Top 5 by confidence)\n"
         summary += "-" * 20 + "\n"
         for i, level in enumerate(sorted(support_levels, key=lambda x: x.confidence, reverse=True)[:5], 1):
             summary += f"{i}. {level.price:.2f} ({level.source}, confidence: {level.confidence:.1%})\n"
 
     # Resistance Levels
     if resistance_levels:
-        summary += f"\nRESISTANCE LEVELS (Top 5 by confidence)\n"
+        summary += "\nRESISTANCE LEVELS (Top 5 by confidence)\n"
         summary += "-" * 20 + "\n"
         for i, level in enumerate(sorted(resistance_levels, key=lambda x: x.confidence, reverse=True)[:5], 1):
             summary += f"{i}. {level.price:.2f} ({level.source}, confidence: {level.confidence:.1%})\n"
 
     # Volume Profile
     if volume_profile:
-        summary += f"\nVOLUME PROFILE\n"
+        summary += "\nVOLUME PROFILE\n"
         summary += "-" * 20 + "\n"
         summary += f"POC (Point of Control): {volume_profile.poc_price:.2f}\n"
         summary += f"VAH (Value Area High): {volume_profile.vah_price:.2f}\n"
@@ -168,7 +166,7 @@ def _create_data_summary(
         support_walls = [w for w in gex_walls if w.is_support]
         resistance_walls = [w for w in gex_walls if w.is_resistance]
 
-        summary += f"\nGEX WALLS\n"
+        summary += "\nGEX WALLS\n"
         summary += "-" * 20 + "\n"
         summary += f"Support Walls: {len(support_walls)}\n"
         if support_walls:
@@ -182,7 +180,7 @@ def _create_data_summary(
 
     # Valuation
     if valuation_range:
-        summary += f"\nVALUATION (PE-Band)\n"
+        summary += "\nVALUATION (PE-Band)\n"
         summary += "-" * 20 + "\n"
         summary += f"Current Price: {valuation_range.current_price:.2f}\n"
         summary += f"Fair Estimate: {valuation_range.fair_estimate:.2f}\n"
@@ -205,7 +203,7 @@ def _create_basic_report(data_summary: str) -> str:
 
 
 # Example usage in Quant-Brain Agent
-async def integrate_llm_into_quant_brain(agent_instance, state):
+async def integrate_llm_into_quant_brain(agent_instance: Any, state: AgentState) -> None:
     """
     Example integration function for Quant-Brain Agent.
 

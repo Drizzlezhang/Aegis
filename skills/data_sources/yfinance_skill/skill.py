@@ -1,19 +1,16 @@
 """Yahoo Finance data source skill."""
 
-import yfinance as yf
-import pandas as pd
-import numpy as np
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Any
 import asyncio
-from functools import lru_cache
-import cachetools
 import logging
+from datetime import datetime
+from typing import Any
 
-from src.skills.base import BaseSkill, SkillResult, SkillType
+import cachetools
+import pandas as pd
+import yfinance as yf
+
 from src.models import OHLCV, OptionChain, OptionContract, OptionType
-from src.config import get_config
-
+from src.skills.base import BaseSkill, SkillResult, SkillType
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +18,7 @@ logger = logging.getLogger(__name__)
 class YFinanceSkill(BaseSkill):
     """Yahoo Finance data source skill."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.cache_ttl = config.get("cache_ttl", 300) if config else 300
         self.max_retries = config.get("max_retries", 3) if config else 3
@@ -29,7 +26,7 @@ class YFinanceSkill(BaseSkill):
 
         # Create cache
         self._cache = cachetools.TTLCache(maxsize=100, ttl=self.cache_ttl)
-        self._ticker_cache: Dict[str, yf.Ticker] = {}
+        self._ticker_cache: dict[str, yf.Ticker] = {}
 
     @property
     def skill_type(self) -> SkillType:
@@ -43,7 +40,7 @@ class YFinanceSkill(BaseSkill):
     def version(self) -> str:
         return "0.1.0"
 
-    def get_required_params(self) -> List[str]:
+    def get_required_params(self) -> list[str]:
         return ["symbol"]
 
     def _get_ticker(self, symbol: str) -> yf.Ticker:
@@ -52,7 +49,6 @@ class YFinanceSkill(BaseSkill):
             self._ticker_cache[symbol] = yf.Ticker(symbol)
         return self._ticker_cache[symbol]
 
-    @lru_cache(maxsize=50)
     def _get_ohlcv_data(self, symbol: str, period: str, interval: str) -> pd.DataFrame:
         """Get OHLCV data with caching."""
         cache_key = f"ohlcv_{symbol}_{period}_{interval}"
@@ -75,7 +71,7 @@ class YFinanceSkill(BaseSkill):
                 logger.warning(f"Attempt {attempt + 1} failed for {symbol}: {e}")
                 asyncio.sleep(self.retry_delay)
 
-    async def get_ohlcv(self, symbol: str, period: str = "60d", interval: str = "1d") -> List[OHLCV]:
+    async def get_ohlcv(self, symbol: str, period: str = "60d", interval: str = "1d") -> list[OHLCV]:
         """Get OHLCV data for a symbol."""
         try:
             data = await asyncio.to_thread(
@@ -185,7 +181,7 @@ class YFinanceSkill(BaseSkill):
             logger.error(f"Failed to get options chain for {symbol}: {e}")
             raise
 
-    async def get_fundamentals(self, symbol: str) -> Dict[str, Any]:
+    async def get_fundamentals(self, symbol: str) -> dict[str, Any]:
         """Get fundamental data for a symbol."""
         cache_key = f"fundamentals_{symbol}"
         if cache_key in self._cache:
@@ -229,7 +225,7 @@ class YFinanceSkill(BaseSkill):
             logger.error(f"Failed to get fundamentals for {symbol}: {e}")
             return {}
 
-    async def execute(self, params: Dict[str, Any]) -> SkillResult:
+    async def execute(self, params: dict[str, Any]) -> SkillResult:
         """Execute the skill."""
         try:
             symbol = params.get("symbol", "").upper()

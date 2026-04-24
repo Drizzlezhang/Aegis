@@ -1,19 +1,17 @@
 """Aegis-Memory Agent implementation."""
 
-from typing import Dict, List, Any, Optional
 import logging
-from datetime import datetime
-from pathlib import Path
 import sqlite3
+from pathlib import Path
+from typing import Any
 
 from src.agents.base import BaseAgent
-from src.models import AgentState
 from src.config import get_config
+from src.models import AgentState
 
+from . import queries
 from .storage import AnalysisStorage
 from .vector_store import VectorStore
-from . import queries
-
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +19,7 @@ logger = logging.getLogger(__name__)
 class AegisMemoryAgent(BaseAgent):
     """Aegis-Memory Agent: Records and retrieves trading analysis history with vector storage."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(
             name="Aegis-Memory",
             description="Records trading analysis results and provides historical recall with semantic search",
@@ -31,11 +29,10 @@ class AegisMemoryAgent(BaseAgent):
         self._db_path = Path(self._config.memory.sqlite_path).expanduser()
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._storage = AnalysisStorage(self._db_path)
-        self._vector_store: Optional[VectorStore] = None
+        self._vector_store: VectorStore | None = None
 
     async def initialize(self) -> None:
         """Initialize database schema and vector store."""
-        await super().initialize()
         self._storage.ensure_schema()
 
         # Initialize vector store
@@ -67,6 +64,7 @@ class AegisMemoryAgent(BaseAgent):
 
     async def _add_analysis_to_vector_store(self, state: AgentState) -> None:
         """Add analysis to vector store for semantic search."""
+        assert self._vector_store is not None  # noqa: S101
         try:
             # Get the latest analysis ID from SQLite
             with sqlite3.connect(str(self._db_path)) as conn:
@@ -116,11 +114,11 @@ class AegisMemoryAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Error adding analysis to vector store: {e}")
 
-    async def recall_recent_analysis(self, symbol: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def recall_recent_analysis(self, symbol: str, limit: int = 5) -> list[dict[str, Any]]:
         """Recall recent analysis results for a symbol."""
         return await queries.recall_recent_analysis(str(self._db_path), symbol, limit)
 
-    async def search_analysis_semantic(self, query: str, symbol: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    async def search_analysis_semantic(self, query: str, symbol: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
         """Search analysis results by semantic similarity."""
         if not self._vector_store:
             logger.warning("Vector store not available for semantic search")
@@ -156,11 +154,11 @@ class AegisMemoryAgent(BaseAgent):
 
         return full_results
 
-    async def recall_trading_actions(self, symbol: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    async def recall_trading_actions(self, symbol: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
         """Recall trading actions."""
         return await queries.recall_trading_actions(str(self._db_path), symbol, limit)
 
-    async def add_trading_action(self, action: Dict[str, Any]) -> bool:
+    async def add_trading_action(self, action: dict[str, Any]) -> bool:
         """Add a trading action record."""
         success = await queries.add_trading_action(str(self._db_path), action)
 
@@ -181,7 +179,7 @@ class AegisMemoryAgent(BaseAgent):
 
         return success
 
-    async def add_market_note(self, note: Dict[str, Any]) -> bool:
+    async def add_market_note(self, note: dict[str, Any]) -> bool:
         """Add a market note."""
         success = await queries.add_market_note(str(self._db_path), note)
 
@@ -203,14 +201,14 @@ class AegisMemoryAgent(BaseAgent):
         return success
 
     async def recall_market_notes(
-        self, symbol: Optional[str] = None, category: Optional[str] = None, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        self, symbol: str | None = None, category: str | None = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
         """Recall market notes."""
         return await queries.recall_market_notes(str(self._db_path), symbol, category, limit)
 
     async def search_market_notes_semantic(
-        self, query: str, symbol: Optional[str] = None, category: Optional[str] = None, limit: int = 5
-    ) -> List[Dict[str, Any]]:
+        self, query: str, symbol: str | None = None, category: str | None = None, limit: int = 5
+    ) -> list[dict[str, Any]]:
         """Search market notes by semantic similarity."""
         if not self._vector_store:
             logger.warning("Vector store not available for semantic search")
@@ -247,8 +245,8 @@ class AegisMemoryAgent(BaseAgent):
         return full_results
 
     async def search_trading_actions_semantic(
-        self, query: str, symbol: Optional[str] = None, action_type: Optional[str] = None, limit: int = 5
-    ) -> List[Dict[str, Any]]:
+        self, query: str, symbol: str | None = None, action_type: str | None = None, limit: int = 5
+    ) -> list[dict[str, Any]]:
         """Search trading actions by semantic similarity."""
         if not self._vector_store:
             logger.warning("Vector store not available for semantic search")
@@ -284,7 +282,7 @@ class AegisMemoryAgent(BaseAgent):
 
         return full_results
 
-    async def get_vector_store_stats(self) -> Dict[str, Any]:
+    async def get_vector_store_stats(self) -> dict[str, Any]:
         """Get vector store statistics."""
         if not self._vector_store:
             return {"error": "Vector store not available"}

@@ -1,17 +1,16 @@
 """Quant-Brain core calculation logic."""
 
-from typing import Dict, List, Any, Optional, Tuple
 import logging
-from datetime import datetime
 import statistics
+from datetime import datetime
+from typing import Any
 
 from src.models import SupportResistanceLevel, ValuationRange
-
 
 logger = logging.getLogger(__name__)
 
 
-async def calculate_volume_profile(ohlcv_data: List[Any], volume_profile_skill: Any, config: Any) -> Optional[Any]:
+async def calculate_volume_profile(ohlcv_data: list[Any], volume_profile_skill: Any, config: Any) -> Any | None:
     """Calculate volume profile from OHLCV data."""
     if not volume_profile_skill:
         logger.error("Volume profile skill not available")
@@ -38,7 +37,7 @@ async def calculate_volume_profile(ohlcv_data: List[Any], volume_profile_skill: 
         return None
 
 
-async def calculate_gex_walls(options_chain: Any, gex_calculator_skill: Any, config: Any) -> Optional[List[Any]]:
+async def calculate_gex_walls(options_chain: Any, gex_calculator_skill: Any, config: Any) -> list[Any] | None:
     """Calculate GEX walls from options chain."""
     if not gex_calculator_skill:
         logger.error("GEX calculator skill not available")
@@ -55,7 +54,7 @@ async def calculate_gex_walls(options_chain: Any, gex_calculator_skill: Any, con
         })
 
         if result.success:
-            return result.data
+            return result.data  # type: ignore[no-any-return]
         else:
             logger.error(f"Failed to calculate GEX walls: {result.error}")
             return None
@@ -65,9 +64,9 @@ async def calculate_gex_walls(options_chain: Any, gex_calculator_skill: Any, con
 
 
 async def calculate_pe_band_valuation(
-    symbol: str, current_price: float, fundamentals: Optional[Dict[str, Any]] = None,
-    pe_percentiles: Optional[List[float]] = None
-) -> Optional[ValuationRange]:
+    symbol: str, current_price: float, fundamentals: dict[str, Any] | None = None,
+    pe_percentiles: list[float] | None = None
+) -> ValuationRange | None:
     """Calculate valuation range using PE-Band method."""
     if not fundamentals or "pe_ratio" not in fundamentals:
         logger.warning(f"No PE ratio data for {symbol}, skipping PE-Band valuation")
@@ -126,10 +125,10 @@ async def calculate_pe_band_valuation(
 
 
 def create_support_resistance_levels(
-    volume_profile: Optional[Any],
-    gex_walls: Optional[List[Any]],
-    prior_levels: Optional[List[float]] = None
-) -> Tuple[List[SupportResistanceLevel], List[SupportResistanceLevel]]:
+    volume_profile: Any | None,
+    gex_walls: list[Any] | None,
+    prior_levels: list[float] | None = None
+) -> tuple[list[SupportResistanceLevel], list[SupportResistanceLevel]]:
     """Create support and resistance levels from multiple sources."""
     support_levels = []
     resistance_levels = []

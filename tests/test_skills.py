@@ -1,14 +1,15 @@
 """Tests for Skill loading mechanism."""
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.skills.base import BaseSkill, SkillResult, SkillType
-from src.skills.registry import SkillRegistry, SkillMeta, get_global_registry, set_global_registry
+from src.skills.registry import SkillMeta, SkillRegistry, get_global_registry, set_global_registry
 
 
 def create_test_skill():

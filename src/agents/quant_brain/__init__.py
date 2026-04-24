@@ -2,5 +2,4 @@
 
 from .agent import QuantBrainAgent
 
-
 __all__ = ["QuantBrainAgent"]

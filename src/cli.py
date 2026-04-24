@@ -1,18 +1,15 @@
 """Command-line interface for Aegis-Trader."""
 
-import asyncio
-import sys
 import argparse
-from typing import Optional, List, Dict, Any
-from pathlib import Path
+import asyncio
 import logging
+import sys
+from pathlib import Path
 
-from src.config import get_config, reload_config
 from src.agents.orchestrator import Orchestrator
-from src.skills.registry import get_global_registry, SkillRegistry
+from src.config import get_config, reload_config
 from src.llm.client import get_client as get_llm_client
-from src.agents.states import AgentState
-
+from src.skills.registry import get_global_registry
 
 # 设置日志
 logging.basicConfig(
@@ -23,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 async def run_analysis(
-    symbols: List[str],
+    symbols: list[str],
     analysis_type: str = "full",
     output_format: str = "json",
-    output_file: Optional[Path] = None
+    output_file: Path | None = None
 ) -> None:
     """运行分析流程."""
     logger.info(f"开始分析 {len(symbols)} 个标的: {symbols}")
@@ -124,7 +121,7 @@ async def check_health() -> None:
 
     # 检查 LLM 连接
     try:
-        llm_client = get_llm_client()
+        _llm_client = get_llm_client()
         # 简单的连接测试
         print("✓ LLM 客户端初始化成功")
     except Exception as e:
@@ -247,7 +244,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_symbols_from_args(args: argparse.Namespace) -> List[str]:
+def get_symbols_from_args(args: argparse.Namespace) -> list[str]:
     """从参数中获取标的列表."""
     symbols = []
 
@@ -256,7 +253,7 @@ def get_symbols_from_args(args: argparse.Namespace) -> List[str]:
         symbols = config.core_symbols
     elif args.file:
         try:
-            with open(args.file, 'r') as f:
+            with open(args.file) as f:
                 symbols = [line.strip() for line in f if line.strip()]
         except Exception as e:
             logger.error(f"读取文件失败: {e}")

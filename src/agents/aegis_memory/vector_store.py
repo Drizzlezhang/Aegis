@@ -1,24 +1,20 @@
 """Vector storage for semantic search and similarity retrieval."""
 
-from typing import Dict, List, Any, Optional, Tuple
 import logging
-from datetime import datetime
 from pathlib import Path
-import json
-import numpy as np
+from typing import Any
 
 try:
     import chromadb
     from chromadb.config import Settings
     from sentence_transformers import SentenceTransformer
-except ImportError:
+except ImportError as e:
     raise ImportError(
         "Vector store dependencies not installed. "
         "Run: pip install chromadb sentence-transformers"
-    )
+    ) from e
 
 from src.config import get_config
-
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +22,7 @@ logger = logging.getLogger(__name__)
 class VectorStore:
     """Vector storage for semantic search and similarity retrieval."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """Initialize vector store."""
         config = get_config()
 
@@ -49,28 +45,15 @@ class VectorStore:
         self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         self._embedding_dimension = 384  # all-MiniLM-L6-v2 output dimension
 
-        # Collections
-        self._analysis_collection = None
-        self._notes_collection = None
-        self._actions_collection = None
-
-        self._initialize_collections()
-
-    def _initialize_collections(self) -> None:
-        """Initialize ChromaDB collections."""
-        # Analysis results collection
+        # Initialize collections
         self._analysis_collection = self._client.get_or_create_collection(
             name="analysis_results",
             metadata={"description": "Analysis results with semantic search"}
         )
-
-        # Market notes collection
         self._notes_collection = self._client.get_or_create_collection(
             name="market_notes",
             metadata={"description": "Market notes with semantic search"}
         )
-
-        # Trading actions collection
         self._actions_collection = self._client.get_or_create_collection(
             name="trading_actions",
             metadata={"description": "Trading actions with semantic search"}
@@ -78,16 +61,16 @@ class VectorStore:
 
         logger.info(f"Vector store initialized at {self._db_path}")
 
-    def _generate_embedding(self, text: str) -> List[float]:
+    def _generate_embedding(self, text: str) -> list[float]:
         """Generate embedding for text."""
         if not text:
             return [0.0] * self._embedding_dimension
 
         # Generate embedding
         embedding = self._embedding_model.encode(text)
-        return embedding.tolist()
+        return list(embedding.tolist())
 
-    def _prepare_analysis_document(self, analysis_data: Dict[str, Any]) -> str:
+    def _prepare_analysis_document(self, analysis_data: dict[str, Any]) -> str:
         """Prepare analysis data for embedding."""
         parts = []
 
@@ -127,7 +110,7 @@ class VectorStore:
 
         return " | ".join(parts)
 
-    def _prepare_note_document(self, note_data: Dict[str, Any]) -> str:
+    def _prepare_note_document(self, note_data: dict[str, Any]) -> str:
         """Prepare market note for embedding."""
         parts = []
 
@@ -147,7 +130,7 @@ class VectorStore:
 
         return " | ".join(parts)
 
-    def _prepare_action_document(self, action_data: Dict[str, Any]) -> str:
+    def _prepare_action_document(self, action_data: dict[str, Any]) -> str:
         """Prepare trading action for embedding."""
         parts = []
 
@@ -171,7 +154,7 @@ class VectorStore:
 
         return " | ".join(parts)
 
-    def add_analysis(self, analysis_id: int, analysis_data: Dict[str, Any]) -> bool:
+    def add_analysis(self, analysis_id: int, analysis_data: dict[str, Any]) -> bool:
         """Add analysis result to vector store."""
         try:
             # Prepare document for embedding
@@ -200,7 +183,7 @@ class VectorStore:
             logger.error(f"Error adding analysis to vector store: {e}")
             return False
 
-    def add_market_note(self, note_id: int, note_data: Dict[str, Any]) -> bool:
+    def add_market_note(self, note_id: int, note_data: dict[str, Any]) -> bool:
         """Add market note to vector store."""
         try:
             # Prepare document for embedding
@@ -229,7 +212,7 @@ class VectorStore:
             logger.error(f"Error adding market note to vector store: {e}")
             return False
 
-    def add_trading_action(self, action_id: int, action_data: Dict[str, Any]) -> bool:
+    def add_trading_action(self, action_id: int, action_data: dict[str, Any]) -> bool:
         """Add trading action to vector store."""
         try:
             # Prepare document for embedding
@@ -258,7 +241,7 @@ class VectorStore:
             logger.error(f"Error adding trading action to vector store: {e}")
             return False
 
-    def search_analysis(self, query: str, symbol: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    def search_analysis(self, query: str, symbol: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
         """Search analysis results by semantic similarity."""
         try:
             # Generate query embedding
@@ -271,11 +254,9 @@ class VectorStore:
 
             # ChromaDB expects a single operator for where clause
             # Convert to proper query format
-            where_clause = None
+            where_clause: dict[str, Any] = {"type": "analysis"}
             if symbol:
                 where_clause = {"$and": [{"type": "analysis"}, {"symbol": symbol.upper()}]}
-            else:
-                where_clause = {"type": "analysis"}
 
             # Search in collection
             results = self._analysis_collection.query(
@@ -301,8 +282,8 @@ class VectorStore:
             logger.error(f"Error searching analysis: {e}")
             return []
 
-    def search_market_notes(self, query: str, symbol: Optional[str] = None,
-                           category: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    def search_market_notes(self, query: str, symbol: str | None = None,
+                           category: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
         """Search market notes by semantic similarity."""
         try:
             # Generate query embedding
@@ -316,15 +297,13 @@ class VectorStore:
                 where_filter["category"] = category
 
             # Convert to proper query format
-            where_clause = None
+            where_clause: dict[str, Any] = {"type": "note"}
             if symbol and category:
                 where_clause = {"$and": [{"type": "note"}, {"symbol": symbol.upper()}, {"category": category}]}
             elif symbol:
                 where_clause = {"$and": [{"type": "note"}, {"symbol": symbol.upper()}]}
             elif category:
                 where_clause = {"$and": [{"type": "note"}, {"category": category}]}
-            else:
-                where_clause = {"type": "note"}
 
             # Search in collection
             results = self._notes_collection.query(
@@ -350,8 +329,8 @@ class VectorStore:
             logger.error(f"Error searching market notes: {e}")
             return []
 
-    def search_trading_actions(self, query: str, symbol: Optional[str] = None,
-                              action_type: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    def search_trading_actions(self, query: str, symbol: str | None = None,
+                              action_type: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
         """Search trading actions by semantic similarity."""
         try:
             # Generate query embedding
@@ -365,15 +344,13 @@ class VectorStore:
                 where_filter["action_type"] = action_type
 
             # Convert to proper query format
-            where_clause = None
+            where_clause: dict[str, Any] = {"type": "action"}
             if symbol and action_type:
                 where_clause = {"$and": [{"type": "action"}, {"symbol": symbol.upper()}, {"action_type": action_type}]}
             elif symbol:
                 where_clause = {"$and": [{"type": "action"}, {"symbol": symbol.upper()}]}
             elif action_type:
                 where_clause = {"$and": [{"type": "action"}, {"action_type": action_type}]}
-            else:
-                where_clause = {"type": "action"}
 
             # Search in collection
             results = self._actions_collection.query(
@@ -429,7 +406,7 @@ class VectorStore:
             logger.error(f"Error deleting trading action from vector store: {e}")
             return False
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get vector store statistics."""
         try:
             analysis_count = self._analysis_collection.count()

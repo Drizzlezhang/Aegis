@@ -1,17 +1,17 @@
 """Global configuration management."""
 
-from typing import Dict, Any, Optional, List
-from pydantic import BaseModel, Field, ConfigDict, field_validator
-from pydantic_settings import BaseSettings
-import os
 from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DataSourceConfig(BaseModel):
     """Data source configuration."""
     yfinance_enabled: bool = True
     alpha_vantage_enabled: bool = False
-    alpha_vantage_api_key: Optional[str] = None
+    alpha_vantage_api_key: str | None = None
     cache_ttl_seconds: int = 300  # 5 minutes
 
 
@@ -22,8 +22,8 @@ class LLMConfig(BaseModel):
     long_context_model: str = "gemini-pro"
     quick_model: str = "minimax-2.7"
     code_model: str = "glm5.1"
-    api_base_url: Optional[str] = None
-    api_key: Optional[str] = None
+    api_base_url: str | None = None
+    api_key: str | None = None
 
 
 class AlgorithmConfig(BaseModel):
@@ -31,7 +31,7 @@ class AlgorithmConfig(BaseModel):
     volume_profile_bins: int = 100
     value_area_percentage: float = 0.7  # 70%
     gex_calculation_method: str = "simplified"  # simplified | black_scholes
-    pe_band_percentiles: List[float] = Field(default=[0.1, 0.25, 0.5, 0.75, 0.9])
+    pe_band_percentiles: list[float] = Field(default=[0.1, 0.25, 0.5, 0.75, 0.9])
 
 
 class MemoryConfig(BaseModel):
@@ -61,7 +61,7 @@ class AgentConfig(BaseModel):
 
 class Config(BaseSettings):
     """Main configuration."""
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_prefix="AEGIS_",
         env_nested_delimiter="__",
         case_sensitive=False
@@ -76,7 +76,7 @@ class Config(BaseSettings):
 
     # Paths
     base_dir: Path = Path(__file__).parent.parent
-    skill_dirs: List[Path] = Field(default=[Path("skills")])
+    skill_dirs: list[Path] = Field(default=[Path("skills")])
     data_dir: Path = Field(default=Path("~/.aegis-trader/data"))
     cache_dir: Path = Field(default=Path("~/.aegis-trader/cache"))
     log_dir: Path = Field(default=Path("~/.aegis-trader/logs"))
@@ -90,18 +90,18 @@ class Config(BaseSettings):
     agent: AgentConfig = Field(default_factory=AgentConfig)
 
     # Core symbols
-    core_symbols: List[str] = Field(default=[
+    core_symbols: list[str] = Field(default=[
         "QQQ", "SPY", "NVDA", "MSFT", "AAPL", "KO", "PLTR", "NFLX", "INTC", "TSM", "TSLA"
     ])
 
     # Strategy
     min_leaps_days_to_expiry: int = 300  # ~10 months
-    call_delta_range: List[float] = Field(default=[0.6, 0.8])
+    call_delta_range: list[float] = Field(default=[0.6, 0.8])
     support_distance_threshold: float = 0.02  # 2%
 
     @field_validator("skill_dirs", "data_dir", "cache_dir", "log_dir", mode="before")
     @classmethod
-    def resolve_paths(cls, value):
+    def resolve_paths(cls, value: Any) -> Any:
         """Resolve paths to absolute paths."""
         if isinstance(value, list):
             return [Path(str(v)).expanduser().resolve() for v in value]
@@ -109,7 +109,7 @@ class Config(BaseSettings):
 
     @field_validator("core_symbols")
     @classmethod
-    def validate_symbols(cls, value):
+    def validate_symbols(cls, value: Any) -> Any:
         """Validate core symbols."""
         if not value:
             raise ValueError("core_symbols cannot be empty")
@@ -117,7 +117,7 @@ class Config(BaseSettings):
 
 
 # Global config instance
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:
@@ -141,7 +141,7 @@ def reload_config() -> Config:
     return _config
 
 
-def get_config_dict() -> Dict[str, Any]:
+def get_config_dict() -> dict[str, Any]:
     """Get configuration as dictionary."""
     config = get_config()
     return config.model_dump()

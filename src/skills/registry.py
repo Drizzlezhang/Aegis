@@ -1,10 +1,11 @@
 """Skill registry implementation."""
 
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Type, Union
 import importlib.util
-import yaml
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 from .base import BaseSkill, SkillResult, SkillType
 
@@ -14,8 +15,8 @@ class SkillMeta:
     """Metadata for a skill."""
     name: str
     path: Path
-    config: Dict[str, Any]
-    skill_class: Optional[Type[BaseSkill]] = None
+    config: dict[str, Any]
+    skill_class: type[BaseSkill] | None = None
 
     @property
     def skill_type(self) -> SkillType:
@@ -25,17 +26,17 @@ class SkillMeta:
     @property
     def description(self) -> str:
         """Get description from config."""
-        return self.config.get("description", "")
+        return str(self.config.get("description", ""))
 
     @property
     def version(self) -> str:
         """Get version from config."""
-        return self.config.get("version", "0.1.0")
+        return str(self.config.get("version", "0.1.0"))
 
     @property
-    def dependencies(self) -> List[str]:
+    def dependencies(self) -> list[str]:
         """Get dependencies from config."""
-        return self.config.get("dependencies", [])
+        return list(self.config.get("dependencies", []))
 
     def load_skill(self) -> BaseSkill:
         """Load the skill class."""
@@ -47,18 +48,18 @@ class SkillMeta:
 class SkillRegistry:
     """Registry for discovering and loading skills."""
 
-    def __init__(self, skill_dirs: Optional[List[Union[str, Path]]] = None):
+    def __init__(self, skill_dirs: list[str | Path] | None = None):
         self.skill_dirs = [Path(d) for d in skill_dirs] if skill_dirs else []
-        self._skills: Dict[str, SkillMeta] = {}
-        self._loaded_skills: Dict[str, BaseSkill] = {}
+        self._skills: dict[str, SkillMeta] = {}
+        self._loaded_skills: dict[str, BaseSkill] = {}
 
-    def add_skill_dir(self, skill_dir: Union[str, Path]) -> None:
+    def add_skill_dir(self, skill_dir: str | Path) -> None:
         """Add a skill directory to search."""
         path = Path(skill_dir)
         if path not in self.skill_dirs:
             self.skill_dirs.append(path)
 
-    def discover_skills(self) -> List[SkillMeta]:
+    def discover_skills(self) -> list[SkillMeta]:
         """Discover skills in all registered directories."""
         all_skills = []
 
@@ -79,7 +80,7 @@ class SkillRegistry:
 
     def _load_skill_meta(self, yaml_path: Path) -> SkillMeta:
         """Load skill metadata from YAML file."""
-        with open(yaml_path, 'r') as f:
+        with open(yaml_path) as f:
             config = yaml.safe_load(f)
 
         if not config:
@@ -124,7 +125,7 @@ class SkillRegistry:
             skill_class=skill_class
         )
 
-    def get_skill(self, name: str) -> Optional[BaseSkill]:
+    def get_skill(self, name: str) -> BaseSkill | None:
         """Get a skill instance by name."""
         if name in self._loaded_skills:
             return self._loaded_skills[name]
@@ -137,15 +138,15 @@ class SkillRegistry:
         self._loaded_skills[name] = skill_instance
         return skill_instance
 
-    def get_skills_by_type(self, skill_type: SkillType) -> List[SkillMeta]:
+    def get_skills_by_type(self, skill_type: SkillType) -> list[SkillMeta]:
         """Get all skills of a specific type."""
         return [meta for meta in self._skills.values() if meta.skill_type == skill_type]
 
-    def get_all_skills(self) -> List[SkillMeta]:
+    def get_all_skills(self) -> list[SkillMeta]:
         """Get all discovered skills."""
         return list(self._skills.values())
 
-    async def execute_skill(self, name: str, params: Dict[str, Any]) -> SkillResult:
+    async def execute_skill(self, name: str, params: dict[str, Any]) -> SkillResult:
         """Execute a skill by name."""
         skill = self.get_skill(name)
         if not skill:
@@ -170,7 +171,7 @@ class SkillRegistry:
 
 
 # Global registry instance
-_registry: Optional[SkillRegistry] = None
+_registry: SkillRegistry | None = None
 
 
 def get_global_registry() -> SkillRegistry:

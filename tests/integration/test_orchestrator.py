@@ -1,17 +1,20 @@
 """End-to-end integration tests for the multi-agent pipeline."""
 
-import pytest
 import sys
+from datetime import date, datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from datetime import datetime, date
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.orchestrator import Orchestrator
 from src.models import (
-    AgentState, OHLCV, OptionContract, OptionChain, OptionType,
-    SupportResistanceLevel, ValuationRange, VolumeProfile, GEXWall
+    OHLCV,
+    OptionChain,
+    OptionContract,
+    OptionType,
 )
 
 
@@ -168,7 +171,7 @@ async def test_batch_analysis(orchestrator):
     states = await orchestrator.analyze_symbols(symbols)
 
     assert len(states) == 2
-    for symbol, state in zip(symbols, states):
+    for symbol, state in zip(symbols, states, strict=False):
         assert state.symbol == symbol
         assert any("Data-Harvester" in step for step in state.agent_sequence)
 

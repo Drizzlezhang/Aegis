@@ -1,16 +1,13 @@
 """Data-Harvester Agent implementation."""
 
-from typing import Dict, List, Any, Optional
 import asyncio
 import logging
-from datetime import datetime, date
+from typing import Any
 
 from src.agents.base import BaseAgent
-from src.agents.states import AgentOutput
-from src.models import AgentState
 from src.config import get_config
+from src.models import AgentState
 from src.skills import get_global_registry
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DataHarvesterAgent(BaseAgent):
     """Data-Harvester Agent: Collects market data from various sources."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(
             name="Data-Harvester",
             description="Collects OHLCV data, options chain, and fundamental data from various sources",
@@ -26,7 +23,7 @@ class DataHarvesterAgent(BaseAgent):
         )
         self._config = get_config()
         self._skill_registry = get_global_registry()
-        self._yfinance_skill = None
+        self._yfinance_skill: Any = None
 
     async def initialize(self) -> None:
         """Initialize data sources and skills."""
@@ -43,7 +40,7 @@ class DataHarvesterAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Failed to initialize yfinance skill: {e}")
 
-    async def _get_ohlcv_data(self, symbol: str) -> Optional[List[Any]]:
+    async def _get_ohlcv_data(self, symbol: str) -> list[Any] | None:
         """Get OHLCV data for a symbol."""
         if not self._yfinance_skill:
             logger.error("yfinance skill not available")
@@ -58,7 +55,7 @@ class DataHarvesterAgent(BaseAgent):
             })
 
             if result.success:
-                return result.data
+                return result.data  # type: ignore[no-any-return]
             else:
                 logger.error(f"Failed to get OHLCV for {symbol}: {result.error}")
                 return None
@@ -66,7 +63,7 @@ class DataHarvesterAgent(BaseAgent):
             logger.error(f"Error getting OHLCV for {symbol}: {e}")
             return None
 
-    async def _get_options_chain(self, symbol: str) -> Optional[Any]:
+    async def _get_options_chain(self, symbol: str) -> Any | None:
         """Get options chain for a symbol."""
         if not self._yfinance_skill:
             logger.error("yfinance skill not available")
@@ -87,7 +84,7 @@ class DataHarvesterAgent(BaseAgent):
             logger.error(f"Error getting options chain for {symbol}: {e}")
             return None
 
-    async def _get_fundamentals(self, symbol: str) -> Optional[Dict[str, Any]]:
+    async def _get_fundamentals(self, symbol: str) -> dict[str, Any] | None:
         """Get fundamental data for a symbol."""
         if not self._yfinance_skill:
             logger.error("yfinance skill not available")
@@ -100,7 +97,7 @@ class DataHarvesterAgent(BaseAgent):
             })
 
             if result.success:
-                return result.data
+                return result.data  # type: ignore[no-any-return]
             else:
                 logger.warning(f"Failed to get fundamentals for {symbol}: {result.error}")
                 return None
@@ -108,7 +105,7 @@ class DataHarvesterAgent(BaseAgent):
             logger.warning(f"Error getting fundamentals for {symbol}: {e}")
             return None
 
-    async def _get_all_data(self, symbol: str) -> Dict[str, Any]:
+    async def _get_all_data(self, symbol: str) -> dict[str, Any]:
         """Get all data types in parallel."""
         tasks = [
             self._get_ohlcv_data(symbol),
@@ -118,7 +115,7 @@ class DataHarvesterAgent(BaseAgent):
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        data = {}
+        data: dict[str, Any] = {}
         data_types = ["ohlcv", "options", "fundamentals"]
 
         for i, result in enumerate(results):
@@ -139,17 +136,6 @@ class DataHarvesterAgent(BaseAgent):
         # Get all data
         data = await self._get_all_data(symbol)
 
-        # Create output
-        output = AgentOutput(
-            agent_name=self.name,
-            timestamp=datetime.now(),
-            ohlcv_data=data.get("ohlcv"),
-            options_chain=data.get("options"),
-            analysis_report=self._create_analysis_report(symbol, data),
-            source_skills=["yfinance_ohlcv"] if self._yfinance_skill else [],
-            source_data=["yahoo_finance"]
-        )
-
         # Update state with data
         if data["ohlcv"]:
             state.ohlcv_data = data["ohlcv"]
@@ -162,7 +148,7 @@ class DataHarvesterAgent(BaseAgent):
         logger.info(f"Data-Harvester completed for symbol: {symbol}")
         return state
 
-    def _create_analysis_report(self, symbol: str, data: Dict[str, Any]) -> str:
+    def _create_analysis_report(self, symbol: str, data: dict[str, Any]) -> str:
         """Create a brief analysis report of the collected data."""
         report = f"Data-Harvester Report for {symbol}\n"
         report += "=" * 40 + "\n"
@@ -220,6 +206,6 @@ class DataHarvesterAgent(BaseAgent):
                 "period": "1d",
                 "interval": "1d"
             })
-            return result.success
+            return result.success  # type: ignore[no-any-return]
         except Exception:
             return False

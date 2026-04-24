@@ -1,10 +1,9 @@
 """Strategy generation logic for Strategy-Execution Agent."""
 
-from typing import Dict, List, Any, Optional
 import logging
+from typing import Any
 
 from src.models import RecommendedOption, SupportResistanceLevel
-
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +11,10 @@ logger = logging.getLogger(__name__)
 def generate_leaps_call_strategy(
     symbol: str,
     options_chain: Any,
-    entry_support: Optional[SupportResistanceLevel],
-    valuation_range: Optional[Any],
+    entry_support: SupportResistanceLevel | None,
+    valuation_range: Any | None,
     current_price: float
-) -> Optional[RecommendedOption]:
+) -> RecommendedOption | None:
     """Generate LEAPS Call strategy recommendation."""
     try:
         leaps_calls = [
@@ -86,7 +85,7 @@ def generate_bull_spread_strategy(
     options_chain: Any,
     entry_support: SupportResistanceLevel,
     current_price: float
-) -> Optional[RecommendedOption]:
+) -> RecommendedOption | None:
     """Generate Bull Spread strategy recommendation."""
     try:
         leaps_calls = [c for c in options_chain.calls if c.is_leaps]
@@ -155,9 +154,9 @@ def generate_bull_spread_strategy(
 def generate_covered_call_strategy(
     symbol: str,
     options_chain: Any,
-    resistance_levels: List[SupportResistanceLevel],
+    resistance_levels: list[SupportResistanceLevel],
     current_price: float
-) -> Optional[RecommendedOption]:
+) -> RecommendedOption | None:
     """Generate Covered Call strategy recommendation."""
     try:
         target_strike = None

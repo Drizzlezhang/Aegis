@@ -1,15 +1,13 @@
 """Volume Profile algorithm skill."""
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Any, Tuple
 import logging
 from datetime import datetime
+from typing import Any
 
-from src.skills.base import BaseSkill, SkillResult, SkillType
+import numpy as np
+
 from src.models import OHLCV, VolumeProfile
-from src.config import get_config
-
+from src.skills.base import BaseSkill, SkillResult, SkillType
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +15,7 @@ logger = logging.getLogger(__name__)
 class VolumeProfileSkill(BaseSkill):
     """Volume Profile algorithm skill."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.default_bins = config.get("default_bins", 100) if config else 100
         self.value_area_percentage = config.get("value_area_percentage", 0.7) if config else 0.7
@@ -35,7 +33,7 @@ class VolumeProfileSkill(BaseSkill):
     def version(self) -> str:
         return "0.1.0"
 
-    def get_required_params(self) -> List[str]:
+    def get_required_params(self) -> list[str]:
         return ["ohlcv_data"]
 
     def _calculate_volume_profile(
@@ -43,7 +41,7 @@ class VolumeProfileSkill(BaseSkill):
         prices: np.ndarray,
         volumes: np.ndarray,
         num_bins: int
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate volume profile from price and volume data.
 
         Args:
@@ -66,7 +64,7 @@ class VolumeProfileSkill(BaseSkill):
         volume_bins = np.zeros(num_bins)
 
         # Distribute volume to bins
-        for price, volume in zip(prices, volumes):
+        for price, volume in zip(prices, volumes, strict=False):
             # Find which bin this price belongs to
             bin_idx = np.digitize(price, bin_edges) - 1
             # Ensure bin_idx is within bounds
@@ -88,7 +86,7 @@ class VolumeProfileSkill(BaseSkill):
         price_bins: np.ndarray,
         volume_bins: np.ndarray,
         poc_price: float
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Find Value Area High and Low.
 
         Value Area is the price range that contains value_area_percentage of total volume.
@@ -133,8 +131,8 @@ class VolumeProfileSkill(BaseSkill):
 
     def calculate_volume_profile(
         self,
-        ohlcv_data: List[OHLCV],
-        num_bins: Optional[int] = None
+        ohlcv_data: list[OHLCV],
+        num_bins: int | None = None
     ) -> VolumeProfile:
         """Calculate volume profile from OHLCV data."""
         if not ohlcv_data:
@@ -178,7 +176,7 @@ class VolumeProfileSkill(BaseSkill):
 
         return volume_profile
 
-    async def execute(self, params: Dict[str, Any]) -> SkillResult:
+    async def execute(self, params: dict[str, Any]) -> SkillResult:
         """Execute the skill."""
         try:
             ohlcv_data = params.get("ohlcv_data")
@@ -220,11 +218,11 @@ class VolumeProfileSkill(BaseSkill):
 
 # Helper function for quick calculation
 def calculate_volume_profile_quick(
-    prices: List[float],
-    volumes: List[int],
+    prices: list[float],
+    volumes: list[int],
     num_bins: int = 100,
     value_area_percentage: float = 0.7
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Quick volume profile calculation (for testing)."""
     skill = VolumeProfileSkill({
         "default_bins": num_bins,
@@ -232,11 +230,12 @@ def calculate_volume_profile_quick(
     })
 
     # Create mock OHLCV objects
-    from src.models import OHLCV
     from datetime import datetime
 
+    from src.models import OHLCV
+
     ohlcv_data = []
-    for i, (price, volume) in enumerate(zip(prices, volumes)):
+    for _i, (price, volume) in enumerate(zip(prices, volumes, strict=False)):
         ohlcv = OHLCV(
             symbol="TEST",
             timestamp=datetime.now(),

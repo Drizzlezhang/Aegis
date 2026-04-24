@@ -1,11 +1,10 @@
 """Tests for vector storage functionality."""
 
-import pytest
 import sys
 import tempfile
-import os
 from pathlib import Path
-import json
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

@@ -1,7 +1,7 @@
 """Analysis data models."""
 
-from typing import List, Optional
 from datetime import datetime
+
 from pydantic import BaseModel, field_validator
 
 
@@ -9,8 +9,8 @@ class VolumeProfile(BaseModel):
     """Volume profile data model."""
     symbol: str
     timestamp: datetime
-    price_bins: List[float]
-    volume_bins: List[float]
+    price_bins: list[float]
+    volume_bins: list[float]
     poc_price: float  # Point of Control
     vah_price: float  # Value Area High
     val_price: float  # Value Area Low

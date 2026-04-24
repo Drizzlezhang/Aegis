@@ -1,13 +1,13 @@
 """Market data models."""
 
-from typing import List
 from datetime import datetime
-from pydantic import BaseModel
-from enum import Enum
+from enum import StrEnum
+
 import pandas as pd
+from pydantic import BaseModel
 
 
-class AssetType(str, Enum):
+class AssetType(StrEnum):
     """Asset type enumeration."""
     STOCK = "stock"
     ETF = "etf"
@@ -34,7 +34,7 @@ class OHLCV(BaseModel):
         return pd.DataFrame([self.model_dump()])
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, symbol: str) -> List["OHLCV"]:
+    def from_dataframe(cls, df: pd.DataFrame, symbol: str) -> list["OHLCV"]:
         """Create from pandas DataFrame."""
         ohlcv_list = []
         for _, row in df.iterrows():

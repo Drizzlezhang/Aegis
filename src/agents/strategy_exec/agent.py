@@ -1,15 +1,18 @@
 """Strategy-Execution Agent implementation."""
 
-from typing import Dict, List, Any, Optional
 import logging
+from typing import Any
 
 from src.agents.base import BaseAgent
-from src.models import AgentState
 from src.config import get_config
+from src.models import AgentState
 
-from .strategies import generate_leaps_call_strategy, generate_bull_spread_strategy, generate_covered_call_strategy
 from .report import create_action_report
-
+from .strategies import (
+    generate_bull_spread_strategy,
+    generate_covered_call_strategy,
+    generate_leaps_call_strategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +20,17 @@ logger = logging.getLogger(__name__)
 class StrategyExecAgent(BaseAgent):
     """Strategy-Execution Agent: Generates options strategy recommendations."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(
             name="Strategy-Execution",
             description="Generates options strategy recommendations based on support/resistance levels and valuation",
             config=config or {}
         )
         self._config = get_config()
+
+    async def initialize(self) -> None:
+        """Initialize strategy execution resources."""
+        pass
 
     async def run(self, state: AgentState) -> AgentState:
         """Execute strategy generation for the given symbol."""

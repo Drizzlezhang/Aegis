@@ -2,11 +2,11 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class SkillType(str, Enum):
+class SkillType(StrEnum):
     """Skill type enumeration."""
     DATA_SOURCE = "data_source"
     ALGORITHM = "algorithm"
@@ -19,12 +19,12 @@ class SkillType(str, Enum):
 class SkillResult:
     """Result from skill execution."""
     success: bool
-    data: Optional[Any] = None
-    metadata: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    data: Any | None = None
+    metadata: dict[str, Any] | None = None
+    error: str | None = None
 
     @classmethod
-    def success_result(cls, data: Any, metadata: Optional[Dict[str, Any]] = None) -> "SkillResult":
+    def success_result(cls, data: Any, metadata: dict[str, Any] | None = None) -> "SkillResult":
         """Create a successful result."""
         return cls(success=True, data=data, metadata=metadata)
 
@@ -37,7 +37,7 @@ class SkillResult:
 class BaseSkill(ABC):
     """Base class for all skills."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.name = self.__class__.__name__
         self._initialized = False
@@ -65,7 +65,7 @@ class BaseSkill(ABC):
         self._initialized = True
 
     @abstractmethod
-    async def execute(self, params: Dict[str, Any]) -> SkillResult:
+    async def execute(self, params: dict[str, Any]) -> SkillResult:
         """Execute the skill with given parameters."""
         pass
 
@@ -73,7 +73,7 @@ class BaseSkill(ABC):
         """Validate skill configuration (optional)."""
         return True
 
-    def get_required_params(self) -> List[str]:
+    def get_required_params(self) -> list[str]:
         """Get list of required parameters (optional)."""
         return []
 

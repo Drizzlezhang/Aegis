@@ -1,17 +1,17 @@
 """Quant-Brain report generation."""
 
-from typing import List, Any, Optional
+from typing import Any
 
 from src.models import SupportResistanceLevel, ValuationRange
 
 
 def create_analysis_report(
     symbol: str,
-    volume_profile: Optional[Any],
-    gex_walls: Optional[List[Any]],
-    support_levels: List[SupportResistanceLevel],
-    resistance_levels: List[SupportResistanceLevel],
-    valuation_range: Optional[ValuationRange]
+    volume_profile: Any | None,
+    gex_walls: list[Any] | None,
+    support_levels: list[SupportResistanceLevel],
+    resistance_levels: list[SupportResistanceLevel],
+    valuation_range: ValuationRange | None
 ) -> str:
     """Create quantitative analysis report."""
     report = f"Quant-Brain Analysis Report for {symbol}\n"
@@ -56,7 +56,7 @@ def create_analysis_report(
     return report
 
 
-def _append_levels(report: str, label: str, levels: List[SupportResistanceLevel]) -> None:
+def _append_levels(report: str, label: str, levels: list[SupportResistanceLevel]) -> None:
     """Append levels to report."""
     if levels:
         report += f"  • {label} Levels ({len(levels)}):\n"
@@ -68,7 +68,7 @@ def _append_levels(report: str, label: str, levels: List[SupportResistanceLevel]
         report += f"  • No {label.lower()} levels identified\n"
 
 
-def _append_valuation(report: str, valuation_range: Optional[ValuationRange]) -> None:
+def _append_valuation(report: str, valuation_range: ValuationRange | None) -> None:
     """Append valuation to report."""
     if valuation_range:
         report += f"  • Current Price: {valuation_range.current_price:.2f}\n"

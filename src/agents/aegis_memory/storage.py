@@ -1,14 +1,11 @@
 """Database storage operations for Aegis-Memory Agent."""
 
-from typing import Dict, List, Any, Optional
-import logging
 import json
+import logging
 import sqlite3
-from datetime import date
 from pathlib import Path
 
 from src.models import AgentState
-
 
 logger = logging.getLogger(__name__)
 

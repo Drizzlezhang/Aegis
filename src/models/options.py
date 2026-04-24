@@ -1,14 +1,12 @@
 """Options data models."""
 
-from typing import List, Dict, Optional
-from datetime import datetime, date
+from datetime import date, datetime
+from enum import StrEnum
+
 from pydantic import BaseModel
-from enum import Enum
-
-from .market import OHLCV
 
 
-class OptionType(str, Enum):
+class OptionType(StrEnum):
     """Option type enumeration."""
     CALL = "call"
     PUT = "put"
@@ -57,11 +55,11 @@ class OptionChain(BaseModel):
     symbol: str
     timestamp: datetime
     spot_price: float
-    calls: List[OptionContract]
-    puts: List[OptionContract]
-    expiry_dates: List[date]
+    calls: list[OptionContract]
+    puts: list[OptionContract]
+    expiry_dates: list[date]
 
-    def get_contracts_by_expiry(self, expiry: date) -> Dict[OptionType, List[OptionContract]]:
+    def get_contracts_by_expiry(self, expiry: date) -> dict[OptionType, list[OptionContract]]:
         """Get contracts by expiry date."""
         return {
             OptionType.CALL: [c for c in self.calls if c.expiry == expiry],

@@ -1,6 +1,5 @@
 """Report generation for Orchestrator."""
 
-from typing import Any, Optional
 
 from src.models import AgentState
 

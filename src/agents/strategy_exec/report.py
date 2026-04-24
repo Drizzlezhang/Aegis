@@ -1,16 +1,16 @@
 """Report generation for Strategy-Execution Agent."""
 
-from typing import List, Any, Optional
+from typing import Any
 
 from src.models import RecommendedOption, SupportResistanceLevel
 
 
 def create_action_report(
     symbol: str,
-    recommendations: List[RecommendedOption],
-    support_levels: List[SupportResistanceLevel],
-    resistance_levels: List[SupportResistanceLevel],
-    valuation_range: Optional[Any]
+    recommendations: list[RecommendedOption],
+    support_levels: list[SupportResistanceLevel],
+    resistance_levels: list[SupportResistanceLevel],
+    valuation_range: Any | None
 ) -> str:
     """Create action report with strategy recommendations."""
     report = f"Strategy-Execution Report for {symbol}\n"

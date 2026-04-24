@@ -1,16 +1,14 @@
 """Tests for GEX calculator algorithm."""
 
-import pytest
 import sys
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from datetime import datetime, date, timedelta
-import pandas as pd
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models import OptionChain, OptionContract, OptionType
 from skills.algorithms.gex_calculator.skill import GEXCalculatorSkill, calculate_gex_quick
+from src.models import OptionChain, OptionContract, OptionType
 
 
 def create_mock_option_chain(
@@ -33,7 +31,7 @@ def create_mock_option_chain(
     calls = []
     puts = []
 
-    for strike, oi in zip(strikes, call_oi):
+    for strike, oi in zip(strikes, call_oi, strict=False):
         if oi > 0:
             contract = OptionContract(
                 symbol=symbol,
@@ -46,7 +44,7 @@ def create_mock_option_chain(
             )
             calls.append(contract)
 
-    for strike, oi in zip(strikes, put_oi):
+    for strike, oi in zip(strikes, put_oi, strict=False):
         if oi > 0:
             contract = OptionContract(
                 symbol=symbol,

@@ -1,16 +1,20 @@
 """Quant-Brain Agent implementation."""
 
-from typing import Dict, List, Any, Optional
 import logging
+from typing import Any
 
 from src.agents.base import BaseAgent
-from src.models import AgentState
 from src.config import get_config
+from src.models import AgentState
 from src.skills import get_global_registry
 
-from .core import calculate_volume_profile, calculate_gex_walls, calculate_pe_band_valuation, create_support_resistance_levels
+from .core import (
+    calculate_gex_walls,
+    calculate_pe_band_valuation,
+    calculate_volume_profile,
+    create_support_resistance_levels,
+)
 from .llm_integration import generate_llm_enhanced_report
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +22,7 @@ logger = logging.getLogger(__name__)
 class QuantBrainAgent(BaseAgent):
     """Quant-Brain Agent: Institutional-level quantitative analysis."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(
             name="Quant-Brain",
             description="Institutional-level quantitative analysis including support/resistance levels and valuation ranges",
@@ -26,8 +30,8 @@ class QuantBrainAgent(BaseAgent):
         )
         self._config = get_config()
         self._skill_registry = get_global_registry()
-        self._volume_profile_skill = None
-        self._gex_calculator_skill = None
+        self._volume_profile_skill: Any = None
+        self._gex_calculator_skill: Any = None
 
     async def initialize(self) -> None:
         """Initialize quantitative analysis skills."""
@@ -63,7 +67,7 @@ class QuantBrainAgent(BaseAgent):
         # Get data from state
         ohlcv_data = state.ohlcv_data
         options_chain = state.options_chain
-        fundamentals = {}  # Placeholder for now
+        fundamentals: dict[str, Any] = {}  # Placeholder for now
 
         # Calculate volume profile
         volume_profile = None

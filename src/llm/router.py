@@ -1,17 +1,16 @@
 """LLM router for model selection based on task type."""
 
-from typing import Dict, Any, Optional, List, Union
-from enum import Enum
 import logging
 from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any
 
 from src.config import get_config
-
 
 logger = logging.getLogger(__name__)
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     """Task type enumeration for model routing."""
     # Architecture & Planning
     ARCHITECTURE = "architecture"  # System design, high-level planning
@@ -51,14 +50,14 @@ class ModelRouting:
     max_tokens: int
     temperature: float
     description: str
-    cost_per_1k_tokens: Optional[float] = None
+    cost_per_1k_tokens: float | None = None
 
 
 class LLMRouter:
     """Router for selecting appropriate LLM model based on task."""
 
     # Model registry with default configurations
-    MODEL_REGISTRY: Dict[str, ModelRouting] = {
+    MODEL_REGISTRY: dict[str, ModelRouting] = {
         # DeepSeek models (reasoning, code)
         "deepseek-v3.2": ModelRouting(
             model_name="deepseek-v3.2",
@@ -111,7 +110,7 @@ class LLMRouter:
     }
 
     # Task type to default model mapping - 统一使用 deepseek-v3.2
-    DEFAULT_ROUTING: Dict[TaskType, str] = {
+    DEFAULT_ROUTING: dict[TaskType, str] = {
         # 所有任务类型都使用 deepseek-v3.2
         TaskType.ARCHITECTURE: "deepseek-v3.2",
         TaskType.PLAN: "deepseek-v3.2",
@@ -132,13 +131,13 @@ class LLMRouter:
         TaskType.STATUS: "deepseek-v3.2"
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize router with configuration."""
         self.config = config or {}
         self._user_overrides = self.config.get("model_overrides", {})
 
-    def get_model_for_task(self, task_type: Union[TaskType, str],
-                          context_length: Optional[int] = None) -> ModelRouting:
+    def get_model_for_task(self, task_type: TaskType | str,
+                          context_length: int | None = None) -> ModelRouting:
         """
         Get appropriate model for a given task type.
 
@@ -177,21 +176,21 @@ class LLMRouter:
 
         return self.MODEL_REGISTRY[model_name]
 
-    def get_model_by_name(self, model_name: str) -> Optional[ModelRouting]:
+    def get_model_by_name(self, model_name: str) -> ModelRouting | None:
         """Get model configuration by name."""
         return self.MODEL_REGISTRY.get(model_name)
 
-    def list_available_models(self) -> List[str]:
+    def list_available_models(self) -> list[str]:
         """List all available model names."""
         return list(self.MODEL_REGISTRY.keys())
 
-    def get_models_by_provider(self, provider: str) -> List[ModelRouting]:
+    def get_models_by_provider(self, provider: str) -> list[ModelRouting]:
         """Get all models from a specific provider."""
         return [model for model in self.MODEL_REGISTRY.values()
                 if model.provider == provider]
 
     def estimate_cost(self, model_name: str, input_tokens: int,
-                     output_tokens: int) -> Optional[float]:
+                     output_tokens: int) -> float | None:
         """
         Estimate cost for a given model and token usage.
 
@@ -254,7 +253,7 @@ class LLMRouter:
 
 
 # Global router instance
-_router: Optional[LLMRouter] = None
+_router: LLMRouter | None = None
 
 
 def get_router() -> LLMRouter:

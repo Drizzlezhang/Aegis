@@ -1,15 +1,15 @@
 """Tests for LLM router and client."""
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.llm.router import TaskType, ModelRouting, LLMRouter
-from src.llm.client import LLMProvider, LLMRequest, LLMResponse, LLMClient
+from src.llm.client import LLMClient, LLMProvider, LLMRequest, LLMResponse
+from src.llm.router import LLMRouter, ModelRouting, TaskType
 
 
 class TestLLMRouter:

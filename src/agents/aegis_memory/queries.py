@@ -1,15 +1,15 @@
 """Database query operations for Aegis-Memory Agent."""
 
-from typing import Dict, List, Any, Optional
-import logging
 import json
+import logging
 import sqlite3
 from datetime import date
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-async def recall_recent_analysis(conn_path: str, symbol: str, limit: int = 5) -> List[Dict[str, Any]]:
+async def recall_recent_analysis(conn_path: str, symbol: str, limit: int = 5) -> list[dict[str, Any]]:
     """Recall recent analysis results for a symbol."""
     try:
         with sqlite3.connect(conn_path) as conn:
@@ -40,7 +40,7 @@ async def recall_recent_analysis(conn_path: str, symbol: str, limit: int = 5) ->
         return []
 
 
-async def recall_trading_actions(conn_path: str, symbol: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+async def recall_trading_actions(conn_path: str, symbol: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
     """Recall trading actions."""
     try:
         with sqlite3.connect(conn_path) as conn:
@@ -64,7 +64,7 @@ async def recall_trading_actions(conn_path: str, symbol: Optional[str] = None, l
         return []
 
 
-async def add_trading_action(conn_path: str, action: Dict[str, Any]) -> bool:
+async def add_trading_action(conn_path: str, action: dict[str, Any]) -> bool:
     """Add a trading action record."""
     try:
         with sqlite3.connect(conn_path) as conn:
@@ -96,7 +96,7 @@ async def add_trading_action(conn_path: str, action: Dict[str, Any]) -> bool:
         return False
 
 
-async def add_market_note(conn_path: str, note: Dict[str, Any]) -> bool:
+async def add_market_note(conn_path: str, note: dict[str, Any]) -> bool:
     """Add a market note."""
     try:
         with sqlite3.connect(conn_path) as conn:
@@ -119,14 +119,14 @@ async def add_market_note(conn_path: str, note: Dict[str, Any]) -> bool:
 
 
 async def recall_market_notes(
-    conn_path: str, symbol: Optional[str] = None, category: Optional[str] = None, limit: int = 10
-) -> List[Dict[str, Any]]:
+    conn_path: str, symbol: str | None = None, category: str | None = None, limit: int = 10
+) -> list[dict[str, Any]]:
     """Recall market notes."""
     try:
         with sqlite3.connect(conn_path) as conn:
             conn.row_factory = sqlite3.Row
             query = "SELECT * FROM market_notes WHERE 1=1"
-            params = []
+            params: list[Any] = []
 
             if symbol:
                 query += " AND symbol = ?"

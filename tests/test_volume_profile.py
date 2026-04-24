@@ -1,23 +1,27 @@
 """Tests for Volume Profile algorithm."""
 
-import pytest
-import numpy as np
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from skills.algorithms.volume_profile.skill import (
+    VolumeProfileSkill,
+    calculate_volume_profile_quick,
+)
 from src.models import OHLCV
-from skills.algorithms.volume_profile.skill import VolumeProfileSkill, calculate_volume_profile_quick
 
 
 def create_mock_ohlcv(prices, volumes, symbol="QQQ"):
     """Create mock OHLCV data."""
     ohlcv_data = []
     base_time = datetime(2024, 1, 1)
-    for i, (price, volume) in enumerate(zip(prices, volumes)):
+    for _i, (price, volume) in enumerate(zip(prices, volumes, strict=False)):
         ohlcv = OHLCV(
             symbol=symbol,
             timestamp=base_time,

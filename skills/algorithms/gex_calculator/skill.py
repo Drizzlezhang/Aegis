@@ -1,21 +1,20 @@
 """GEX (Gamma Exposure) calculation algorithm skill."""
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Any, Tuple
 import logging
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
+import numpy as np
+import pandas as pd
+
+from src.models import GEXWall, OptionChain, OptionContract, OptionType
 from src.skills.base import BaseSkill, SkillResult, SkillType
-from src.models import OptionChain, OptionContract, OptionType, GEXWall
-from src.config import get_config
-
 
 logger = logging.getLogger(__name__)
 
 
-class GEXCalculationMethod(str, Enum):
+class GEXCalculationMethod(StrEnum):
     """GEX calculation method."""
     SIMPLIFIED = "simplified"
     BLACK_SCHOLES = "black_scholes"
@@ -24,7 +23,7 @@ class GEXCalculationMethod(str, Enum):
 class GEXCalculatorSkill(BaseSkill):
     """GEX calculation algorithm skill."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.calculation_method = config.get("calculation_method", "simplified") if config else "simplified"
         self.spot_price_weight = config.get("spot_price_weight", True) if config else True
@@ -42,7 +41,7 @@ class GEXCalculatorSkill(BaseSkill):
     def version(self) -> str:
         return "0.1.0"
 
-    def get_required_params(self) -> List[str]:
+    def get_required_params(self) -> list[str]:
         return ["options_chain"]
 
     def _calculate_gamma(self, contract: OptionContract, spot_price: float) -> float:
@@ -104,8 +103,8 @@ class GEXCalculatorSkill(BaseSkill):
     def calculate_gex_walls(
         self,
         options_chain: OptionChain,
-        calculation_method: Optional[str] = None
-    ) -> List[GEXWall]:
+        calculation_method: str | None = None
+    ) -> list[GEXWall]:
         """Calculate GEX walls from options chain."""
         calculation_method = calculation_method or self.calculation_method
 
@@ -115,7 +114,7 @@ class GEXCalculatorSkill(BaseSkill):
         all_contracts = options_chain.calls + options_chain.puts
 
         # Group by strike price
-        strike_groups: Dict[float, List[OptionContract]] = {}
+        strike_groups: dict[float, list[OptionContract]] = {}
         for contract in all_contracts:
             strike = contract.strike
             if strike not in strike_groups:
@@ -178,13 +177,13 @@ class GEXCalculatorSkill(BaseSkill):
         self,
         options_chain: OptionChain,
         top_n: int = 5,
-        calculation_method: Optional[str] = None
-    ) -> List[GEXWall]:
+        calculation_method: str | None = None
+    ) -> list[GEXWall]:
         """Get top N GEX walls by absolute GEX value."""
         gex_walls = self.calculate_gex_walls(options_chain, calculation_method)
         return gex_walls[:top_n]
 
-    async def execute(self, params: Dict[str, Any]) -> SkillResult:
+    async def execute(self, params: dict[str, Any]) -> SkillResult:
         """Execute the skill."""
         try:
             options_chain = params.get("options_chain")
@@ -229,25 +228,26 @@ class GEXCalculatorSkill(BaseSkill):
 
 # Helper function for quick calculation
 def calculate_gex_quick(
-    strikes: List[float],
-    call_oi: List[int],
-    put_oi: List[int],
+    strikes: list[float],
+    call_oi: list[int],
+    put_oi: list[int],
     spot_price: float,
     calculation_method: str = "simplified"
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Quick GEX calculation (for testing)."""
     skill = GEXCalculatorSkill({
         "calculation_method": calculation_method
     })
 
     # Create mock OptionChain
+    from datetime import date, datetime
+
     from src.models import OptionChain, OptionContract, OptionType
-    from datetime import datetime, date
 
     calls = []
     puts = []
 
-    for strike, oi in zip(strikes, call_oi):
+    for strike, oi in zip(strikes, call_oi, strict=False):
         if oi > 0:
             contract = OptionContract(
                 symbol="TEST",
@@ -260,7 +260,7 @@ def calculate_gex_quick(
             )
             calls.append(contract)
 
-    for strike, oi in zip(strikes, put_oi):
+    for strike, oi in zip(strikes, put_oi, strict=False):
         if oi > 0:
             contract = OptionContract(
                 symbol="TEST",

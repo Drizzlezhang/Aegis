@@ -1,22 +1,30 @@
 """Extended tests for Aegis-Memory Agent with vector storage and performance validation."""
 
-import pytest
+import os
+import sqlite3
 import sys
 import tempfile
-import os
-import json
 import time
+from datetime import date, datetime
 from pathlib import Path
-from datetime import datetime, date
-import sqlite3
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.agents.aegis_memory.storage import AnalysisStorage
 from src.agents.aegis_memory import queries
 from src.agents.aegis_memory.agent import AegisMemoryAgent
-from src.models import AgentState, OHLCV, OptionContract, OptionChain, OptionType
-from src.models import SupportResistanceLevel, ValuationRange, RecommendedOption
+from src.agents.aegis_memory.storage import AnalysisStorage
+from src.models import (
+    OHLCV,
+    AgentState,
+    OptionChain,
+    OptionContract,
+    OptionType,
+    RecommendedOption,
+    SupportResistanceLevel,
+    ValuationRange,
+)
 
 
 class TestAegisMemoryExtended:
@@ -329,7 +337,7 @@ class TestAegisMemoryExtended:
 
         # Test recall performance
         start_time = time.time()
-        results = await queries.recall_recent_analysis(temp_db_path, "SYM", limit=50)
+        _results = await queries.recall_recent_analysis(temp_db_path, "SYM", limit=50)
         end_time = time.time()
 
         query_time = end_time - start_time
@@ -418,7 +426,7 @@ class TestAegisMemoryExtended:
         storage.ensure_schema()
 
         with sqlite3.connect(temp_db_path) as conn:
-            for i in range(20):
+            for _i in range(20):
                 conn.execute("""
                     INSERT INTO analysis_results (symbol, trade_date)
                     VALUES (?, ?)

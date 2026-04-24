@@ -1,19 +1,18 @@
 """Orchestrator: Manages the multi-agent analysis pipeline."""
 
-from typing import Dict, List, Any, Optional
 import asyncio
 import logging
 import time
-from datetime import datetime, date
+from datetime import date, datetime
+from typing import Any
 
-from src.models import AgentState
-from src.config import get_config
+from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.agents.data_harvester.agent import DataHarvesterAgent
 from src.agents.quant_brain.agent import QuantBrainAgent
 from src.agents.strategy_exec.agent import StrategyExecAgent
-from src.agents.aegis_memory.agent import AegisMemoryAgent
-from src.llm import generate, TaskType
-
+from src.config import get_config
+from src.llm import TaskType, generate
+from src.models import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 class Orchestrator:
     """Orchestrates the multi-agent analysis pipeline."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self._config = get_config()
         self._config_dict = config or {}
 
@@ -32,7 +31,7 @@ class Orchestrator:
         self._aegis_memory = AegisMemoryAgent()
 
         # Track execution history
-        self._execution_history: List[Dict[str, Any]] = []
+        self._execution_history: list[dict[str, Any]] = []
 
     async def initialize(self) -> None:
         """Initialize all agents."""
@@ -64,22 +63,22 @@ class Orchestrator:
             # Step 1: Data-Harvester
             logger.info(f"[1/4] Running Data-Harvester for {symbol}...")
             state = await self._data_harvester.run(state)
-            logger.info(f"[1/4] Data-Harvester completed")
+            logger.info("[1/4] Data-Harvester completed")
 
             # Step 2: Quant-Brain
             logger.info(f"[2/4] Running Quant-Brain for {symbol}...")
             state = await self._quant_brain.run(state)
-            logger.info(f"[2/4] Quant-Brain completed")
+            logger.info("[2/4] Quant-Brain completed")
 
             # Step 3: Strategy-Execution
             logger.info(f"[3/4] Running Strategy-Execution for {symbol}...")
             state = await self._strategy_exec.run(state)
-            logger.info(f"[3/4] Strategy-Execution completed")
+            logger.info("[3/4] Strategy-Execution completed")
 
             # Step 4: Aegis-Memory
             logger.info(f"[4/4] Running Aegis-Memory for {symbol}...")
             state = await self._aegis_memory.run(state)
-            logger.info(f"[4/4] Aegis-Memory completed")
+            logger.info("[4/4] Aegis-Memory completed")
 
         except Exception as e:
             logger.error(f"Error in analysis pipeline for {symbol}: {e}")
@@ -101,15 +100,15 @@ class Orchestrator:
 
         return state
 
-    async def analyze_symbols(self, symbols: List[str]) -> List[AgentState]:
+    async def analyze_symbols(self, symbols: list[str]) -> list[AgentState]:
         """Run analysis pipeline for multiple symbols in parallel."""
         logger.info(f"Starting batch analysis for {len(symbols)} symbols: {symbols}")
 
         tasks = [self.analyze_symbol(symbol) for symbol in symbols]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        states = []
-        for symbol, result in zip(symbols, results):
+        states: list[AgentState] = []
+        for symbol, result in zip(symbols, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"Analysis failed for {symbol}: {result}")
                 # Create error state
@@ -120,7 +119,7 @@ class Orchestrator:
                 )
                 states.append(error_state)
             else:
-                states.append(result)
+                states.append(result)  # type: ignore[arg-type]
 
         logger.info(f"Batch analysis completed: {len(states)} results")
         return states
@@ -132,7 +131,7 @@ class Orchestrator:
 
         try:
             # Enhance with LLM for better readability and insights
-            enhanced_report = await generate(
+            enhanced_report: str = await generate(
                 prompt=f"""Enhance this trading analysis report with better formatting, clearer insights, and actionable recommendations:
 
 Basic Report:
@@ -284,11 +283,11 @@ END OF REPORT
 
         return report
 
-    def get_execution_history(self) -> List[Dict[str, Any]]:
+    def get_execution_history(self) -> list[dict[str, Any]]:
         """Get execution history."""
         return self._execution_history.copy()
 
-    async def health_check(self) -> Dict[str, bool]:
+    async def health_check(self) -> dict[str, bool]:
         """Check health of all agents."""
         return {
             "data_harvester": await self._data_harvester.health_check(),

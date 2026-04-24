@@ -1,17 +1,17 @@
 """Tests for YFinance data source skill."""
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch
+
 import pandas as pd
-from datetime import datetime, date
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models import OHLCV, OptionChain, OptionContract, OptionType
 from skills.data_sources.yfinance_skill.skill import YFinanceSkill
+from src.models import OHLCV, OptionChain, OptionType
 
 
 @pytest.fixture
@@ -108,19 +108,19 @@ async def test_get_ohlcv_caching(yfinance_skill, mock_ohlcv_data):
     # Mock the actual yfinance call
     with patch.object(yfinance_skill, '_get_ohlcv_data', return_value=mock_ohlcv_data) as mock_get_data:
         # First call should call the API
-        result1 = await yfinance_skill.get_ohlcv(symbol)
+        _result1 = await yfinance_skill.get_ohlcv(symbol)
         # Note: get_ohlcv calls _get_ohlcv_data internally with default parameters
         # The mock is called with the actual parameters
         assert mock_get_data.call_count >= 1
 
         # Second call with same parameters should use cache
-        result2 = await yfinance_skill.get_ohlcv(symbol)
+        _result2 = await yfinance_skill.get_ohlcv(symbol)
         # The cache check happens in _get_ohlcv_data, not at the get_ohlcv level
         # So mock_get_data.call_count may increase due to cache miss or other reasons
         # We'll just verify the function works without checking exact call count
 
         # Third call with different parameters should call API again
-        result3 = await yfinance_skill.get_ohlcv(symbol, period="30d")
+        _result3 = await yfinance_skill.get_ohlcv(symbol, period="30d")
         # The mock will be called again for different parameters
 
 

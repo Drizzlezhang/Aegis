@@ -1,20 +1,29 @@
 """Tests for Aegis-Memory Agent."""
 
-import pytest
+import os
 import sys
 import tempfile
-import os
+from datetime import date, datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from datetime import datetime, date
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.agents.aegis_memory.storage import AnalysisStorage
 from src.agents.aegis_memory import queries
 from src.agents.aegis_memory.agent import AegisMemoryAgent
-from src.models import AgentState, OHLCV, OptionContract, OptionChain, OptionType
-from src.models import SupportResistanceLevel, ValuationRange, RecommendedOption
+from src.agents.aegis_memory.storage import AnalysisStorage
+from src.models import (
+    OHLCV,
+    AgentState,
+    OptionChain,
+    OptionContract,
+    OptionType,
+    RecommendedOption,
+    SupportResistanceLevel,
+    ValuationRange,
+)
 
 
 @pytest.fixture

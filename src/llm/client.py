@@ -1,21 +1,22 @@
 """Unified LLM client for multi-provider support."""
 
-from typing import Dict, Any, Optional, List, Union, AsyncGenerator
 import json
-import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-import aiohttp
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
-from .router import TaskType, ModelRouting, get_router
+import aiohttp
+
 from src.config import get_config
 
+from .router import ModelRouting, TaskType, get_router
 
 logger = logging.getLogger(__name__)
 
 
-class LLMProvider(str, Enum):
+class LLMProvider(StrEnum):
     """LLM provider enumeration."""
     DEEPSEEK = "deepseek"
     GLM = "glm"
@@ -28,13 +29,13 @@ class LLMProvider(str, Enum):
 class LLMRequest:
     """LLM request configuration."""
     prompt: str
-    system_prompt: Optional[str] = None
-    max_tokens: Optional[int] = None
-    temperature: Optional[float] = None
-    top_p: Optional[float] = None
+    system_prompt: str | None = None
+    max_tokens: int | None = None
+    temperature: float | None = None
+    top_p: float | None = None
     stream: bool = False
-    stop: Optional[List[str]] = None
-    tools: Optional[List[Dict[str, Any]]] = None
+    stop: list[str] | None = None
+    tools: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -42,9 +43,9 @@ class LLMResponse:
     """LLM response data."""
     content: str
     model: str
-    usage: Dict[str, int]
-    finish_reason: Optional[str] = None
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    usage: dict[str, int]
+    finish_reason: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
 
 
 class LLMError(Exception):
@@ -64,34 +65,34 @@ class LLMClient:
         LLMProvider.MINIMAX: "https://api.minimax.com/v1/chat/completions"
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize LLM client."""
         self.config = config or {}
         self.router = get_router()
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
         self._provider_configs = self._load_provider_configs()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "LLMClient":
         """Async context manager entry."""
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.close()
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize client resources."""
         if self._session is None:
             self._session = aiohttp.ClientSession()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close client resources."""
         if self._session:
             await self._session.close()
             self._session = None
 
-    def _load_provider_configs(self) -> Dict[LLMProvider, Dict[str, Any]]:
+    def _load_provider_configs(self) -> dict[LLMProvider, dict[str, Any]]:
         """Load provider configurations."""
         config = get_config()
         base_config = {
@@ -110,8 +111,8 @@ class LLMClient:
         }
 
     async def generate(self, request: LLMRequest,
-                      task_type: Optional[Union[TaskType, str]] = None,
-                      model_name: Optional[str] = None) -> Union[LLMResponse, AsyncGenerator[str, None]]:
+                      task_type: TaskType | str | None = None,
+                      model_name: str | None = None) -> LLMResponse | AsyncGenerator[str, None]:
         """
         Generate text using appropriate LLM.
 
@@ -145,10 +146,10 @@ class LLMClient:
                 return await self._generate_completion(payload, model_config)
         except Exception as e:
             logger.error(f"LLM generation failed: {e}")
-            raise LLMError(f"LLM generation failed: {e}")
+            raise LLMError(f"LLM generation failed: {e}") from e
 
     def _prepare_payload(self, request: LLMRequest,
-                        model_config: ModelRouting) -> Dict[str, Any]:
+                        model_config: ModelRouting) -> dict[str, Any]:
         """Prepare API payload."""
         messages = []
 
@@ -183,7 +184,7 @@ class LLMClient:
 
         return payload
 
-    async def _generate_completion(self, payload: Dict[str, Any],
+    async def _generate_completion(self, payload: dict[str, Any],
                                   model_config: ModelRouting) -> LLMResponse:
         """Generate completion (non-streaming)."""
         provider = LLMProvider(model_config.provider)
@@ -194,6 +195,7 @@ class LLMClient:
         # 确保 session 已初始化
         if self._session is None:
             await self.initialize()
+        assert self._session is not None  # noqa: S101
 
         async with self._session.post(endpoint, json=payload, headers=headers) as response:
             if response.status != 200:
@@ -214,7 +216,7 @@ class LLMClient:
                 tool_calls=message.get("tool_calls")
             )
 
-    async def _generate_stream(self, payload: Dict[str, Any],
+    async def _generate_stream(self, payload: dict[str, Any],
                               model_config: ModelRouting) -> AsyncGenerator[str, None]:
         """Generate streaming response."""
         provider = LLMProvider(model_config.provider)
@@ -224,6 +226,7 @@ class LLMClient:
         # 确保 session 已初始化
         if self._session is None:
             await self.initialize()
+        assert self._session is not None  # noqa: S101
 
         async with self._session.post(endpoint, json=payload, headers=headers) as response:
             if response.status != 200:
@@ -257,7 +260,7 @@ class LLMClient:
         # Fallback to default endpoints
         return self.PROVIDER_ENDPOINTS[provider]
 
-    def _get_headers(self, provider: LLMProvider) -> Dict[str, str]:
+    def _get_headers(self, provider: LLMProvider) -> dict[str, str]:
         """Get headers for API request."""
         config = self._provider_configs[provider]
         headers = {
@@ -272,7 +275,7 @@ class LLMClient:
 
         return headers
 
-    async def health_check(self, provider: Optional[LLMProvider] = None) -> bool:
+    async def health_check(self, provider: LLMProvider | None = None) -> bool:
         """
         Check health of LLM provider(s).
 
@@ -299,9 +302,10 @@ class LLMClient:
                 # 确保 session 已初始化
                 if self._session is None:
                     await self.initialize()
+                assert self._session is not None  # noqa: S101
 
                 async with self._session.post(endpoint, json=health_payload,
-                                            headers=headers, timeout=10) as response:
+                                            headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
                     if response.status == 200:
                         logger.info(f"Provider {prov} health check passed")
                     else:
@@ -316,7 +320,7 @@ class LLMClient:
 
 
 # Global client instance
-_client: Optional[LLMClient] = None
+_client: LLMClient | None = None
 
 
 def get_client() -> LLMClient:
@@ -329,10 +333,10 @@ def get_client() -> LLMClient:
 
 
 async def generate(prompt: str,
-                  system_prompt: Optional[str] = None,
-                  task_type: Optional[Union[TaskType, str]] = None,
-                  model_name: Optional[str] = None,
-                  **kwargs) -> str:
+                  system_prompt: str | None = None,
+                  task_type: TaskType | str | None = None,
+                  model_name: str | None = None,
+                  **kwargs: Any) -> str:
     """
     Convenience function for simple text generation.
 
@@ -351,14 +355,15 @@ async def generate(prompt: str,
 
     async with client:
         response = await client.generate(request, task_type, model_name)
+        assert isinstance(response, LLMResponse)  # noqa: S101
         return response.content
 
 
 async def generate_stream(prompt: str,
-                         system_prompt: Optional[str] = None,
-                         task_type: Optional[Union[TaskType, str]] = None,
-                         model_name: Optional[str] = None,
-                         **kwargs) -> AsyncGenerator[str, None]:
+                         system_prompt: str | None = None,
+                         task_type: TaskType | str | None = None,
+                         model_name: str | None = None,
+                         **kwargs: Any) -> AsyncGenerator[str, None]:
     """
     Convenience function for streaming text generation.
 
@@ -377,5 +382,7 @@ async def generate_stream(prompt: str,
     client = get_client()
 
     async with client:
-        async for chunk in client.generate(request, task_type, model_name):
+        stream = client.generate(request, task_type, model_name)
+        assert isinstance(stream, AsyncGenerator)  # noqa: S101
+        async for chunk in stream:
             yield chunk

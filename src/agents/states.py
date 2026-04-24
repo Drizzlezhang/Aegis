@@ -1,10 +1,19 @@
 """Agent state definitions and utilities."""
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime, date
 from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any
 
-from src.models import AgentState, OHLCV, OptionChain, VolumeProfile, GEXWall, SupportResistanceLevel, ValuationRange, RecommendedOption
+from src.models import (
+    OHLCV,
+    AgentState,
+    GEXWall,
+    OptionChain,
+    RecommendedOption,
+    SupportResistanceLevel,
+    ValuationRange,
+    VolumeProfile,
+)
 
 
 @dataclass
@@ -14,12 +23,12 @@ class AgentContext:
     trade_date: date
     timestamp: datetime = field(default_factory=datetime.now)
     # Agent execution chain
-    execution_chain: List[str] = field(default_factory=list)
+    execution_chain: list[str] = field(default_factory=list)
     # Execution metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     # Errors and warnings
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def add_agent_step(self, agent_name: str) -> None:
         """Add an agent step to the execution chain."""
@@ -49,14 +58,14 @@ class AgentOutput:
     agent_name: str
     timestamp: datetime
     # Data outputs
-    ohlcv_data: Optional[List[OHLCV]] = None
-    options_chain: Optional[OptionChain] = None
-    volume_profile: Optional[VolumeProfile] = None
-    gex_walls: Optional[List[GEXWall]] = None
-    support_levels: Optional[List[SupportResistanceLevel]] = None
-    resistance_levels: Optional[List[SupportResistanceLevel]] = None
-    valuation_range: Optional[ValuationRange] = None
-    recommended_options: Optional[List[RecommendedOption]] = None
+    ohlcv_data: list[OHLCV] | None = None
+    options_chain: OptionChain | None = None
+    volume_profile: VolumeProfile | None = None
+    gex_walls: list[GEXWall] | None = None
+    support_levels: list[SupportResistanceLevel] | None = None
+    resistance_levels: list[SupportResistanceLevel] | None = None
+    valuation_range: ValuationRange | None = None
+    recommended_options: list[RecommendedOption] | None = None
     # Text outputs
     analysis_report: str = ""
     action_report: str = ""
@@ -64,8 +73,8 @@ class AgentOutput:
     confidence: float = 0.0
     execution_time_ms: float = 0.0
     # References
-    source_skills: List[str] = field(default_factory=list)
-    source_data: List[str] = field(default_factory=list)
+    source_skills: list[str] = field(default_factory=list)
+    source_data: list[str] = field(default_factory=list)
 
     def is_empty(self) -> bool:
         """Check if output contains any data."""
@@ -82,7 +91,7 @@ class AgentOutput:
             not self.action_report
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert output to dictionary."""
         return {
             "agent_name": self.agent_name,
@@ -107,7 +116,7 @@ class AgentOutput:
 def create_agent_state_from_outputs(
     symbol: str,
     trade_date: date,
-    outputs: List[AgentOutput]
+    outputs: list[AgentOutput]
 ) -> AgentState:
     """Create an AgentState from multiple agent outputs."""
     state = AgentState(

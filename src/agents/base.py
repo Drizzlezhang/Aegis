@@ -1,15 +1,17 @@
 """Agent base class and state definitions."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from datetime import datetime, date
 from dataclasses import dataclass
-from enum import Enum
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
 
-from src.models import OHLCV, OptionChain, VolumeProfile, GEXWall, SupportResistanceLevel, ValuationRange, RecommendedOption, AgentState
+from src.models import (
+    AgentState,
+)
 
 
-class AgentStatus(str, Enum):
+class AgentStatus(StrEnum):
     """Agent execution status."""
     IDLE = "idle"
     RUNNING = "running"
@@ -22,13 +24,13 @@ class AgentStatus(str, Enum):
 class AgentResult:
     """Result from agent execution."""
     status: AgentStatus
-    data: Optional[Any] = None
-    metadata: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    data: Any | None = None
+    metadata: dict[str, Any] | None = None
+    error: str | None = None
     execution_time_ms: float = 0.0
 
     @classmethod
-    def success_result(cls, data: Any, metadata: Optional[Dict[str, Any]] = None, execution_time_ms: float = 0.0) -> "AgentResult":
+    def success_result(cls, data: Any, metadata: dict[str, Any] | None = None, execution_time_ms: float = 0.0) -> "AgentResult":
         """Create a successful result."""
         return cls(status=AgentStatus.SUCCESS, data=data, metadata=metadata, execution_time_ms=execution_time_ms)
 
@@ -41,13 +43,13 @@ class AgentResult:
 class BaseAgent(ABC):
     """Base class for all agents."""
 
-    def __init__(self, name: str, description: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, description: str, config: dict[str, Any] | None = None):
         self.name = name
         self.description = description
         self.config = config or {}
-        self._skills: Dict[str, Any] = {}
+        self._skills: dict[str, Any] = {}
         self._status = AgentStatus.IDLE
-        self._last_execution_time: Optional[datetime] = None
+        self._last_execution_time: datetime | None = None
         self._execution_count = 0
 
     @property
@@ -61,7 +63,7 @@ class BaseAgent(ABC):
         return self._execution_count
 
     @property
-    def last_execution_time(self) -> Optional[datetime]:
+    def last_execution_time(self) -> datetime | None:
         """Get last execution time."""
         return self._last_execution_time
 
@@ -69,7 +71,7 @@ class BaseAgent(ABC):
         """Add a skill to the agent."""
         self._skills[skill_name] = skill
 
-    def get_skill(self, skill_name: str) -> Optional[Any]:
+    def get_skill(self, skill_name: str) -> Any | None:
         """Get a skill by name."""
         return self._skills.get(skill_name)
 
@@ -77,8 +79,8 @@ class BaseAgent(ABC):
         """Check if agent has a skill."""
         return skill_name in self._skills
 
-    async def initialize(self) -> None:
-        """Initialize the agent (optional)."""
+    async def initialize(self) -> None:  # noqa: B027
+        """Initialize the agent (optional). Override in subclass if needed."""
         pass
 
     @abstractmethod
