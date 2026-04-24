@@ -4,7 +4,7 @@ import Sidebar from '@/components/Sidebar';
 import AnalysisPanel from '@/components/AnalysisPanel';
 import SupportResistance from '@/components/SupportResistance';
 import StrategyRecommendations from '@/components/StrategyRecommendations';
-import { getSymbolDetail } from '@/lib/mock-data';
+import { getSymbolDetail } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ symbol: string }>;
@@ -12,9 +12,11 @@ interface PageProps {
 
 export default async function SymbolPage({ params }: PageProps) {
   const { symbol } = await params;
-  const detail = getSymbolDetail(symbol.toUpperCase());
+  let detail;
 
-  if (!detail) {
+  try {
+    detail = await getSymbolDetail(symbol.toUpperCase());
+  } catch {
     notFound();
   }
 

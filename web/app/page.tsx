@@ -1,9 +1,16 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import SymbolCard from '@/components/SymbolCard';
-import { SYMBOLS } from '@/lib/mock-data';
+import { getSymbols, SymbolInfo } from '@/lib/api';
 
-export default function Home() {
+export default async function Home() {
+  let symbols: SymbolInfo[] = [];
+  try {
+    symbols = await getSymbols();
+  } catch {
+    symbols = [];
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -19,7 +26,7 @@ export default function Home() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {SYMBOLS.map((s) => (
+              {symbols.map((s) => (
                 <SymbolCard key={s.symbol} symbol={s} />
               ))}
             </div>
