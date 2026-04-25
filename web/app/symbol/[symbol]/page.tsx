@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation';
+import GEXChart from '@/components/gex-chart';
 import Header from '@/components/Header';
+import PriceChart from '@/components/price-chart';
 import Sidebar from '@/components/Sidebar';
-import AnalysisPanel from '@/components/AnalysisPanel';
 import SupportResistance from '@/components/SupportResistance';
 import StrategyRecommendations from '@/components/StrategyRecommendations';
+import VolumeProfileChart from '@/components/volume-profile-chart';
 import { getSymbolDetail } from '@/lib/api';
 
 interface PageProps {
@@ -61,11 +63,23 @@ export default async function SymbolPage({ params }: PageProps) {
               <StatCard label="P/E Ratio" value={detail.peRatio.toString()} />
             </div>
 
-            {/* Analysis */}
-            <AnalysisPanel
-              volumeProfile={detail.volumeProfile}
-              gexWalls={detail.gexWalls}
-            />
+            {/* Charts */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <PriceChart
+                currentPrice={detail.price}
+                supports={detail.supports}
+                resistances={detail.resistances}
+              />
+              <VolumeProfileChart
+                poc={detail.volumeProfile.poc}
+                vah={detail.volumeProfile.vah}
+                val={detail.volumeProfile.val}
+                volumeAtPoc={detail.volumeProfile.volumeAtPoc}
+                currentPrice={detail.price}
+              />
+            </div>
+
+            <GEXChart walls={detail.gexWalls} currentPrice={detail.price} />
 
             {/* Support / Resistance */}
             <SupportResistance
