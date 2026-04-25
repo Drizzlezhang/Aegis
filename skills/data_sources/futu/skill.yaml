@@ -1,0 +1,17 @@
+name: futu_ohlcv
+version: "0.1.0"
+description: "Futu (富途) HK/A-share/US OHLCV data source. Requires FutuNiuNiu OpenD service running locally."
+type: data_source
+dependencies:
+  - requests>=2.31.0
+  - pandas>=2.0.0
+config:
+  requires_env:
+    - FUTU_OPEND_ADDRESS
+    - FUTU_OPEND_PORT
+  cache_ttl: 300
+  max_retries: 3
+  retry_delay: 1
+  default_period: "60d"
+  default_interval: "1d"
+  market: "HK"  # HK | US | SH | SZ

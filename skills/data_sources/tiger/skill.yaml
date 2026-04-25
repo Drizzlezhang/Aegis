@@ -1,0 +1,17 @@
+name: tiger_ohlcv
+version: "0.1.0"
+description: "Tiger Trade (老虎证券) US/HK/A-share OHLCV data source. Requires Tiger OpenAPI account."
+type: data_source
+dependencies:
+  - requests>=2.31.0
+  - pandas>=2.0.0
+config:
+  requires_env:
+    - TIGER_ACCOUNT_ID
+    - TIGER_PRIVATE_KEY
+  cache_ttl: 300
+  max_retries: 3
+  retry_delay: 1
+  default_period: "60d"
+  default_interval: "day"
+  market: "US"  # US | HK | CN

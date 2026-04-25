@@ -13,6 +13,8 @@ class DataSourceConfig(BaseModel):
     alpha_vantage_enabled: bool = False
     alpha_vantage_api_key: str | None = None
     longbridge_enabled: bool = False
+    futu_enabled: bool = False
+    tiger_enabled: bool = False
     cache_ttl_seconds: int = 300  # 5 minutes
 
 
