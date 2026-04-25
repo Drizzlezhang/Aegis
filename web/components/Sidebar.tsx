@@ -7,6 +7,7 @@ import { SYMBOLS } from '@/lib/mock-data';
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard' },
   { href: '/analyze', label: 'Run Analysis' },
+  { href: '/backtest', label: 'Backtest' },
   { href: '/history', label: 'History' },
   { href: '/status', label: 'System Status' },
 ];
