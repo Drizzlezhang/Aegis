@@ -7,10 +7,11 @@ const SYMBOLS = ['QQQ', 'SPY', 'NVDA', 'MSFT', 'AAPL', 'PLTR', 'NFLX', 'INTC', '
 
 interface AnalysisResult {
   symbol: string;
-  status: 'success' | 'error';
-  steps: string[];
-  recommendations: number;
+  status: string;
+  agentSequence: string[];
+  recommendationsCount: number;
   executionTime: number;
+  report: string;
 }
 
 export default function AnalyzeForm() {
@@ -19,6 +20,7 @@ export default function AnalyzeForm() {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
   const [results, setResults] = useState<AnalysisResult[]>([]);
+  const [error, setError] = useState('');
 
   const toggleSymbol = (sym: string) => {
     setSelected((prev) =>
@@ -32,31 +34,39 @@ export default function AnalyzeForm() {
     setRunning(true);
     setProgress(0);
     setResults([]);
+    setError('');
+    setCurrentStep('Initiating analysis...');
 
-    const steps = ['Data-Harvester', 'Quant-Brain', 'Strategy-Execution', 'Aegis-Memory'];
-    const newResults: AnalysisResult[] = [];
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols: selected }),
+      });
 
-    for (let i = 0; i < selected.length; i++) {
-      const symbol = selected[i];
-
-      for (let j = 0; j < steps.length; j++) {
-        setCurrentStep(`${symbol}: ${steps[j]}`);
-        setProgress(((i * steps.length + j + 1) / (selected.length * steps.length)) * 100);
-        await new Promise((r) => setTimeout(r, 800 + Math.random() * 600));
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+        throw new Error(errData.detail || `Request failed: ${res.status}`);
       }
 
-      newResults.push({
-        symbol,
-        status: Math.random() > 0.1 ? 'success' : 'error',
-        steps,
-        recommendations: Math.floor(Math.random() * 4),
-        executionTime: Number((10 + Math.random() * 8).toFixed(1)),
-      });
-    }
+      const data = await res.json();
+      const results: AnalysisResult[] = data.results || [];
 
-    setResults(newResults);
-    setRunning(false);
-    setCurrentStep('');
+      // Animate progress for UX
+      for (let i = 0; i <= 100; i += 10) {
+        setProgress(i);
+        setCurrentStep(`Processing... ${i}%`);
+        await new Promise((r) => setTimeout(r, 150));
+      }
+
+      setResults(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed');
+    } finally {
+      setRunning(false);
+      setProgress(0);
+      setCurrentStep('');
+    }
   };
 
   return (
@@ -108,6 +118,13 @@ export default function AnalyzeForm() {
         {running ? 'Running Analysis...' : `Analyze ${selected.length > 0 ? selected.length + ' Symbol' + (selected.length > 1 ? 's' : '') : ''}`}
       </button>
 
+      {/* Error */}
+      {error && (
+        <div className="card">
+          <p className="text-sm text-rose-400">Error: {error}</p>
+        </div>
+      )}
+
       {/* Progress */}
       {running && (
         <div className="card">
@@ -142,11 +159,11 @@ export default function AnalyzeForm() {
                   />
                   <span className="font-medium text-slate-200">{result.symbol}</span>
                   <span className="text-xs text-slate-500">
-                    {result.recommendations} recommendations
+                    {result.recommendationsCount} recommendations
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500">{result.executionTime}s</span>
+                  <span className="text-xs text-slate-500">{result.agentSequence.length} agents</span>
                   {result.status === 'success' && (
                     <Link
                       href={`/symbol/${result.symbol}`}

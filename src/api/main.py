@@ -5,15 +5,25 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import analysis, status, symbols
+from src.agents.orchestrator import Orchestrator
+
+from .routes import analysis, analyze, status, symbols
+
+# Global orchestrator instance
+_orchestrator: Orchestrator | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
+    global _orchestrator
     # Startup
+    _orchestrator = Orchestrator()
+    await _orchestrator.initialize()
+    analyze.set_orchestrator(_orchestrator)
     yield
     # Shutdown
+    _orchestrator = None
 
 
 app = FastAPI(
@@ -36,6 +46,7 @@ app.add_middleware(
 app.include_router(symbols.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
+app.include_router(analyze.router, prefix="/api")
 
 
 @app.get("/api/health")
