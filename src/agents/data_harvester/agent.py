@@ -1,6 +1,5 @@
 """Data-Harvester Agent implementation."""
 
-import asyncio
 import logging
 from typing import Any
 
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class DataHarvesterAgent(BaseAgent):
-    """Data-Harvester Agent: Collects market data from various sources."""
+    """Data-Harvester Agent: Collects market data from various sources with automatic fallback."""
 
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(
@@ -23,110 +22,119 @@ class DataHarvesterAgent(BaseAgent):
         )
         self._config = get_config()
         self._skill_registry = get_global_registry()
-        self._yfinance_skill: Any = None
+        self._data_source_priority: list[str] = []
+        self._skills: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize data sources and skills."""
         await super().initialize()
 
-        # Load yfinance skill
+        # Build priority list based on config
+        ds_config = self._config.data_source
+        priority = []
+
+        if ds_config.yfinance_enabled:
+            priority.append("yfinance_ohlcv")
+        if ds_config.alpha_vantage_enabled:
+            priority.append("alpha_vantage_ohlcv")
+
+        self._data_source_priority = priority or ["yfinance_ohlcv"]
+
+        # Load all skills in priority order
+        for skill_name in self._data_source_priority:
+            try:
+                skill = self._skill_registry.get_skill(skill_name)
+                if skill:
+                    await skill.initialize()
+                    self._skills[skill_name] = skill
+                    logger.info(f"{skill_name} skill loaded successfully")
+                else:
+                    logger.warning(f"{skill_name} skill not found in registry")
+            except Exception as e:
+                logger.error(f"Failed to initialize {skill_name} skill: {e}")
+
+        if not self._skills:
+            logger.error("No data source skills available!")
+
+    def _get_skill(self, name: str) -> Any | None:
+        """Get a loaded skill by name."""
+        return self._skills.get(name)
+
+    async def _try_skill(
+        self,
+        skill_name: str,
+        symbol: str,
+        data_type: str,
+        extra_params: dict[str, Any] | None = None
+    ) -> Any | None:
+        """Try to execute a single skill."""
+        skill = self._get_skill(skill_name)
+        if not skill:
+            return None
+
+        params: dict[str, Any] = {"symbol": symbol, "data_type": data_type}
+        if extra_params:
+            params.update(extra_params)
+
         try:
-            self._yfinance_skill = self._skill_registry.get_skill("yfinance_ohlcv")
-            if self._yfinance_skill:
-                await self._yfinance_skill.initialize()
-                logger.info("yfinance skill loaded successfully")
-            else:
-                logger.warning("yfinance skill not found in registry")
+            result = await skill.execute(params)
+            if result.success:
+                return result.data  # type: ignore[no-any-return]
+            logger.warning(f"{skill_name} failed for {symbol} ({data_type}): {result.error}")
         except Exception as e:
-            logger.error(f"Failed to initialize yfinance skill: {e}")
+            logger.warning(f"{skill_name} error for {symbol} ({data_type}): {e}")
+
+        return None
 
     async def _get_ohlcv_data(self, symbol: str) -> list[Any] | None:
-        """Get OHLCV data for a symbol."""
-        if not self._yfinance_skill:
-            logger.error("yfinance skill not available")
-            return None
+        """Get OHLCV data with automatic fallback across data sources."""
+        extra = {
+            "period": "90d" if self._config.data_source.cache_ttl_seconds > 300 else "60d",
+            "interval": "1d",
+        }
 
-        try:
-            result = await self._yfinance_skill.execute({
-                "symbol": symbol,
-                "data_type": "ohlcv",
-                "period": self._config.data_source.cache_ttl_seconds > 300 and "90d" or "60d",
-                "interval": "1d"
-            })
+        for skill_name in self._data_source_priority:
+            data = await self._try_skill(skill_name, symbol, "ohlcv", extra)
+            if data is not None:
+                logger.info(f"OHLCV for {symbol} from {skill_name}")
+                return data
 
-            if result.success:
-                return result.data  # type: ignore[no-any-return]
-            else:
-                logger.error(f"Failed to get OHLCV for {symbol}: {result.error}")
-                return None
-        except Exception as e:
-            logger.error(f"Error getting OHLCV for {symbol}: {e}")
-            return None
+        logger.error(f"All data sources failed for OHLCV: {symbol}")
+        return None
 
     async def _get_options_chain(self, symbol: str) -> Any | None:
-        """Get options chain for a symbol."""
-        if not self._yfinance_skill:
-            logger.error("yfinance skill not available")
-            return None
+        """Get options chain (yfinance only, alpha_vantage free tier doesn't support)."""
+        # Options chain is only available via yfinance
+        if "yfinance_ohlcv" in self._skills:
+            data = await self._try_skill("yfinance_ohlcv", symbol, "options")
+            if data is not None:
+                return data
 
-        try:
-            result = await self._yfinance_skill.execute({
-                "symbol": symbol,
-                "data_type": "options"
-            })
-
-            if result.success:
-                return result.data
-            else:
-                logger.error(f"Failed to get options chain for {symbol}: {result.error}")
-                return None
-        except Exception as e:
-            logger.error(f"Error getting options chain for {symbol}: {e}")
-            return None
+        logger.warning(f"Options chain not available for {symbol} (yfinance required)")
+        return None
 
     async def _get_fundamentals(self, symbol: str) -> dict[str, Any] | None:
-        """Get fundamental data for a symbol."""
-        if not self._yfinance_skill:
-            logger.error("yfinance skill not available")
-            return None
+        """Get fundamental data with automatic fallback."""
+        for skill_name in self._data_source_priority:
+            data = await self._try_skill(skill_name, symbol, "fundamentals")
+            if data is not None:
+                logger.info(f"Fundamentals for {symbol} from {skill_name}")
+                return data
 
-        try:
-            result = await self._yfinance_skill.execute({
-                "symbol": symbol,
-                "data_type": "fundamentals"
-            })
-
-            if result.success:
-                return result.data  # type: ignore[no-any-return]
-            else:
-                logger.warning(f"Failed to get fundamentals for {symbol}: {result.error}")
-                return None
-        except Exception as e:
-            logger.warning(f"Error getting fundamentals for {symbol}: {e}")
-            return None
+        logger.warning(f"All data sources failed for fundamentals: {symbol}")
+        return None
 
     async def _get_all_data(self, symbol: str) -> dict[str, Any]:
-        """Get all data types in parallel."""
-        tasks = [
-            self._get_ohlcv_data(symbol),
-            self._get_options_chain(symbol),
-            self._get_fundamentals(symbol)
-        ]
+        """Get all data types with fallback."""
+        ohlcv = await self._get_ohlcv_data(symbol)
+        options = await self._get_options_chain(symbol)
+        fundamentals = await self._get_fundamentals(symbol)
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        data: dict[str, Any] = {}
-        data_types = ["ohlcv", "options", "fundamentals"]
-
-        for i, result in enumerate(results):
-            data_type = data_types[i]
-            if isinstance(result, Exception):
-                logger.error(f"Error getting {data_type} for {symbol}: {result}")
-                data[data_type] = None
-            else:
-                data[data_type] = result
-
-        return data
+        return {
+            "ohlcv": ohlcv,
+            "options": options,
+            "fundamentals": fundamentals,
+        }
 
     async def run(self, state: AgentState) -> AgentState:
         """Execute data harvesting for the given symbol."""
@@ -194,18 +202,21 @@ class DataHarvesterAgent(BaseAgent):
         return report
 
     async def health_check(self) -> bool:
-        """Check if data sources are healthy."""
-        if not self._yfinance_skill:
+        """Check if at least one data source is healthy."""
+        if not self._skills:
             return False
 
-        try:
-            # Try to get data for a test symbol (QQQ)
-            result = await self._yfinance_skill.execute({
-                "symbol": "QQQ",
-                "data_type": "ohlcv",
-                "period": "1d",
-                "interval": "1d"
-            })
-            return result.success  # type: ignore[no-any-return]
-        except Exception:
-            return False
+        for skill_name, skill in self._skills.items():
+            try:
+                result = await skill.execute({
+                    "symbol": "QQQ",
+                    "data_type": "ohlcv",
+                    "period": "1d",
+                    "interval": "1d",
+                })
+                if result.success:
+                    return True
+            except Exception:
+                continue
+
+        return False
