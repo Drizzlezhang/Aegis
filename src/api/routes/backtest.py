@@ -3,7 +3,7 @@
 from datetime import date
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 router = APIRouter()
 
@@ -47,6 +47,8 @@ class BacktestMetrics(BaseModel):
 
 class MonthlyReturn(BaseModel):
     """Monthly return entry."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     month: str
     return_: float = Field(..., alias="return")

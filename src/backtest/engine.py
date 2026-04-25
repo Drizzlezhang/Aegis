@@ -49,11 +49,8 @@ class BacktestEngine:
         initial_capital: float = 100000.0,
     ) -> BacktestResult:
         """Run a backtest for the given symbol and date range."""
-        # Calculate period string for yfinance
-        period = self._date_range_to_period(start_date, end_date)
-
-        # Fetch historical data
-        ohlcv_data = await self._fetch_ohlcv(symbol, period)
+        # Fetch historical data for the date range
+        ohlcv_data = await self._fetch_ohlcv(symbol, start_date, end_date)
         if not ohlcv_data:
             raise ValueError(f"No data available for {symbol}")
 
@@ -111,14 +108,25 @@ class BacktestEngine:
             return "5y"
         return "max"
 
-    async def _fetch_ohlcv(self, symbol: str, period: str) -> list[OHLCV]:
-        """Fetch OHLCV data via yfinance skill."""
-        # Use yfinance skill directly
+    async def _fetch_ohlcv(
+        self,
+        symbol: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[OHLCV]:
+        """Fetch OHLCV data via yfinance skill using date range."""
         from skills.data_sources.yfinance_skill.skill import YFinanceSkill
 
         skill = YFinanceSkill()
         await skill.initialize()
-        return await skill.get_ohlcv(symbol, period=period, interval="1d")
+        # yfinance end date is exclusive, so add one day
+        end_exclusive = end_date + __import__("datetime").timedelta(days=1)
+        return await skill.get_ohlcv(
+            symbol,
+            interval="1d",
+            start=start_date.isoformat(),
+            end=end_exclusive.isoformat(),
+        )
 
     @staticmethod
     def _calculate_sma(prices: list[float], window: int) -> list[float | None]:

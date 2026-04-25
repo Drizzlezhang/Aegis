@@ -49,9 +49,16 @@ class YFinanceSkill(BaseSkill):
             self._ticker_cache[symbol] = yf.Ticker(symbol)
         return self._ticker_cache[symbol]
 
-    def _get_ohlcv_data(self, symbol: str, period: str, interval: str) -> pd.DataFrame:
+    def _get_ohlcv_data(
+        self,
+        symbol: str,
+        period: str | None = None,
+        interval: str = "1d",
+        start: str | None = None,
+        end: str | None = None,
+    ) -> pd.DataFrame:
         """Get OHLCV data with caching."""
-        cache_key = f"ohlcv_{symbol}_{period}_{interval}"
+        cache_key = f"ohlcv_{symbol}_{period or ''}_{interval}_{start or ''}_{end or ''}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
@@ -59,7 +66,13 @@ class YFinanceSkill(BaseSkill):
 
         for attempt in range(self.max_retries):
             try:
-                data = ticker.history(period=period, interval=interval)
+                if start and end:
+                    data = ticker.history(start=start, end=end, interval=interval)
+                elif period:
+                    data = ticker.history(period=period, interval=interval)
+                else:
+                    raise ValueError("Either period or start/end must be provided")
+
                 if data.empty:
                     raise ValueError(f"No data for symbol {symbol}")
 
@@ -71,11 +84,18 @@ class YFinanceSkill(BaseSkill):
                 logger.warning(f"Attempt {attempt + 1} failed for {symbol}: {e}")
                 asyncio.sleep(self.retry_delay)
 
-    async def get_ohlcv(self, symbol: str, period: str = "60d", interval: str = "1d") -> list[OHLCV]:
+    async def get_ohlcv(
+        self,
+        symbol: str,
+        period: str | None = "60d",
+        interval: str = "1d",
+        start: str | None = None,
+        end: str | None = None,
+    ) -> list[OHLCV]:
         """Get OHLCV data for a symbol."""
         try:
             data = await asyncio.to_thread(
-                self._get_ohlcv_data, symbol, period, interval
+                self._get_ohlcv_data, symbol, period, interval, start, end
             )
 
             # Reset index to make date a column
