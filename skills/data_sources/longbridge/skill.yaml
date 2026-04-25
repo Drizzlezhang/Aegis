@@ -1,0 +1,18 @@
+name: longbridge_ohlcv
+version: "0.1.0"
+description: "Longbridge (长桥) HK/A-share OHLCV data source. Requires Longbridge account and API key."
+type: data_source
+dependencies:
+  - requests>=2.31.0
+  - pandas>=2.0.0
+config:
+  requires_env:
+    - LONGBRIDGE_APP_KEY
+    - LONGBRIDGE_APP_SECRET
+    - LONGBRIDGE_ACCESS_TOKEN
+  cache_ttl: 300
+  max_retries: 3
+  retry_delay: 1
+  default_period: "60d"
+  default_interval: "1d"
+  market: "HK"  # HK | US | CN | SG

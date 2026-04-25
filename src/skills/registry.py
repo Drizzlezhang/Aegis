@@ -178,7 +178,12 @@ def get_global_registry() -> SkillRegistry:
     """Get or create the global skill registry."""
     global _registry
     if _registry is None:
-        _registry = SkillRegistry()
+        # Lazy import to avoid circular dependency
+        from src.config import get_config
+
+        config = get_config()
+        _registry = SkillRegistry(skill_dirs=config.skill_dirs)
+        _registry.discover_skills()
     return _registry
 
 

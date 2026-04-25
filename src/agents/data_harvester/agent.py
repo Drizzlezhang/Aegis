@@ -37,6 +37,8 @@ class DataHarvesterAgent(BaseAgent):
             priority.append("yfinance_ohlcv")
         if ds_config.alpha_vantage_enabled:
             priority.append("alpha_vantage_ohlcv")
+        if ds_config.longbridge_enabled:
+            priority.append("longbridge_ohlcv")
 
         self._data_source_priority = priority or ["yfinance_ohlcv"]
 

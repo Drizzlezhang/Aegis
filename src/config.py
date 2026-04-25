@@ -12,6 +12,7 @@ class DataSourceConfig(BaseModel):
     yfinance_enabled: bool = True
     alpha_vantage_enabled: bool = False
     alpha_vantage_api_key: str | None = None
+    longbridge_enabled: bool = False
     cache_ttl_seconds: int = 300  # 5 minutes
 
 
