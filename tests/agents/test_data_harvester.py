@@ -38,6 +38,8 @@ def data_harvester_agent_with_skill(data_harvester_agent, mock_yfinance_skill):
     """Create DataHarvesterAgent with mock skill directly attached."""
     # Directly set the skill to bypass initialize() requirement
     data_harvester_agent._yfinance_skill = mock_yfinance_skill
+    data_harvester_agent._skills["yfinance_ohlcv"] = mock_yfinance_skill
+    data_harvester_agent._data_source_priority = ["yfinance_ohlcv"]
     yield data_harvester_agent
 
 
@@ -79,10 +81,14 @@ async def test_run_success(data_harvester_agent_with_skill, mock_yfinance_skill)
     }
 
     # Use regular Mock objects with success/data attributes as return values
+    mock_market_indices = [
+        {"symbol": "^VIX", "name": "VIX", "price": 20.0, "change": 0.5, "change_percent": 2.5},
+    ]
     mock_yfinance_skill.execute.side_effect = [
         Mock(success=True, data=mock_ohlcv_data),
         Mock(success=True, data=mock_options_chain),
-        Mock(success=True, data=mock_fundamentals)
+        Mock(success=True, data=mock_fundamentals),
+        Mock(success=True, data=mock_market_indices),
     ]
 
     initial_state = AgentState(symbol=symbol, trade_date=date.today())
@@ -91,7 +97,7 @@ async def test_run_success(data_harvester_agent_with_skill, mock_yfinance_skill)
     assert result_state.symbol == symbol
     assert result_state.ohlcv_data == mock_ohlcv_data
     assert result_state.options_chain == mock_options_chain
-    assert mock_yfinance_skill.execute.call_count == 3
+    assert mock_yfinance_skill.execute.call_count == 4
     assert len(result_state.agent_sequence) == 1
     assert "Data-Harvester" in result_state.agent_sequence[0]
 
@@ -187,11 +193,13 @@ async def test_get_all_data_parallel(data_harvester_agent_with_skill, mock_yfina
     mock_ohlcv = [Mock(timestamp=datetime(2024, 1, 1), close=100.0, volume=1000000)]
     mock_options = Mock(calls=[Mock(strike=150.0)], puts=[Mock(strike=145.0)], spot_price=102.5)
     mock_fundamentals = {"pe_ratio": 25.0}
+    mock_market_indices = [{"symbol": "^VIX", "name": "VIX", "price": 20.0, "change": 0.5, "change_percent": 2.5}]
 
     mock_yfinance_skill.execute.side_effect = [
         Mock(success=True, data=mock_ohlcv),
         Mock(success=True, data=mock_options),
-        Mock(success=True, data=mock_fundamentals)
+        Mock(success=True, data=mock_fundamentals),
+        Mock(success=True, data=mock_market_indices),
     ]
 
     result = await data_harvester_agent_with_skill._get_all_data(symbol)
@@ -199,7 +207,8 @@ async def test_get_all_data_parallel(data_harvester_agent_with_skill, mock_yfina
     assert result["ohlcv"] == mock_ohlcv
     assert result["options"] == mock_options
     assert result["fundamentals"] == mock_fundamentals
-    assert mock_yfinance_skill.execute.call_count == 3
+    assert result["market_indices"] == mock_market_indices
+    assert mock_yfinance_skill.execute.call_count == 4
 
 
 @pytest.mark.asyncio

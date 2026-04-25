@@ -24,6 +24,7 @@ class DataHarvesterAgent(BaseAgent):
         self._skill_registry = get_global_registry()
         self._data_source_priority: list[str] = []
         self._skills: dict[str, Any] = {}
+        self._yfinance_skill: Any | None = None
 
     async def initialize(self) -> None:
         """Initialize data sources and skills."""
@@ -53,6 +54,9 @@ class DataHarvesterAgent(BaseAgent):
                 if skill:
                     await skill.initialize()
                     self._skills[skill_name] = skill
+                    # Keep a direct reference to yfinance skill for convenience
+                    if skill_name == "yfinance_ohlcv":
+                        self._yfinance_skill = skill
                     logger.info(f"{skill_name} skill loaded successfully")
                 else:
                     logger.warning(f"{skill_name} skill not found in registry")
