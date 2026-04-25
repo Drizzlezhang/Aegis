@@ -4,20 +4,27 @@ from typing import Any
 
 from src.models import RecommendedOption, SupportResistanceLevel
 
+from .market_context import StrategyMarketContext, format_strategy_market_summary
+
 
 def create_action_report(
     symbol: str,
     recommendations: list[RecommendedOption],
     support_levels: list[SupportResistanceLevel],
     resistance_levels: list[SupportResistanceLevel],
-    valuation_range: Any | None
+    valuation_range: Any | None,
+    market_context: StrategyMarketContext | None = None,
 ) -> str:
     """Create action report with strategy recommendations."""
     report = f"Strategy-Execution Report for {symbol}\n"
     report += "=" * 50 + "\n"
 
-    # Market context
-    report += "📊 MARKET CONTEXT\n"
+    # Macro market context
+    if market_context:
+        report += format_strategy_market_summary(market_context) + "\n\n"
+
+    # Technical context
+    report += "📊 TECHNICAL CONTEXT\n"
     if support_levels:
         strongest = max(support_levels, key=lambda x: x.confidence)
         report += f"  • Key Support: {strongest.price:.2f} (confidence: {strongest.confidence:.1%})\n"
@@ -52,7 +59,10 @@ def create_action_report(
     report += "\n⚠️ RISK WARNINGS\n"
     report += "  • Options trading involves significant risk of loss\n"
     report += "  • LEAPS strategies require long-term capital commitment\n"
-    report += "  • Always consider position sizing (max 2-5% per trade)\n"
+    if market_context and market_context.position_size_factor < 1.0:
+        report += f"  • REDUCE POSITION SIZE to {market_context.position_size_factor:.0%} due to elevated risk\n"
+    else:
+        report += "  • Always consider position sizing (max 2-5% per trade)\n"
     report += "  • Monitor VIX and overall market volatility\n"
 
     report += "=" * 50

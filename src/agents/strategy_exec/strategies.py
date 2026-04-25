@@ -5,6 +5,8 @@ from typing import Any
 
 from src.models import RecommendedOption, SupportResistanceLevel
 
+from .market_context import StrategyMarketContext, should_skip_leaps_for_tech
+
 logger = logging.getLogger(__name__)
 
 
@@ -13,10 +15,20 @@ def generate_leaps_call_strategy(
     options_chain: Any,
     entry_support: SupportResistanceLevel | None,
     valuation_range: Any | None,
-    current_price: float
+    current_price: float,
+    market_context: StrategyMarketContext | None = None,
 ) -> RecommendedOption | None:
     """Generate LEAPS Call strategy recommendation."""
     try:
+        # Macro guardrails
+        if market_context and not market_context.leaps_call_enabled:
+            logger.info(f"LEAPS Call disabled for {symbol} due to high VIX ({market_context.vix_level:.2f})")
+            return None
+
+        if market_context and should_skip_leaps_for_tech(symbol, market_context):
+            logger.info(f"LEAPS Call skipped for tech stock {symbol} during NDX weakness")
+            return None
+
         leaps_calls = [
             c for c in options_chain.calls
             if c.is_leaps and c.delta and 0.6 <= c.delta <= 0.8
@@ -54,6 +66,11 @@ def generate_leaps_call_strategy(
         if valuation_range and valuation_range.is_undervalued:
             confidence += 0.1
 
+        # Apply macro adjustments
+        if market_context:
+            confidence += market_context.leaps_confidence_delta
+            confidence = max(0.1, min(1.0, confidence))
+
         reasoning = f"LEAPS Call strategy for {symbol}:\n"
         reasoning += f"  • Strike: {best_call.strike:.2f}, Expiry: {best_call.expiry}\n"
         reasoning += f"  • Delta: {best_call.delta:.2f} (within target range 0.6-0.8)\n"
@@ -61,6 +78,8 @@ def generate_leaps_call_strategy(
             reasoning += f"  • Entry near support: {entry_support.price:.2f}\n"
         if valuation_range:
             reasoning += f"  • Valuation: {valuation_range.discount_to_fair:.1f}% discount to fair\n"
+        if market_context and market_context.volatility_regime != "normal":
+            reasoning += f"  • Macro context: VIX {market_context.vix_level:.2f} ({market_context.volatility_regime})\n"
         reasoning += f"  • Risk/Reward: {risk_reward_ratio:.2f}" if risk_reward_ratio else ""
 
         return RecommendedOption(
@@ -70,7 +89,7 @@ def generate_leaps_call_strategy(
             target_price=target_price,
             stop_loss=stop_loss,
             risk_reward_ratio=risk_reward_ratio,
-            confidence=min(confidence, 1.0),
+            confidence=confidence,
             reasoning=reasoning,
             support_levels=[entry_support] if entry_support else []
         )
@@ -84,7 +103,8 @@ def generate_bull_spread_strategy(
     symbol: str,
     options_chain: Any,
     entry_support: SupportResistanceLevel,
-    current_price: float
+    current_price: float,
+    market_context: StrategyMarketContext | None = None,
 ) -> RecommendedOption | None:
     """Generate Bull Spread strategy recommendation."""
     try:
@@ -124,6 +144,11 @@ def generate_bull_spread_strategy(
 
         confidence = 0.5 + (entry_support.confidence * 0.3)
 
+        # Apply macro adjustments
+        if market_context:
+            confidence += market_context.bull_spread_confidence_delta
+            confidence = max(0.1, min(1.0, confidence))
+
         reasoning = f"Bull Spread strategy for {symbol}:\n"
         reasoning += f"  • Buy Call: Strike {lower_strike.strike:.2f}, Premium {lower_premium:.2f}\n"
         reasoning += f"  • Sell Call: Strike {higher_strike.strike:.2f}, Premium {higher_premium:.2f}\n"
@@ -132,6 +157,8 @@ def generate_bull_spread_strategy(
         reasoning += f"  • Max Loss: {max_loss:.2f}\n"
         if risk_reward_ratio:
             reasoning += f"  • Risk/Reward: {risk_reward_ratio:.2f}\n"
+        if market_context and market_context.volatility_regime != "normal":
+            reasoning += f"  • Macro: VIX {market_context.vix_level:.2f} ({market_context.volatility_regime}) — defined risk preferred\n"
         reasoning += f"  • Breakeven: {lower_strike.strike + spread_cost:.2f}"
 
         return RecommendedOption(
@@ -141,7 +168,7 @@ def generate_bull_spread_strategy(
             target_price=max_profit,
             stop_loss=spread_cost * 0.5,
             risk_reward_ratio=risk_reward_ratio,
-            confidence=min(confidence, 1.0),
+            confidence=confidence,
             reasoning=reasoning,
             support_levels=[entry_support]
         )
@@ -155,7 +182,8 @@ def generate_covered_call_strategy(
     symbol: str,
     options_chain: Any,
     resistance_levels: list[SupportResistanceLevel],
-    current_price: float
+    current_price: float,
+    market_context: StrategyMarketContext | None = None,
 ) -> RecommendedOption | None:
     """Generate Covered Call strategy recommendation."""
     try:
@@ -187,9 +215,16 @@ def generate_covered_call_strategy(
             nearest_resistance = min(resistance_levels, key=lambda x: x.price)
             confidence += nearest_resistance.confidence * 0.2
 
+        # Apply macro adjustments
+        if market_context:
+            confidence += market_context.covered_call_confidence_delta
+            confidence = max(0.1, min(1.0, confidence))
+
         reasoning = f"Covered Call strategy for {symbol} (existing stock position):\n"
         reasoning += f"  • Sell Call: Strike {best_call.strike:.2f}, Premium {premium:.2f}\n"
         reasoning += f"  • Annual Yield: {annual_yield:.1f}%\n"
+        if market_context and market_context.market_sentiment == "bearish":
+            reasoning += f"  • Bearish macro — income generation prioritized over upside capture\n"
         reasoning += f"  • If stock stays below {best_call.strike:.2f}, keep full premium\n"
         reasoning += f"  • If stock rises above {best_call.strike:.2f}, shares called away at profit"
 
@@ -200,7 +235,7 @@ def generate_covered_call_strategy(
             target_price=premium,
             stop_loss=None,
             risk_reward_ratio=None,
-            confidence=min(confidence, 1.0),
+            confidence=confidence,
             reasoning=reasoning
         )
 
