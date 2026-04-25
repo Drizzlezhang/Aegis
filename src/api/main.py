@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.orchestrator import Orchestrator
 
-from .routes import analysis, analyze, status, symbols
+from .routes import analysis, analyze, market, status, symbols
 
 # Global orchestrator instance
 _orchestrator: Orchestrator | None = None
@@ -47,6 +47,7 @@ app.include_router(symbols.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
+app.include_router(market.router, prefix="/api")
 
 
 @app.get("/api/health")

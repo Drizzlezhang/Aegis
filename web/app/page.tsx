@@ -1,14 +1,22 @@
 import Header from '@/components/Header';
+import MarketIndexCard from '@/components/market-index-card';
 import Sidebar from '@/components/Sidebar';
 import SymbolCard from '@/components/SymbolCard';
-import { getSymbols, SymbolInfo } from '@/lib/api';
+import { getMarketIndices, getSymbols, MarketIndexData, SymbolInfo } from '@/lib/api';
 
 export default async function Home() {
   let symbols: SymbolInfo[] = [];
+  let indices: MarketIndexData[] = [];
   try {
     symbols = await getSymbols();
   } catch {
     symbols = [];
+  }
+  try {
+    const marketResp = await getMarketIndices();
+    indices = marketResp.indices || [];
+  } catch {
+    indices = [];
   }
 
   return (
@@ -24,6 +32,24 @@ export default async function Home() {
                 Multi-Agent quantitative analysis overview
               </p>
             </div>
+
+            {indices.length > 0 && (
+              <div className="mb-6">
+                <h2 className="mb-3 text-sm font-semibold text-slate-300">Market Indices</h2>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  {indices.map((idx) => (
+                    <MarketIndexCard
+                      key={idx.symbol}
+                      symbol={idx.symbol}
+                      name={idx.name}
+                      price={idx.price}
+                      change={idx.change}
+                      change_percent={idx.change_percent}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {symbols.map((s) => (
