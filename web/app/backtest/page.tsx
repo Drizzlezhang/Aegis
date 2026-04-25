@@ -23,9 +23,13 @@ import { runBacktest } from '@/lib/api';
 interface BacktestConfig {
   symbol: string;
   strategy: 'leaps_call' | 'bull_spread' | 'covered_call';
+  signalType: 'sma_crossover' | 'rsi' | 'sma_rsi_combo';
   startDate: string;
   endDate: string;
   initialCapital: number;
+  rsiPeriod: number;
+  rsiOverbought: number;
+  rsiOversold: number;
 }
 
 interface Trade {
@@ -78,9 +82,13 @@ export default function BacktestPage() {
   const [config, setConfig] = useState<BacktestConfig>({
     symbol: 'QQQ',
     strategy: 'bull_spread',
+    signalType: 'sma_crossover',
     startDate: '2024-01-01',
     endDate: '2024-12-31',
     initialCapital: 100000,
+    rsiPeriod: 14,
+    rsiOverbought: 70,
+    rsiOversold: 30,
   });
 
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -96,6 +104,11 @@ export default function BacktestPage() {
         start_date: config.startDate,
         end_date: config.endDate,
         initial_capital: config.initialCapital,
+        strategy: config.strategy,
+        signal_type: config.signalType,
+        rsi_period: config.rsiPeriod,
+        rsi_overbought: config.rsiOverbought,
+        rsi_oversold: config.rsiOversold,
       });
       setResult({
         equityCurve: apiResult.equityCurve,
@@ -116,6 +129,12 @@ export default function BacktestPage() {
     covered_call: 'Covered Call',
   };
 
+  const signalTypeNames: Record<string, string> = {
+    sma_crossover: 'SMA Crossover',
+    rsi: 'RSI',
+    sma_rsi_combo: 'SMA + RSI Combo',
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -131,7 +150,7 @@ export default function BacktestPage() {
             {/* Config Panel */}
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
               <h2 className="mb-3 text-sm font-semibold text-slate-300">Configuration</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
                 <div>
                   <label className="mb-1 block text-xs text-slate-500">Symbol</label>
                   <select
@@ -156,6 +175,18 @@ export default function BacktestPage() {
                     <option value="leaps_call">LEAPS Call</option>
                     <option value="bull_spread">Bull Spread</option>
                     <option value="covered_call">Covered Call</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-500">Signal Type</label>
+                  <select
+                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+                    value={config.signalType}
+                    onChange={(e) => setConfig({ ...config, signalType: e.target.value as BacktestConfig['signalType'] })}
+                  >
+                    <option value="sma_crossover">SMA Crossover</option>
+                    <option value="rsi">RSI</option>
+                    <option value="sma_rsi_combo">SMA + RSI Combo</option>
                   </select>
                 </div>
                 <div>
@@ -186,6 +217,43 @@ export default function BacktestPage() {
                   </button>
                 </div>
               </div>
+              {config.signalType !== 'sma_crossover' && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-500">RSI Period</label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={50}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+                      value={config.rsiPeriod}
+                      onChange={(e) => setConfig({ ...config, rsiPeriod: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-500">RSI Overbought</label>
+                    <input
+                      type="number"
+                      min={50}
+                      max={95}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+                      value={config.rsiOverbought}
+                      onChange={(e) => setConfig({ ...config, rsiOverbought: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-500">RSI Oversold</label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={50}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+                      value={config.rsiOversold}
+                      onChange={(e) => setConfig({ ...config, rsiOversold: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {error && (
@@ -219,7 +287,7 @@ export default function BacktestPage() {
                 {/* Equity Curve */}
                 <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
                   <h3 className="mb-4 text-sm font-semibold text-slate-300">
-                    Equity Curve — {config.symbol} {strategyNames[config.strategy]}
+                    Equity Curve — {config.symbol} {strategyNames[config.strategy]} ({signalTypeNames[config.signalType]})
                   </h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={result.equityCurve} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>

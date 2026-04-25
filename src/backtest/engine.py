@@ -7,6 +7,13 @@ from typing import Any
 from src.models import OHLCV
 from src.skills import SkillRegistry
 
+from .strategies import (
+    Signal,
+    _generate_combo_signals,
+    _generate_rsi_signals,
+    _generate_sma_signals,
+)
+
 
 @dataclass
 class TradeRecord:
@@ -37,9 +44,21 @@ class BacktestResult:
 class BacktestEngine:
     """Simple backtest engine based on SMA crossover signals."""
 
-    def __init__(self, short_window: int = 20, long_window: int = 50):
+    def __init__(
+        self,
+        short_window: int = 20,
+        long_window: int = 50,
+        signal_type: str = "sma_crossover",
+        rsi_period: int = 14,
+        rsi_overbought: float = 70.0,
+        rsi_oversold: float = 30.0,
+    ):
         self.short_window = short_window
         self.long_window = long_window
+        self.signal_type = signal_type
+        self.rsi_period = rsi_period
+        self.rsi_overbought = rsi_overbought
+        self.rsi_oversold = rsi_oversold
 
     async def run_backtest(
         self,
@@ -66,14 +85,33 @@ class BacktestEngine:
                 f"need at least {self.long_window + 5}"
             )
 
-        # Calculate SMAs
-        closes = [d.close for d in ohlcv_data]
-        short_sma = self._calculate_sma(closes, self.short_window)
-        long_sma = self._calculate_sma(closes, self.long_window)
+        # Generate signals based on signal_type
+        if self.signal_type == "rsi":
+            signals = _generate_rsi_signals(
+                ohlcv_data,
+                self.rsi_period,
+                self.rsi_oversold,
+                self.rsi_overbought,
+            )
+        elif self.signal_type == "sma_rsi_combo":
+            signals = _generate_combo_signals(
+                ohlcv_data,
+                self.short_window,
+                self.long_window,
+                self.rsi_period,
+                self.rsi_oversold,
+                self.rsi_overbought,
+            )
+        else:
+            signals = _generate_sma_signals(
+                ohlcv_data,
+                self.short_window,
+                self.long_window,
+            )
 
-        # Generate signals and simulate trades
+        # Simulate trades from signals
         equity_curve, trades = self._simulate(
-            ohlcv_data, short_sma, long_sma, initial_capital
+            ohlcv_data, signals, initial_capital
         )
 
         # Calculate metrics
@@ -128,25 +166,13 @@ class BacktestEngine:
             end=end_exclusive.isoformat(),
         )
 
-    @staticmethod
-    def _calculate_sma(prices: list[float], window: int) -> list[float | None]:
-        """Calculate Simple Moving Average."""
-        result: list[float | None] = []
-        for i in range(len(prices)):
-            if i < window - 1:
-                result.append(None)
-            else:
-                result.append(sum(prices[i - window + 1 : i + 1]) / window)
-        return result
-
     def _simulate(
         self,
         ohlcv_data: list[OHLCV],
-        short_sma: list[float | None],
-        long_sma: list[float | None],
+        signals: list[Signal],
         initial_capital: float,
     ) -> tuple[list[dict[str, Any]], list[TradeRecord]]:
-        """Simulate trading based on SMA crossover signals."""
+        """Simulate trading based on a list of signals."""
         capital = initial_capital
         shares = 0
         position_open = False
@@ -159,50 +185,46 @@ class BacktestEngine:
         first_price = ohlcv_data[0].close
         benchmark_shares = initial_capital / first_price
 
-        for i, day in enumerate(ohlcv_data):
+        # Map signals by date for O(1) lookup
+        signal_map: dict[str, str] = {}
+        for s in signals:
+            signal_map[s.date] = s.action
+
+        for day in ohlcv_data:
             price = day.close
             date_str = day.timestamp.strftime("%Y-%m-%d")
+            action = signal_map.get(date_str)
 
-            short = short_sma[i]
-            long = long_sma[i]
+            if action == "buy" and not position_open:
+                shares = int(capital / price)
+                if shares > 0:
+                    cost = shares * price
+                    capital -= cost
+                    position_open = True
+                    current_trade = TradeRecord(
+                        entry_date=date_str,
+                        entry_price=price,
+                        shares=shares,
+                        status="open",
+                    )
 
-            # Signal detection (need both SMAs ready)
-            if short is not None and long is not None and i > 0:
-                prev_short = short_sma[i - 1]
-                prev_long = long_sma[i - 1]
+            elif action == "sell" and position_open and current_trade:
+                proceeds = shares * price
+                capital += proceeds
+                pnl = proceeds - (current_trade.shares * current_trade.entry_price)
+                pnl_percent = (
+                    pnl / (current_trade.shares * current_trade.entry_price)
+                ) * 100
+                current_trade.exit_date = date_str
+                current_trade.exit_price = price
+                current_trade.pnl = pnl
+                current_trade.pnl_percent = pnl_percent
+                current_trade.status = "closed"
+                trades.append(current_trade)
 
-                if prev_short is not None and prev_long is not None:
-                    # Golden cross: short crosses above long -> buy
-                    if prev_short <= prev_long and short > long and not position_open:
-                        shares = int(capital / price)
-                        if shares > 0:
-                            cost = shares * price
-                            capital -= cost
-                            position_open = True
-                            current_trade = TradeRecord(
-                                entry_date=date_str,
-                                entry_price=price,
-                                shares=shares,
-                                status="open",
-                            )
-
-                    # Death cross: short crosses below long -> sell
-                    elif prev_short >= prev_long and short < long and position_open:
-                        if current_trade:
-                            proceeds = shares * price
-                            capital += proceeds
-                            pnl = proceeds - (current_trade.shares * current_trade.entry_price)
-                            pnl_percent = (pnl / (current_trade.shares * current_trade.entry_price)) * 100
-                            current_trade.exit_date = date_str
-                            current_trade.exit_price = price
-                            current_trade.pnl = pnl
-                            current_trade.pnl_percent = pnl_percent
-                            current_trade.status = "closed"
-                            trades.append(current_trade)
-
-                        shares = 0
-                        position_open = False
-                        current_trade = None
+                shares = 0
+                position_open = False
+                current_trade = None
 
             # Calculate portfolio value
             portfolio_value = capital + shares * price
@@ -222,7 +244,9 @@ class BacktestEngine:
             proceeds = shares * last_price
             capital += proceeds
             pnl = proceeds - (current_trade.shares * current_trade.entry_price)
-            pnl_percent = (pnl / (current_trade.shares * current_trade.entry_price)) * 100
+            pnl_percent = (
+                pnl / (current_trade.shares * current_trade.entry_price)
+            ) * 100
             current_trade.exit_date = last_date
             current_trade.exit_price = last_price
             current_trade.pnl = pnl

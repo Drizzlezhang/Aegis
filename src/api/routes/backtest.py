@@ -17,6 +17,11 @@ class BacktestRequest(BaseModel):
     initial_capital: float = Field(default=100000.0, gt=0)
     short_window: int = Field(default=20, ge=5, le=200)
     long_window: int = Field(default=50, ge=10, le=500)
+    strategy: str = Field(default="sma_crossover")
+    signal_type: str = Field(default="sma_crossover")
+    rsi_period: int = Field(default=14, ge=2, le=50)
+    rsi_overbought: float = Field(default=70.0, ge=50.0, le=95.0)
+    rsi_oversold: float = Field(default=30.0, ge=5.0, le=50.0)
 
 
 class TradeResponse(BaseModel):
@@ -107,6 +112,10 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
     engine = BacktestEngine(
         short_window=request.short_window,
         long_window=request.long_window,
+        signal_type=request.signal_type,
+        rsi_period=request.rsi_period,
+        rsi_overbought=request.rsi_overbought,
+        rsi_oversold=request.rsi_oversold,
     )
 
     try:
@@ -160,7 +169,7 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
 
     return BacktestResponse(
         symbol=result.symbol,
-        strategy=result.strategy,
+        strategy=request.strategy,
         equityCurve=equity_curve,
         trades=trades_resp,
         metrics=BacktestMetrics(**camel_metrics),

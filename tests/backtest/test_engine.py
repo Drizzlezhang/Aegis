@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from src.backtest.engine import BacktestEngine, TradeRecord
+from src.backtest.strategies import Signal
 
 
 class TestBacktestEngine:
@@ -77,63 +78,29 @@ class TestBacktestEngine:
                     end_date=date(2024, 1, 3),
                 )
 
-    def test_calculate_sma(self):
-        """SMA calculation produces correct values."""
-        prices = [1.0, 2.0, 3.0, 4.0, 5.0]
-        sma = BacktestEngine._calculate_sma(prices, window=3)
-
-        assert sma[0] is None
-        assert sma[1] is None
-        assert sma[2] == pytest.approx(2.0)
-        assert sma[3] == pytest.approx(3.0)
-        assert sma[4] == pytest.approx(4.0)
-
-    def test_calculate_sma_window_equals_length(self):
-        """SMA with window equal to data length."""
-        prices = [10.0, 20.0, 30.0]
-        sma = BacktestEngine._calculate_sma(prices, window=3)
-
-        assert sma[0] is None
-        assert sma[1] is None
-        assert sma[2] == pytest.approx(20.0)
-
-    def test_simulate_golden_cross_buy(self):
-        """Golden cross (short SMA crosses above long SMA) triggers buy."""
+    def test_simulate_buy_signal(self):
+        """Buy signal triggers entry trade."""
         from src.models import OHLCV
 
         ohlcv_data = [
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 1), open=100, high=101, low=99, close=100, volume=1000),
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 2), open=100, high=101, low=99, close=101, volume=1000),
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 3), open=100, high=101, low=99, close=102, volume=1000),
-            OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 4), open=100, high=101, low=99, close=105, volume=1000),  # golden cross
+            OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 4), open=100, high=101, low=99, close=105, volume=1000),
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 5), open=100, high=101, low=99, close=106, volume=1000),
         ]
-        # short=2: [None, 100.5, 101.5, 103.5, 105.5]
-        # long=3:  [None, None, 101.0, 102.67, 104.33]
-        short_sma = [None, 100.5, 101.5, 103.5, 105.5]
-        long_sma = [None, None, 101.0, 102.67, 104.33]
+        signals = [Signal(date="2024-01-04", action="buy")]
 
         equity, trades = self.engine._simulate(
-            ohlcv_data, short_sma, long_sma, 100000.0
+            ohlcv_data, signals, 100000.0
         )
 
-        # Golden cross at i=3: prev_short=101.5 <= prev_long=101.0 is False
-        # At i=4: prev_short=103.5 > prev_long=102.67, short=105.5 > long=104.33
-        # Need a clearer crossover - let's use explicit values
-        short_sma2 = [None, 99.0, 100.0, 103.0, 106.0]
-        long_sma2 = [None, None, 100.5, 101.0, 104.0]
-
-        equity, trades = self.engine._simulate(
-            ohlcv_data, short_sma2, long_sma2, 100000.0
-        )
-
-        # Crossover at i=3: prev_short=100.0 <= prev_long=100.5, short=103.0 > long=101.0 -> BUY
         assert len(trades) >= 1
         assert trades[0].status == "closed"
         assert trades[0].entry_price == 105.0
 
-    def test_simulate_death_cross_sell(self):
-        """Death cross (short SMA crosses below long SMA) triggers sell."""
+    def test_simulate_buy_and_sell_signals(self):
+        """Buy then sell signals trigger a complete trade cycle."""
         from src.models import OHLCV
 
         ohlcv_data = [
@@ -144,12 +111,13 @@ class TestBacktestEngine:
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 5), open=100, high=101, low=99, close=106, volume=1000),
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 6), open=100, high=101, low=99, close=95, volume=1000),
         ]
-        # Golden cross at i=3, death cross at i=5
-        short_sma = [None, 99.0, 100.0, 103.0, 105.5, 100.5]
-        long_sma = [None, None, 100.5, 101.0, 104.33, 102.0]
+        signals = [
+            Signal(date="2024-01-04", action="buy"),
+            Signal(date="2024-01-06", action="sell"),
+        ]
 
         equity, trades = self.engine._simulate(
-            ohlcv_data, short_sma, long_sma, 100000.0
+            ohlcv_data, signals, 100000.0
         )
 
         # Should have completed a buy-and-sell cycle
@@ -166,12 +134,11 @@ class TestBacktestEngine:
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 3), open=100, high=101, low=99, close=102, volume=1000),
             OHLCV(symbol="QQQ", timestamp=datetime(2024, 1, 4), open=100, high=101, low=99, close=105, volume=1000),
         ]
-        # Golden cross at i=3, no death cross before end
-        short_sma = [None, 99.0, 100.0, 103.0]
-        long_sma = [None, None, 100.5, 101.0]
+        # Buy signal but no sell signal before end
+        signals = [Signal(date="2024-01-04", action="buy")]
 
         equity, trades = self.engine._simulate(
-            ohlcv_data, short_sma, long_sma, 100000.0
+            ohlcv_data, signals, 100000.0
         )
 
         # Should close the open position at the last day
@@ -235,3 +202,68 @@ class TestTradeRecord:
         assert trade.exit_date == "2024-01-10"
         assert trade.pnl == 1000.0
         assert trade.status == "closed"
+
+
+class TestBacktestEngineRsi:
+    """End-to-end tests for RSI signal type."""
+
+    @pytest.mark.asyncio
+    async def test_run_backtest_rsi_signal(self):
+        """RSI signal type produces backtest result."""
+        engine = BacktestEngine(
+            signal_type="rsi",
+            rsi_period=14,
+            rsi_oversold=30.0,
+            rsi_overbought=70.0,
+        )
+
+        # Need at least long_window + 5 = 55 data points for engine check
+        mock_data = [
+            Mock(timestamp=datetime(2024, 1, 1) + __import__("datetime").timedelta(days=i), close=100.0 + i * 2, volume=1000000)
+            for i in range(60)
+        ]
+        with patch.object(engine, "_fetch_ohlcv", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = mock_data
+
+            result = await engine.run_backtest(
+                symbol="QQQ",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 3, 1),
+                initial_capital=100000.0,
+            )
+
+            assert result.symbol == "QQQ"
+            assert len(result.equity_curve) == 60
+
+
+class TestBacktestEngineCombo:
+    """End-to-end tests for SMA+RSI combo signal type."""
+
+    @pytest.mark.asyncio
+    async def test_run_backtest_combo_signal(self):
+        """Combo signal type produces backtest result."""
+        engine = BacktestEngine(
+            short_window=2,
+            long_window=3,
+            signal_type="sma_rsi_combo",
+            rsi_period=14,
+            rsi_oversold=30.0,
+            rsi_overbought=70.0,
+        )
+
+        mock_data = [
+            Mock(timestamp=datetime(2024, 1, i + 1), close=100.0 + i * 2, volume=1000000)
+            for i in range(30)
+        ]
+        with patch.object(engine, "_fetch_ohlcv", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = mock_data
+
+            result = await engine.run_backtest(
+                symbol="QQQ",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 1, 30),
+                initial_capital=100000.0,
+            )
+
+            assert result.symbol == "QQQ"
+            assert len(result.equity_curve) == 30

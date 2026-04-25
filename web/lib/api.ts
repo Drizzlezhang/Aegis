@@ -171,6 +171,11 @@ export interface BacktestConfigPayload {
   initial_capital: number;
   short_window?: number;
   long_window?: number;
+  strategy?: string;
+  signal_type?: string;
+  rsi_period?: number;
+  rsi_overbought?: number;
+  rsi_oversold?: number;
 }
 
 export interface BacktestTrade {
