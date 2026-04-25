@@ -15,6 +15,7 @@ from .core import (
     create_support_resistance_levels,
 )
 from .llm_integration import generate_llm_enhanced_report
+from .market_context import analyze_market_context
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,14 @@ class QuantBrainAgent(BaseAgent):
         options_chain = state.options_chain
         fundamentals: dict[str, Any] = {}  # Placeholder for now
 
+        # Analyze market context from market indices
+        market_context = analyze_market_context(state.market_indices)
+        if market_context.vix_level is not None:
+            logger.info(
+                f"Market context for {symbol}: VIX={market_context.vix_level:.2f}, "
+                f"sentiment={market_context.market_sentiment}, regime={market_context.volatility_regime}"
+            )
+
         # Calculate volume profile
         volume_profile = None
         if ohlcv_data:
@@ -83,8 +92,10 @@ class QuantBrainAgent(BaseAgent):
             if gex_walls:
                 state.gex_walls = gex_walls
 
-        # Calculate support/resistance levels
-        support_levels, resistance_levels = create_support_resistance_levels(volume_profile, gex_walls)
+        # Calculate support/resistance levels with market context adjustment
+        support_levels, resistance_levels = create_support_resistance_levels(
+            volume_profile, gex_walls, market_context=market_context
+        )
         state.support_levels = support_levels
         state.resistance_levels = resistance_levels
 
@@ -97,7 +108,7 @@ class QuantBrainAgent(BaseAgent):
             if valuation_range:
                 state.valuation_range = valuation_range
 
-        # Generate enhanced LLM report
+        # Generate enhanced LLM report with market context
         try:
             enhanced_report = await generate_llm_enhanced_report(
                 symbol=state.symbol,
@@ -107,7 +118,8 @@ class QuantBrainAgent(BaseAgent):
                 resistance_levels=state.resistance_levels,
                 volume_profile=state.volume_profile,
                 gex_walls=state.gex_walls,
-                valuation_range=state.valuation_range
+                valuation_range=state.valuation_range,
+                market_context=market_context,
             )
             state.analysis_report = enhanced_report
             logger.info(f"Generated enhanced LLM report for {symbol}")

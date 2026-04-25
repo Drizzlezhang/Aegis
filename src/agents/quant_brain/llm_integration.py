@@ -6,6 +6,8 @@ from typing import Any
 from src.llm import TaskType, generate
 from src.models import AgentState, GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
 
+from .market_context import MarketContext, format_market_summary
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +19,8 @@ async def generate_llm_enhanced_report(
     resistance_levels: list[SupportResistanceLevel] | None = None,
     volume_profile: VolumeProfile | None = None,
     gex_walls: list[GEXWall] | None = None,
-    valuation_range: ValuationRange | None = None
+    valuation_range: ValuationRange | None = None,
+    market_context: MarketContext | None = None,
 ) -> str:
     """
     Generate enhanced analysis report using LLM.
@@ -31,6 +34,7 @@ async def generate_llm_enhanced_report(
         volume_profile: Volume profile data
         gex_walls: GEX walls
         valuation_range: Valuation range
+        market_context: Computed market context for macro adjustment
 
     Returns:
         Enhanced analysis report
@@ -44,8 +48,21 @@ async def generate_llm_enhanced_report(
         resistance_levels=resistance_levels,
         volume_profile=volume_profile,
         gex_walls=gex_walls,
-        valuation_range=valuation_range
+        valuation_range=valuation_range,
+        market_context=market_context,
     )
+
+    # Build macro context paragraph
+    macro_paragraph = ""
+    if market_context:
+        macro_paragraph = (
+            f"\nMACRO MARKET CONTEXT:\n"
+            f"- Volatility Regime (VIX): {market_context.volatility_regime}\n"
+            f"- Market Sentiment: {market_context.market_sentiment}\n"
+            f"- Recommended Position Size Factor: {market_context.position_size_factor:.0%}\n"
+        )
+        if market_context.risk_warning:
+            macro_paragraph += f"- Risk Warning: {market_context.risk_warning}\n"
 
     try:
         # Generate enhanced report using LLM
@@ -53,7 +70,7 @@ async def generate_llm_enhanced_report(
             prompt=f"""You are a senior quantitative analyst. Analyze this market data and provide a professional trading analysis report.
 
 Data Summary:
-{data_summary}
+{data_summary}{macro_paragraph}
 
 Please provide a comprehensive analysis including:
 
@@ -81,15 +98,16 @@ Please provide a comprehensive analysis including:
 
 
 5. RISK MANAGEMENT RECOMMENDATIONS
-   - Position sizing suggestions
+   - Position sizing suggestions (respect the position size factor from macro context)
    - Stop-loss placement
    - Portfolio allocation considerations
 
 
-Format the report professionally with clear sections, bullet points for key points, and actionable recommendations.""",
+IMPORTANT: Incorporate the macro market context (VIX level, market sentiment, position size factor) into your analysis. When VIX is elevated or market sentiment is bearish, be more conservative with recommendations.""",
             system_prompt="""You are a senior quantitative analyst at a hedge fund specializing in options trading and market analysis.
 You have deep expertise in technical analysis, options pricing, and risk management.
-Provide professional, data-driven insights suitable for institutional investors.""",
+Provide professional, data-driven insights suitable for institutional investors.
+Always factor in the macro market context (VIX, SPX/NDX trend) when making recommendations.""",
             task_type=TaskType.ANALYSIS,
             max_tokens=4000,
             temperature=0.3
@@ -112,11 +130,16 @@ def _create_data_summary(
     resistance_levels: list[SupportResistanceLevel] | None = None,
     volume_profile: VolumeProfile | None = None,
     gex_walls: list[GEXWall] | None = None,
-    valuation_range: ValuationRange | None = None
+    valuation_range: ValuationRange | None = None,
+    market_context: MarketContext | None = None,
 ) -> str:
     """Create a structured data summary for LLM analysis."""
     summary = f"ANALYSIS DATA FOR {symbol}\n"
     summary += "=" * 50 + "\n\n"
+
+    # Market Context
+    if market_context:
+        summary += format_market_summary(market_context) + "\n\n"
 
     # Market Data
     summary += "MARKET DATA\n"

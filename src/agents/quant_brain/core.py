@@ -7,6 +7,8 @@ from typing import Any
 
 from src.models import SupportResistanceLevel, ValuationRange
 
+from .market_context import MarketContext, adjust_confidence_for_market
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,7 +129,8 @@ async def calculate_pe_band_valuation(
 def create_support_resistance_levels(
     volume_profile: Any | None,
     gex_walls: list[Any] | None,
-    prior_levels: list[float] | None = None
+    prior_levels: list[float] | None = None,
+    market_context: MarketContext | None = None,
 ) -> tuple[list[SupportResistanceLevel], list[SupportResistanceLevel]]:
     """Create support and resistance levels from multiple sources."""
     support_levels = []
@@ -135,28 +138,31 @@ def create_support_resistance_levels(
 
     # Add levels from volume profile
     if volume_profile:
+        poc_conf = adjust_confidence_for_market(0.8, "support", market_context) if market_context else 0.8
         poc_level = SupportResistanceLevel(
             price=volume_profile.poc_price,
             level_type="support",
-            confidence=0.8,
+            confidence=poc_conf,
             source="volume_profile",
             description="Point of Control (highest volume)"
         )
         support_levels.append(poc_level)
 
+        vah_conf = adjust_confidence_for_market(0.7, "resistance", market_context) if market_context else 0.7
         vah_level = SupportResistanceLevel(
             price=volume_profile.vah_price,
             level_type="resistance",
-            confidence=0.7,
+            confidence=vah_conf,
             source="volume_profile",
             description="Value Area High"
         )
         resistance_levels.append(vah_level)
 
+        val_conf = adjust_confidence_for_market(0.7, "support", market_context) if market_context else 0.7
         val_level = SupportResistanceLevel(
             price=volume_profile.val_price,
             level_type="support",
-            confidence=0.7,
+            confidence=val_conf,
             source="volume_profile",
             description="Value Area Low"
         )
@@ -167,6 +173,7 @@ def create_support_resistance_levels(
         for wall in gex_walls:
             confidence = 0.6 + (min(wall.absolute_gex / 1e6, 0.3))
             if wall.is_support:
+                confidence = adjust_confidence_for_market(confidence, "support", market_context) if market_context else confidence
                 support_levels.append(SupportResistanceLevel(
                     price=wall.strike,
                     level_type="support",
@@ -175,6 +182,7 @@ def create_support_resistance_levels(
                     description=f"GEX Support Wall (GEX: {wall.net_gex:,.0f})"
                 ))
             elif wall.is_resistance:
+                confidence = adjust_confidence_for_market(confidence, "resistance", market_context) if market_context else confidence
                 resistance_levels.append(SupportResistanceLevel(
                     price=wall.strike,
                     level_type="resistance",
@@ -194,10 +202,11 @@ def create_support_resistance_levels(
                 level_type = "support"
                 description = "User prior level"
 
+            conf = adjust_confidence_for_market(0.5, level_type, market_context) if market_context else 0.5
             level = SupportResistanceLevel(
                 price=price,
                 level_type=level_type,
-                confidence=0.5,
+                confidence=conf,
                 source="prior",
                 description=description
             )
