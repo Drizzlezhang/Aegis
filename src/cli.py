@@ -241,6 +241,25 @@ def parse_args() -> argparse.Namespace:
     # version 命令
     subparsers.add_parser("version", help="显示版本信息")
 
+    # api 命令
+    api_parser = subparsers.add_parser("api", help="启动 API 服务")
+    api_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="绑定地址 (默认: 0.0.0.0)"
+    )
+    api_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="端口 (默认: 8000)"
+    )
+    api_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="开发模式自动重载"
+    )
+
     return parser.parse_args()
 
 
@@ -305,6 +324,16 @@ async def main_async() -> None:
     elif args.command == "version":
         config = get_config()
         print(f"Aegis-Trader v{config.version}")
+
+    elif args.command == "api":
+        import uvicorn
+        print(f"启动 API 服务: http://{args.host}:{args.port}")
+        uvicorn.run(
+            "src.api.main:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+        )
 
 
 def main() -> None:

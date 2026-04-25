@@ -34,7 +34,8 @@ htmlcov/
 !CLAUDE.md
 
 # Deploy scripts (not needed inside image)
-deploy/
+deploy/*
+!deploy/supervisord.conf
 
 # Node.js (web is built separately or mounted)
 web/node_modules

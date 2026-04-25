@@ -1,69 +1,89 @@
 # Aegis-Trader Dockerfile
 # Multi-stage build for production
-# Compatible with Python 3.12+ (uses 3.13 slim as stable base)
+# Targets AWS Singapore (Ubuntu-like, 2GB RAM)
 
-# Stage 1: Builder
-FROM python:3.13-slim AS builder
+# ---------------------------------------------------------------------------
+# Stage 1: Frontend builder
+# ---------------------------------------------------------------------------
+FROM node:25-slim AS frontend-builder
+
+WORKDIR /app/web
+
+COPY web/package*.json ./
+RUN npm ci
+
+COPY web/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: Python builder
+# ---------------------------------------------------------------------------
+FROM python:3.13-slim AS python-builder
 
 WORKDIR /app
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
+    gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files first (leverage Docker cache)
-COPY pyproject.toml ./
-COPY CLAUDE.md ./
-
-# Copy source so 'pip install -e .' can find packages
+COPY pyproject.toml CLAUDE.md ./
 COPY src/ ./src/
 COPY skills/ ./skills/
 
-# Install project in editable mode with optional dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e ".[llm,data]"
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -e ".[llm,data]"
 
-# Stage 2: Runtime
+# ---------------------------------------------------------------------------
+# Stage 3: Runtime
+# ---------------------------------------------------------------------------
 FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime deps: curl (healthcheck), Node.js (frontend), supervisor
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
+    curl ca-certificates gnupg supervisor \
+    && curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN useradd -m -u 1000 aegis && \
-    chown -R aegis:aegis /app
+RUN useradd -m -u 1000 aegis \
+    && chown -R aegis:aegis /app
 
-# Copy installed Python packages from builder
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy Python packages from builder
+COPY --from=python-builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=python-builder /usr/local/bin /usr/local/bin
 
-# Copy application code (only necessary directories)
+# Copy application code
 COPY --chown=aegis:aegis src/ ./src/
 COPY --chown=aegis:aegis skills/ ./skills/
-COPY --chown=aegis:aegis pyproject.toml ./
-COPY --chown=aegis:aegis CLAUDE.md ./
+COPY --chown=aegis:aegis pyproject.toml CLAUDE.md ./
 
-# Create runtime directories
-RUN mkdir -p /app/data /app/cache /app/logs && \
-    chown -R aegis:aegis /app/data /app/cache /app/logs
+# Copy built frontend
+COPY --from=frontend-builder --chown=aegis:aegis /app/web/package*.json ./web/
+COPY --from=frontend-builder --chown=aegis:aegis /app/web/.next ./web/.next
+COPY --from=frontend-builder --chown=aegis:aegis /app/web/.env.local ./web/.env.local
+COPY --chown=aegis:aegis web/next.config.js ./web/
+COPY --chown=aegis:aegis web/tailwind.config.js ./web/
+COPY --chown=aegis:aegis web/tsconfig.json ./web/
+COPY --chown=aegis:aegis web/postcss.config.js ./web/
 
-# Switch to non-root user
-USER aegis
+# Install production frontend deps (for next start)
+RUN cd /app/web && npm ci --omit=dev
 
-# Health check using CLI health command (no HTTP API yet)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -m src.cli health || exit 1
+# Runtime dirs
+RUN mkdir -p /app/data /app/cache /app/logs /app/web/logs \
+    && chown -R aegis:aegis /app/data /app/cache /app/logs /app/web/logs
 
-# Expose ports (reserved for future API / Web)
-EXPOSE 8000
-EXPOSE 3000
+# Supervisor config
+COPY --chown=root:root deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Default command
-CMD ["python", "-m", "src.cli", "status"]
+# Health check (FastAPI)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://127.0.0.1:8001/api/health || exit 1
+
+EXPOSE 3000 8001
+
+USER root
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
