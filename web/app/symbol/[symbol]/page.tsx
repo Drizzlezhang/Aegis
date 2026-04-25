@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import GEXChart from '@/components/gex-chart';
 import Header from '@/components/Header';
+import MarketSentimentBanner from '@/components/market-sentiment-banner';
 import PriceChart from '@/components/price-chart';
 import Sidebar from '@/components/Sidebar';
 import SupportResistance from '@/components/SupportResistance';
 import StrategyRecommendations from '@/components/StrategyRecommendations';
 import VolumeProfileChart from '@/components/volume-profile-chart';
-import { getSymbolDetail } from '@/lib/api';
+import { getMarketIndices, getSymbolDetail, MarketIndexData } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ symbol: string }>;
@@ -15,11 +16,19 @@ interface PageProps {
 export default async function SymbolPage({ params }: PageProps) {
   const { symbol } = await params;
   let detail;
+  let indices: MarketIndexData[] = [];
 
   try {
     detail = await getSymbolDetail(symbol.toUpperCase());
   } catch {
     notFound();
+  }
+
+  try {
+    const marketResp = await getMarketIndices();
+    indices = marketResp.indices || [];
+  } catch {
+    indices = [];
   }
 
   const positive = detail.change >= 0;
@@ -31,6 +40,11 @@ export default async function SymbolPage({ params }: PageProps) {
         <Sidebar />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-5xl space-y-4">
+            {/* Market Sentiment Banner */}
+            {indices.length > 0 && (
+              <MarketSentimentBanner indices={indices} />
+            )}
+
             {/* Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
