@@ -1,5 +1,6 @@
 import Header from '@/components/Header';
 import MarketIndexCard from '@/components/market-index-card';
+import MarketSentimentInline from '@/components/market-sentiment-inline';
 import Sidebar from '@/components/Sidebar';
 import SymbolCard from '@/components/SymbolCard';
 import { getMarketIndices, getSymbols, MarketIndexData, SymbolInfo } from '@/lib/api';
@@ -35,7 +36,10 @@ export default async function Home() {
 
             {indices.length > 0 && (
               <div className="mb-6">
-                <h2 className="mb-3 text-sm font-semibold text-slate-300">Market Indices</h2>
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-300">Market Indices</h2>
+                  <MarketSentimentInline indices={indices} />
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {indices.map((idx) => (
                     <MarketIndexCard
