@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { runBacktest } from '@/lib/api';
 
 interface BacktestConfig {
   symbol: string;
@@ -31,8 +32,8 @@ interface Trade {
   date: string;
   type: 'entry' | 'exit';
   price: number;
-  pnl?: number;
-  pnlPercent?: number;
+  pnl: number | null;
+  pnlPercent: number | null;
 }
 
 interface BacktestResult {
@@ -54,110 +55,11 @@ interface BacktestResult {
   monthlyReturns: { month: string; return: number }[];
 }
 
-function generateMockBacktest(config: BacktestConfig): BacktestResult {
-  const days = Math.floor(
-    (new Date(config.endDate).getTime() - new Date(config.startDate).getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  const equityCurve: BacktestResult['equityCurve'] = [];
-  const trades: Trade[] = [];
-  const monthlyReturns: BacktestResult['monthlyReturns'] = [];
-
-  let capital = config.initialCapital;
-  let benchmark = config.initialCapital;
-  let peak = capital;
-  let maxDrawdown = 0;
-  let wins = 0;
-  let totalWinAmount = 0;
-  let totalLossAmount = 0;
-
-  const winRateBase = config.strategy === 'bull_spread' ? 0.58 : config.strategy === 'covered_call' ? 0.65 : 0.45;
-  const returnBase = config.strategy === 'bull_spread' ? 0.012 : config.strategy === 'covered_call' ? 0.008 : 0.025;
-
-  for (let i = 0; i <= days; i++) {
-    const date = new Date(config.startDate);
-    date.setDate(date.getDate() + i);
-    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    // Simulate daily price movement
-    const dailyReturn = (Math.random() - 0.48) * 0.02;
-    benchmark *= 1 + dailyReturn;
-
-    // Simulate strategy trades (every 15-30 days)
-    if (i > 0 && i % Math.floor(15 + Math.random() * 15) === 0) {
-      const isWin = Math.random() < winRateBase;
-      const tradeReturn = isWin
-        ? returnBase * (0.5 + Math.random())
-        : -returnBase * (0.3 + Math.random() * 0.7);
-
-      capital *= 1 + tradeReturn;
-      if (capital > peak) peak = capital;
-      const drawdown = (peak - capital) / peak;
-      if (drawdown > maxDrawdown) maxDrawdown = drawdown;
-
-      if (isWin) {
-        wins++;
-        totalWinAmount += tradeReturn * capital;
-      } else {
-        totalLossAmount += Math.abs(tradeReturn * capital);
-      }
-
-      trades.push({
-        date: dateStr,
-        type: 'exit',
-        price: 100 + Math.random() * 50,
-        pnl: tradeReturn * capital,
-        pnlPercent: tradeReturn * 100,
-      });
-    }
-
-    equityCurve.push({
-      date: dateStr,
-      value: capital,
-      benchmark: benchmark,
-    });
-  }
-
-  const totalTrades = trades.length;
-  const winRate = totalTrades > 0 ? wins / totalTrades : 0;
-  const profitFactor = totalLossAmount > 0 ? totalWinAmount / totalLossAmount : totalWinAmount > 0 ? 999 : 0;
-  const totalReturn = (capital - config.initialCapital) / config.initialCapital;
-  const years = days / 365;
-  const annualizedReturn = years > 0 ? Math.pow(1 + totalReturn, 1 / years) - 1 : totalReturn;
-
-  // Generate monthly returns
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  for (let i = 0; i < 12; i++) {
-    monthlyReturns.push({
-      month: months[i],
-      return: (Math.random() - 0.35) * 15,
-    });
-  }
-
-  // Calculate Sharpe ratio (simplified)
-  const dailyReturns = equityCurve.slice(1).map((d, i) => (d.value - equityCurve[i].value) / equityCurve[i].value);
-  const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-  const stdDev = Math.sqrt(dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / dailyReturns.length);
-  const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
-
-  return {
-    equityCurve,
-    trades,
-    metrics: {
-      totalReturn: totalReturn * 100,
-      annualizedReturn: annualizedReturn * 100,
-      winRate: winRate * 100,
-      profitFactor,
-      maxDrawdown: maxDrawdown * 100,
-      sharpeRatio,
-      totalTrades,
-      avgWin: winRate > 0 ? (totalWinAmount / wins) : 0,
-      avgLoss: totalTrades > wins ? (totalLossAmount / (totalTrades - wins)) : 0,
-      bestTrade: trades.length > 0 ? Math.max(...trades.map((t) => t.pnlPercent || 0)) : 0,
-      worstTrade: trades.length > 0 ? Math.min(...trades.map((t) => t.pnlPercent || 0)) : 0,
-    },
-    monthlyReturns,
-  };
+interface BacktestApiResult {
+  equityCurve: { date: string; value: number; benchmark: number }[];
+  trades: Trade[];
+  metrics: BacktestResult['metrics'];
+  monthlyReturns: { month: string; return: number }[];
 }
 
 function MetricCard({ label, value, suffix = '', color = 'text-slate-200' }: { label: string; value: string | number; suffix?: string; color?: string }) {
@@ -182,9 +84,30 @@ export default function BacktestPage() {
   });
 
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const runBacktest = () => {
-    setResult(generateMockBacktest(config));
+  const handleRunBacktest = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const apiResult = await runBacktest({
+        symbol: config.symbol,
+        start_date: config.startDate,
+        end_date: config.endDate,
+        initial_capital: config.initialCapital,
+      });
+      setResult({
+        equityCurve: apiResult.equityCurve,
+        trades: apiResult.trades,
+        metrics: apiResult.metrics,
+        monthlyReturns: apiResult.monthlyReturns,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Backtest failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const strategyNames: Record<string, string> = {
@@ -255,14 +178,21 @@ export default function BacktestPage() {
                 </div>
                 <div className="flex items-end">
                   <button
-                    onClick={runBacktest}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+                    onClick={handleRunBacktest}
+                    disabled={loading}
+                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Run Backtest
+                    {loading ? 'Running...' : 'Run Backtest'}
                   </button>
                 </div>
               </div>
             </div>
+
+            {error && (
+              <div className="rounded-xl border border-rose-800 bg-rose-900/30 p-4 text-sm text-rose-300">
+                {error}
+              </div>
+            )}
 
             {result && (
               <>
