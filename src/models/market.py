@@ -15,6 +15,21 @@ class AssetType(StrEnum):
     INDEX = "index"
 
 
+class MarketIndex(BaseModel):
+    """Market index snapshot data model."""
+    symbol: str
+    name: str
+    price: float
+    change: float
+    change_percent: float
+    timestamp: datetime
+    market: str = ""  # US | HK | CN
+
+    @property
+    def is_up(self) -> bool:
+        return self.change >= 0
+
+
 class OHLCV(BaseModel):
     """OHLCV data model."""
     symbol: str

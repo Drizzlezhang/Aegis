@@ -181,6 +181,57 @@ class YFinanceSkill(BaseSkill):
             logger.error(f"Failed to get options chain for {symbol}: {e}")
             raise
 
+    async def get_market_indices(self, indices: list[dict[str, str]] | None = None) -> list[dict[str, Any]]:
+        """Get market index snapshots (SPX, NDX, VIX, HSI, etc.)."""
+        if indices is None:
+            indices = [
+                {"symbol": "^GSPC", "name": "S&P 500", "market": "US"},
+                {"symbol": "^IXIC", "name": "Nasdaq 100", "market": "US"},
+                {"symbol": "^DJI", "name": "Dow Jones", "market": "US"},
+                {"symbol": "^VIX", "name": "VIX", "market": "US"},
+                {"symbol": "^HSI", "name": "Hang Seng", "market": "HK"},
+            ]
+
+        results = []
+        for idx in indices:
+            sym = idx["symbol"]
+            cache_key = f"index_{sym}"
+            if cache_key in self._cache:
+                results.append(self._cache[cache_key])
+                continue
+
+            try:
+                ticker = self._get_ticker(sym)
+                hist = await asyncio.to_thread(ticker.history, period="1d", interval="1d")
+                info = await asyncio.to_thread(lambda: ticker.info)
+
+                if hist.empty:
+                    continue
+
+                latest = hist.iloc[-1]
+                prev_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
+                price = float(latest["Close"])
+                prev = float(prev_close) if prev_close else price
+                change = price - prev
+                change_pct = (change / prev * 100) if prev else 0.0
+
+                result = {
+                    "symbol": sym,
+                    "name": idx["name"],
+                    "price": round(price, 2),
+                    "change": round(change, 2),
+                    "change_percent": round(change_pct, 2),
+                    "timestamp": datetime.now(),
+                    "market": idx.get("market", ""),
+                }
+                self._cache[cache_key] = result
+                results.append(result)
+            except Exception as e:
+                logger.warning(f"Failed to get index {sym}: {e}")
+                continue
+
+        return results
+
     async def get_fundamentals(self, symbol: str) -> dict[str, Any]:
         """Get fundamental data for a symbol."""
         cache_key = f"fundamentals_{symbol}"
@@ -247,6 +298,12 @@ class YFinanceSkill(BaseSkill):
             elif data_type == "fundamentals":
                 fundamentals = await self.get_fundamentals(symbol)
                 return SkillResult.success_result(fundamentals, {"symbol": symbol, "data_type": "fundamentals"})
+
+            elif data_type == "market_indices":
+                indices = await self.get_market_indices()
+                return SkillResult.success_result(
+                    indices, {"data_type": "market_indices", "count": len(indices)}
+                )
 
             elif data_type == "all":
                 # Get all data types

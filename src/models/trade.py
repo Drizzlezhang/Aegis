@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from .analysis import GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
-from .market import OHLCV
+from .market import MarketIndex, OHLCV
 from .options import OptionChain, OptionContract
 
 
@@ -44,6 +44,7 @@ class AgentState(BaseModel):
     # Data-Harvester output
     ohlcv_data: list[OHLCV] | None = None
     options_chain: OptionChain | None = None
+    market_indices: list[MarketIndex] = Field(default_factory=list)
     youtube_signals: list[dict[str, Any]] = Field(default_factory=list)
     # Quant-Brain output
     valuation_range: ValuationRange | None = None

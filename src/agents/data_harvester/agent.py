@@ -5,7 +5,7 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.config import get_config
-from src.models import AgentState
+from src.models import AgentState, MarketIndex
 from src.skills import get_global_registry
 
 logger = logging.getLogger(__name__)
@@ -130,16 +130,37 @@ class DataHarvesterAgent(BaseAgent):
         logger.warning(f"All data sources failed for fundamentals: {symbol}")
         return None
 
+    async def _get_market_indices(self) -> list[dict[str, Any]] | None:
+        """Get market index snapshots (SPX, NDX, VIX, HSI)."""
+        # Market indices are only available via yfinance
+        if "yfinance_ohlcv" not in self._skills:
+            logger.warning("Market indices require yfinance")
+            return None
+
+        try:
+            result = await self._try_skill(
+                "yfinance_ohlcv", "", "market_indices"
+            )
+            if result is not None:
+                logger.info(f"Market indices retrieved: {len(result)} indices")
+                return result
+        except Exception as e:
+            logger.warning(f"Failed to get market indices: {e}")
+
+        return None
+
     async def _get_all_data(self, symbol: str) -> dict[str, Any]:
         """Get all data types with fallback."""
         ohlcv = await self._get_ohlcv_data(symbol)
         options = await self._get_options_chain(symbol)
         fundamentals = await self._get_fundamentals(symbol)
+        market_indices = await self._get_market_indices()
 
         return {
             "ohlcv": ohlcv,
             "options": options,
             "fundamentals": fundamentals,
+            "market_indices": market_indices,
         }
 
     async def run(self, state: AgentState) -> AgentState:
@@ -155,6 +176,14 @@ class DataHarvesterAgent(BaseAgent):
             state.ohlcv_data = data["ohlcv"]
         if data["options"]:
             state.options_chain = data["options"]
+        if data["market_indices"]:
+            indices: list[MarketIndex] = []
+            for idx in data["market_indices"]:
+                try:
+                    indices.append(MarketIndex(**idx))
+                except Exception:
+                    logger.debug(f"Skipping invalid market index data: {idx}")
+            state.market_indices = indices
 
         # Add agent step
         state.add_agent_step(self.name)

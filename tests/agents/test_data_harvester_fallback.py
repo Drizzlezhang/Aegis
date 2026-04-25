@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from datetime import date
+from datetime import date, datetime
 
 from src.agents.data_harvester.agent import DataHarvesterAgent
 from src.models import AgentState
@@ -124,3 +124,30 @@ class TestDataHarvesterFallback:
         assert result.symbol == "QQQ"
         assert len(result.agent_sequence) == 1
         assert "Data-Harvester" in result.agent_sequence[0]
+
+    @pytest.mark.asyncio
+    async def test_market_indices_from_yfinance(self, agent):
+        a, yf, av = agent
+        await a.initialize()
+
+        yf.setup_success([
+            {"symbol": "^GSPC", "name": "S&P 500", "price": 5000.0, "change": 10.0, "change_percent": 0.2, "timestamp": datetime.now(), "market": "US"},
+        ])
+
+        result = await a._get_market_indices()
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["symbol"] == "^GSPC"
+
+    @pytest.mark.asyncio
+    async def test_market_indices_stored_in_state(self, agent):
+        a, yf, av = agent
+        await a.initialize()
+
+        yf.setup_success([{"close": 100}])
+
+        state = AgentState(symbol="QQQ", trade_date=date.today())
+        result = await a.run(state)
+
+        assert result.symbol == "QQQ"
+        assert len(result.agent_sequence) == 1
