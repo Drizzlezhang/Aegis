@@ -103,9 +103,17 @@ class Config(BaseSettings):
     @classmethod
     def resolve_paths(cls, value: Any) -> Any:
         """Resolve paths to absolute paths."""
+        base = Path(__file__).parent.parent
+
+        def _resolve(p: Path) -> Path:
+            p = Path(str(p)).expanduser()
+            if not p.is_absolute():
+                p = base / p
+            return p.resolve()
+
         if isinstance(value, list):
-            return [Path(str(v)).expanduser().resolve() for v in value]
-        return Path(str(value)).expanduser().resolve()
+            return [_resolve(Path(str(v))) for v in value]
+        return _resolve(Path(str(value)))
 
     @field_validator("core_symbols")
     @classmethod

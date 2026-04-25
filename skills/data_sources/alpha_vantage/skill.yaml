@@ -1,0 +1,18 @@
+name: alpha_vantage_ohlcv
+version: "0.1.0"
+description: "Alpha Vantage OHLCV and fundamentals data source (fallback for yfinance)"
+type: data_source
+dependencies:
+  - requests>=2.31.0
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+config:
+  requires_env:
+    - ALPHA_VANTAGE_API_KEY
+  cache_ttl: 300
+  max_retries: 3
+  retry_delay: 1
+  rate_limit_calls: 5
+  rate_limit_period: 60
+  default_period: "60d"
+  default_interval: "1d"
