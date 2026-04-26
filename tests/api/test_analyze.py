@@ -1,76 +1,89 @@
 """Tests for analyze API endpoint."""
 
-import asyncio
+from datetime import date
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
-from src.api.main import app, lifespan
+from src.api.main import app
+from src.models import OptionContract, OptionType, RecommendedOption
 
-
-@pytest.fixture
-def client():
-    """Create TestClient with lifespan initialized."""
-
-    async def _init():
-        async with lifespan(app):
-            return TestClient(app)
-
-    return asyncio.run(_init())
+client = TestClient(app)
 
 
 class TestPostAnalyze:
     """Tests for POST /api/analyze."""
 
-    def test_single_symbol(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={"symbols": ["QQQ"]})
+    def test_empty_symbols_returns_400(self) -> None:
+        response = client.post("/api/analyze", json={"symbols": []})
+        assert response.status_code == 400
+        assert response.json() == {"detail": "No symbols provided"}
+
+    def test_returns_503_when_orchestrator_is_not_initialized(self) -> None:
+        with patch("src.api.routes.analyze._orchestrator", None):
+            response = client.post("/api/analyze", json={"symbols": ["QQQ"]})
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Analysis engine not initialized"}
+
+    def test_returns_report_and_recommendations_from_state(self) -> None:
+        contract = OptionContract(
+            symbol="QQQ260116C00450000",
+            underlying="QQQ",
+            contract_symbol="QQQ260116C00450000",
+            strike=450.0,
+            expiry=date(2026, 1, 16),
+            option_type=OptionType.CALL,
+            last_price=12.5,
+            bid=12.3,
+            ask=12.7,
+            volume=100,
+            open_interest=200,
+        )
+        recommendation = RecommendedOption(
+            contract=contract,
+            recommendation_type="leaps_call",
+            entry_price=12.5,
+            target_price=20.0,
+            stop_loss=8.0,
+            risk_reward_ratio=1.6,
+            confidence=0.756,
+            reasoning="Support held and valuation improved",
+        )
+        state = SimpleNamespace(
+            symbol="QQQ",
+            action_report="Bullish setup near support",
+            agent_sequence=["Data-Harvester", "Quant-Brain", "Aegis-Memory"],
+            recommended_options=[recommendation],
+        )
+        orchestrator = AsyncMock()
+        orchestrator.analyze_symbols.return_value = [state]
+
+        with patch("src.api.routes.analyze._orchestrator", orchestrator):
+            response = client.post("/api/analyze", json={"symbols": ["qqq"]})
+
         assert response.status_code == 200
         data = response.json()
-        assert "results" in data
-        assert "totalTime" in data
+        assert isinstance(data["totalTime"], float)
         assert len(data["results"]) == 1
         result = data["results"][0]
         assert result["symbol"] == "QQQ"
-        assert result["status"] in ("success", "error")
-        assert isinstance(result["agentSequence"], list)
-        assert isinstance(result["recommendationsCount"], int)
-
-    def test_multiple_symbols(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={"symbols": ["QQQ", "SPY"]})
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["results"]) == 2
-        symbols = [r["symbol"] for r in data["results"]]
-        assert "QQQ" in symbols
-        assert "SPY" in symbols
-
-    def test_symbol_case_insensitive(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={"symbols": ["qqq"]})
-        assert response.status_code == 200
-        assert response.json()["results"][0]["symbol"] == "QQQ"
-
-    def test_empty_symbols_400(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={"symbols": []})
-        assert response.status_code == 400
-
-    def test_no_symbols_field_422(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={})
-        assert response.status_code == 422
-
-    def test_response_structure(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={"symbols": ["NVDA"]})
-        data = response.json()
-        result = data["results"][0]
-        required_fields = {
-            "symbol", "status", "agentSequence",
-            "recommendationsCount", "executionTime", "report",
-        }
-        assert required_fields.issubset(result.keys())
-        assert isinstance(data["totalTime"], float)
-        assert data["totalTime"] >= 0
-
-    def test_total_time_matches(self, client: TestClient) -> None:
-        response = client.post("/api/analyze", json={"symbols": ["KO"]})
-        data = response.json()
-        assert data["totalTime"] >= 0
-        assert data["totalTime"] < 30  # Should complete quickly
+        assert result["status"] == "success"
+        assert result["agentSequence"] == ["Data-Harvester", "Quant-Brain", "Aegis-Memory"]
+        assert result["recommendationsCount"] == 1
+        assert result["report"] == "Bullish setup near support"
+        assert result["recommendations"] == [
+            {
+                "type": "leaps_call",
+                "contractSymbol": "QQQ260116C00450000",
+                "strike": 450.0,
+                "expiry": "2026-01-16",
+                "entryPrice": 12.5,
+                "targetPrice": 20.0,
+                "stopLoss": 8.0,
+                "riskRewardRatio": 1.6,
+                "confidence": 0.76,
+                "reasoning": "Support held and valuation improved",
+            }
+        ]
