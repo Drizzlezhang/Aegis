@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { getMarketIndices, type MarketIndexData } from '@/lib/api';
+import { getMarketIndices, getSymbols, type MarketIndexData, type SymbolInfo } from '@/lib/api';
 import { parseMarketContext, getSentimentStyle, getVixStyle } from '@/lib/market-context';
 
 export default async function MarketPage() {
   let indices: MarketIndexData[] = [];
+  let symbols: SymbolInfo[] = [];
   let error: string | null = null;
 
   try {
@@ -16,6 +17,12 @@ export default async function MarketPage() {
     notFound();
   }
 
+  try {
+    symbols = await getSymbols();
+  } catch {
+    symbols = [];
+  }
+
   const ctx = parseMarketContext(indices);
   const sentiment = getSentimentStyle(ctx.sentiment);
 
@@ -23,7 +30,7 @@ export default async function MarketPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1">
-        <Sidebar />
+        <Sidebar symbols={symbols} />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-5xl space-y-4">
             <div>

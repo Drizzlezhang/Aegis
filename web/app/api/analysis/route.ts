@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-
-const API_BASE = process.env.API_BASE_URL || 'http://127.0.0.1:8001';
+import { getServerApiBase } from '@/lib/server-api-base';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const backendUrl = new URL(`${API_BASE}/api/analysis`);
+    const backendUrl = new URL(`${getServerApiBase()}/api/analysis`);
     searchParams.forEach((value, key) => backendUrl.searchParams.set(key, value));
 
     const res = await fetch(backendUrl.toString());

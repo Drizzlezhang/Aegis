@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-
-const API_BASE = process.env.API_BASE_URL || 'http://127.0.0.1:8001';
+import { getServerApiBase } from '@/lib/server-api-base';
 
 export async function GET() {
   try {
-    const res = await fetch(`${API_BASE}/api/status`);
+    const res = await fetch(`${getServerApiBase()}/api/status`);
     if (!res.ok) {
       return NextResponse.json({ error: `Backend error: ${res.status}` }, { status: res.status });
     }

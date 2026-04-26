@@ -1,6 +1,6 @@
 'use client';
 
-import type { StrategyRecommendation } from '@/lib/mock-data';
+import type { StrategyRecommendation } from '@/lib/api';
 
 interface StrategyRecommendationsProps {
   recommendations: StrategyRecommendation[];

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { SymbolInfo } from '@/lib/mock-data';
+import type { SymbolInfo } from '@/lib/api';
 
 interface SymbolCardProps {
   symbol: SymbolInfo;

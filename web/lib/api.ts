@@ -1,4 +1,14 @@
-const API_BASE = process.env.API_BASE_URL || 'http://127.0.0.1:8001';
+const DEFAULT_API_ORIGIN = 'http://127.0.0.1:8003';
+
+function resolveApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL;
+  if (configured) {
+    return configured.replace(/\/$/, '');
+  }
+  return DEFAULT_API_ORIGIN;
+}
+
+const API_BASE = resolveApiBase();
 
 export interface SymbolInfo {
   symbol: string;

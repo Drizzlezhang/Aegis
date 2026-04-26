@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SYMBOLS } from '@/lib/mock-data';
+import type { SymbolInfo } from '@/lib/api';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard' },
@@ -14,13 +14,16 @@ const NAV_ITEMS = [
   { href: '/status', label: 'System Status' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  symbols?: SymbolInfo[];
+}
+
+export default function Sidebar({ symbols = [] }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside className="hidden w-60 shrink-0 border-r border-slate-800 bg-slate-900/50 lg:block">
       <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto p-3">
-        {/* Main Nav */}
         <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Navigation
         </h2>
@@ -44,12 +47,11 @@ export default function Sidebar() {
           })}
         </ul>
 
-        {/* Watchlist */}
         <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Watchlist
         </h2>
         <ul className="space-y-1">
-          {SYMBOLS.map((s) => {
+          {symbols.map((s) => {
             const href = `/symbol/${s.symbol}`;
             const active = pathname === href;
             const positive = s.change >= 0;

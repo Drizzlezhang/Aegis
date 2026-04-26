@@ -24,7 +24,7 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1">
-        <Sidebar />
+        <Sidebar symbols={symbols} />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-6">

@@ -8,7 +8,7 @@ import SupportResistance from '@/components/SupportResistance';
 import StrategyRecommendations from '@/components/StrategyRecommendations';
 import VolumeProfileChart from '@/components/volume-profile-chart';
 import SymbolAnalysisPanel from '@/components/SymbolAnalysisPanel';
-import { getMarketIndices, getSymbolDetail, MarketIndexData } from '@/lib/api';
+import { getMarketIndices, getSymbolDetail, getSymbols, MarketIndexData, SymbolInfo } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ symbol: string }>;
@@ -18,6 +18,7 @@ export default async function SymbolPage({ params }: PageProps) {
   const { symbol } = await params;
   let detail;
   let indices: MarketIndexData[] = [];
+  let symbols: SymbolInfo[] = [];
 
   try {
     detail = await getSymbolDetail(symbol.toUpperCase());
@@ -32,13 +33,19 @@ export default async function SymbolPage({ params }: PageProps) {
     indices = [];
   }
 
+  try {
+    symbols = await getSymbols();
+  } catch {
+    symbols = [];
+  }
+
   const positive = detail.change >= 0;
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1">
-        <Sidebar />
+        <Sidebar symbols={symbols} />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-5xl space-y-4">
             {/* Market Sentiment Banner */}
@@ -106,7 +113,7 @@ export default async function SymbolPage({ params }: PageProps) {
             {/* Live Multi-Agent Analysis */}
             <SymbolAnalysisPanel symbol={detail.symbol} />
 
-            {/* Static Strategy Recommendations */}
+            {/* Dynamic Strategy Recommendations */}
             <StrategyRecommendations recommendations={detail.recommendations} />
           </div>
         </main>

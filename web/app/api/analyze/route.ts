@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-
-const API_BASE = process.env.API_BASE_URL || 'http://127.0.0.1:8001';
+import { getServerApiBase } from '@/lib/server-api-base';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const res = await fetch(`${API_BASE}/api/analyze`, {
+    const res = await fetch(`${getServerApiBase()}/api/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
