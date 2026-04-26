@@ -63,7 +63,7 @@ class AgentState(BaseModel):
 
     def add_agent_step(self, agent_name: str) -> None:
         """Add an agent step to the sequence."""
-        self.agent_sequence.append(f"{agent_name}:{datetime.now().isoformat()}")
+        self.agent_sequence.append(agent_name)
 
     def get_support_prices(self) -> list[float]:
         """Get all support prices sorted by confidence."""

@@ -137,52 +137,68 @@ class YFinanceSkill(BaseSkill):
                 except ValueError:
                     continue
 
-            # Get calls and puts for nearest expiry (for performance)
+            # Select expiry dates: nearest for short-term, leaps for long-term
+            from datetime import date as date_cls
+            today = date_cls.today()
+
+            # Find nearest expiry (for short-term strategies)
             nearest_expiry = min(expiry_dates) if expiry_dates else None
-            if not nearest_expiry:
-                raise ValueError(f"No valid expiry dates for {symbol}")
 
-            expiry_str = nearest_expiry.strftime("%Y-%m-%d")
-            options_chain = ticker.option_chain(expiry_str)
+            # Find a LEAPS expiry (>= 300 days) for long-term strategies
+            leaps_expiry = None
+            for exp in sorted(expiry_dates):
+                if (exp - today).days >= 300:
+                    leaps_expiry = exp
+                    break
 
-            calls = []
-            puts = []
+            calls: list[OptionContract] = []
+            puts: list[OptionContract] = []
 
-            # Process calls
-            for _, row in options_chain.calls.iterrows():
-                contract = OptionContract(
-                    symbol=symbol,
-                    underlying=symbol,
-                    contract_symbol=row.get("contractSymbol", ""),
-                    strike=float(row.get("strike", 0)),
-                    expiry=nearest_expiry,
-                    option_type=OptionType.CALL,
-                    last_price=float(row.get("lastPrice", 0)) if pd.notna(row.get("lastPrice")) else None,
-                    bid=float(row.get("bid", 0)) if pd.notna(row.get("bid")) else None,
-                    ask=float(row.get("ask", 0)) if pd.notna(row.get("ask")) else None,
-                    volume=int(row.get("volume", 0)) if pd.notna(row.get("volume")) else None,
-                    open_interest=int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else None,
-                    implied_volatility=float(row.get("impliedVolatility", 0)) if pd.notna(row.get("impliedVolatility")) else None,
-                )
-                calls.append(contract)
+            def _process_chain(options_chain, expiry_date):
+                for _, row in options_chain.calls.iterrows():
+                    contract = OptionContract(
+                        symbol=symbol,
+                        underlying=symbol,
+                        contract_symbol=row.get("contractSymbol", ""),
+                        strike=float(row.get("strike", 0)),
+                        expiry=expiry_date,
+                        option_type=OptionType.CALL,
+                        last_price=float(row.get("lastPrice", 0)) if pd.notna(row.get("lastPrice")) else None,
+                        bid=float(row.get("bid", 0)) if pd.notna(row.get("bid")) else None,
+                        ask=float(row.get("ask", 0)) if pd.notna(row.get("ask")) else None,
+                        volume=int(row.get("volume", 0)) if pd.notna(row.get("volume")) else None,
+                        open_interest=int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else None,
+                        implied_volatility=float(row.get("impliedVolatility", 0)) if pd.notna(row.get("impliedVolatility")) else None,
+                    )
+                    calls.append(contract)
+                for _, row in options_chain.puts.iterrows():
+                    contract = OptionContract(
+                        symbol=symbol,
+                        underlying=symbol,
+                        contract_symbol=row.get("contractSymbol", ""),
+                        strike=float(row.get("strike", 0)),
+                        expiry=expiry_date,
+                        option_type=OptionType.PUT,
+                        last_price=float(row.get("lastPrice", 0)) if pd.notna(row.get("lastPrice")) else None,
+                        bid=float(row.get("bid", 0)) if pd.notna(row.get("bid")) else None,
+                        ask=float(row.get("ask", 0)) if pd.notna(row.get("ask")) else None,
+                        volume=int(row.get("volume", 0)) if pd.notna(row.get("volume")) else None,
+                        open_interest=int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else None,
+                        implied_volatility=float(row.get("impliedVolatility", 0)) if pd.notna(row.get("impliedVolatility")) else None,
+                    )
+                    puts.append(contract)
 
-            # Process puts
-            for _, row in options_chain.puts.iterrows():
-                contract = OptionContract(
-                    symbol=symbol,
-                    underlying=symbol,
-                    contract_symbol=row.get("contractSymbol", ""),
-                    strike=float(row.get("strike", 0)),
-                    expiry=nearest_expiry,
-                    option_type=OptionType.PUT,
-                    last_price=float(row.get("lastPrice", 0)) if pd.notna(row.get("lastPrice")) else None,
-                    bid=float(row.get("bid", 0)) if pd.notna(row.get("bid")) else None,
-                    ask=float(row.get("ask", 0)) if pd.notna(row.get("ask")) else None,
-                    volume=int(row.get("volume", 0)) if pd.notna(row.get("volume")) else None,
-                    open_interest=int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else None,
-                    implied_volatility=float(row.get("impliedVolatility", 0)) if pd.notna(row.get("impliedVolatility")) else None,
-                )
-                puts.append(contract)
+            # Fetch nearest expiry
+            if nearest_expiry:
+                expiry_str = nearest_expiry.strftime("%Y-%m-%d")
+                options_chain = ticker.option_chain(expiry_str)
+                _process_chain(options_chain, nearest_expiry)
+
+            # Fetch LEAPS expiry if different from nearest
+            if leaps_expiry and leaps_expiry != nearest_expiry:
+                leaps_str = leaps_expiry.strftime("%Y-%m-%d")
+                leaps_chain = ticker.option_chain(leaps_str)
+                _process_chain(leaps_chain, leaps_expiry)
 
             # Create OptionChain
             chain = OptionChain(

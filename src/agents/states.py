@@ -32,7 +32,7 @@ class AgentContext:
 
     def add_agent_step(self, agent_name: str) -> None:
         """Add an agent step to the execution chain."""
-        self.execution_chain.append(f"{agent_name}:{datetime.now().isoformat()}")
+        self.execution_chain.append(agent_name)
 
     def add_error(self, error: str) -> None:
         """Add an error to the context."""
