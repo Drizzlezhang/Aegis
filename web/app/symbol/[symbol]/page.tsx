@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import SupportResistance from '@/components/SupportResistance';
 import StrategyRecommendations from '@/components/StrategyRecommendations';
 import VolumeProfileChart from '@/components/volume-profile-chart';
+import SymbolAnalysisPanel from '@/components/SymbolAnalysisPanel';
 import { getMarketIndices, getSymbolDetail, MarketIndexData } from '@/lib/api';
 
 interface PageProps {
@@ -102,7 +103,10 @@ export default async function SymbolPage({ params }: PageProps) {
               currentPrice={detail.price}
             />
 
-            {/* Strategies */}
+            {/* Live Multi-Agent Analysis */}
+            <SymbolAnalysisPanel symbol={detail.symbol} />
+
+            {/* Static Strategy Recommendations */}
             <StrategyRecommendations recommendations={detail.recommendations} />
           </div>
         </main>

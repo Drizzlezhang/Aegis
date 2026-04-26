@@ -3,7 +3,7 @@
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.agents.base import BaseAgent
 from src.config import get_config
@@ -11,7 +11,9 @@ from src.models import AgentState
 
 from . import queries
 from .storage import AnalysisStorage
-from .vector_store import VectorStore
+
+if TYPE_CHECKING:
+    from .vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,8 @@ class AegisMemoryAgent(BaseAgent):
 
         # Initialize vector store
         try:
+            from .vector_store import VectorStore
+
             self._vector_store = VectorStore()
             logger.info("Vector store initialized")
         except Exception as e:
@@ -50,14 +54,14 @@ class AegisMemoryAgent(BaseAgent):
         symbol = state.symbol.upper()
         logger.info(f"Aegis-Memory recording analysis for symbol: {symbol}")
 
+        state.add_agent_step(self.name)
+
         # Record to SQLite
         self._storage.record_analysis(state)
 
         # Also record to vector store if available
         if self._vector_store:
             await self._add_analysis_to_vector_store(state)
-
-        state.add_agent_step(self.name)
 
         logger.info(f"Aegis-Memory completed recording for symbol: {symbol}")
         return state

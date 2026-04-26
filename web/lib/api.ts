@@ -155,6 +155,29 @@ export async function getAnalysisHistory(symbol?: string, limit = 20): Promise<H
   return fetchApi<HistoryEntry[]>(`/api/analysis?${params.toString()}`);
 }
 
+export interface AnalysisDetail {
+  id: number;
+  symbol: string;
+  tradeDate: string;
+  agentSequence: string[];
+  recommendations: Array<{
+    type: string;
+    strike: number;
+    expiry: string;
+    entry_price: number;
+    confidence: number;
+    [key: string]: unknown;
+  }>;
+  actionReport: string;
+  executionTime: number;
+  success: boolean;
+  createdAt: string;
+}
+
+export async function getAnalysisDetail(id: number): Promise<AnalysisDetail> {
+  return fetchApi<AnalysisDetail>(`/api/analysis/${id}`);
+}
+
 export async function getStatus(): Promise<StatusData> {
   return fetchApi<StatusData>('/api/status');
 }
@@ -220,9 +243,97 @@ export interface BacktestApiResult {
   monthlyReturns: MonthlyReturnData[];
 }
 
+// Analyze types
+export interface AnalysisRecommendation {
+  type: string;
+  contractSymbol: string;
+  strike: number;
+  expiry: string;
+  entryPrice: number;
+  targetPrice: number | null;
+  stopLoss: number | null;
+  riskRewardRatio: number | null;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface AnalysisResult {
+  symbol: string;
+  status: string;
+  agentSequence: string[];
+  recommendationsCount: number;
+  executionTime: number;
+  report: string;
+  recommendations: AnalysisRecommendation[];
+}
+
+export interface AnalysisResponse {
+  results: AnalysisResult[];
+  totalTime: number;
+}
+
+export async function runAnalysis(symbols: string[]): Promise<AnalysisResponse> {
+  return fetchApi<AnalysisResponse>('/api/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ symbols }),
+  });
+}
+
 export async function runBacktest(config: BacktestConfigPayload): Promise<BacktestApiResult> {
   return fetchApi<BacktestApiResult>('/api/backtest', {
     method: 'POST',
     body: JSON.stringify(config),
   });
+}
+
+// Memory types
+export interface MemorySearchResult {
+  id: number;
+  document: string;
+  metadata: Record<string, unknown>;
+  similarity_score: number;
+}
+
+export interface MemorySearchResponse {
+  results: MemorySearchResult[];
+  query: string;
+  count: number;
+}
+
+export interface MarketNoteItem {
+  id: number;
+  symbol: string | null;
+  note_date: string;
+  category: string;
+  content: string;
+  tags: string[];
+  created_at: string;
+}
+
+export interface MemoryStats {
+  analysis_results: number;
+  market_notes: number;
+  trading_actions: number;
+  total: number;
+  embedding_dimension: number;
+  storage_path: string;
+}
+
+export async function searchMemory(query: string, symbol?: string, limit = 5): Promise<MemorySearchResponse> {
+  return fetchApi<MemorySearchResponse>('/api/memory/search', {
+    method: 'POST',
+    body: JSON.stringify({ query, symbol, limit }),
+  });
+}
+
+export async function getMarketNotes(symbol?: string, category?: string, limit = 20): Promise<MarketNoteItem[]> {
+  const params = new URLSearchParams();
+  if (symbol) params.set('symbol', symbol);
+  if (category) params.set('category', category);
+  params.set('limit', String(limit));
+  return fetchApi<MarketNoteItem[]>(`/api/memory/notes?${params.toString()}`);
+}
+
+export async function getMemoryStats(): Promise<MemoryStats> {
+  return fetchApi<MemoryStats>('/api/memory/stats');
 }

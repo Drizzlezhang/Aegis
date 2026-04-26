@@ -30,8 +30,11 @@ COPY pyproject.toml CLAUDE.md ./
 COPY src/ ./src/
 COPY skills/ ./skills/
 
+# Install only core runtime dependencies for production.
+# Heavy semantic-search/LLM extras are intentionally excluded to keep
+# the production image deployable on small AWS instances.
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e ".[llm,data]"
+    && pip install --no-cache-dir -e "."
 
 # ---------------------------------------------------------------------------
 # Stage 3: Runtime
@@ -44,7 +47,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg supervisor \
     && curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
-    && apt-get install -y nodejs \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -63,7 +66,6 @@ COPY --chown=aegis:aegis pyproject.toml CLAUDE.md ./
 # Copy built frontend
 COPY --from=frontend-builder --chown=aegis:aegis /app/web/package*.json ./web/
 COPY --from=frontend-builder --chown=aegis:aegis /app/web/.next ./web/.next
-COPY --from=frontend-builder --chown=aegis:aegis /app/web/.env.local ./web/.env.local
 COPY --chown=aegis:aegis web/next.config.js ./web/
 COPY --chown=aegis:aegis web/tailwind.config.js ./web/
 COPY --chown=aegis:aegis web/tsconfig.json ./web/

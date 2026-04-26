@@ -7,10 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.orchestrator import Orchestrator
 
-from .routes import analysis, analyze, backtest, market, status, symbols
-
-# Global orchestrator instance
-_orchestrator: Orchestrator | None = None
+from .routes import analysis, analyze, backtest, market, memory, status, symbols
 
 
 @asynccontextmanager
@@ -21,9 +18,13 @@ async def lifespan(app: FastAPI):
     _orchestrator = Orchestrator()
     await _orchestrator.initialize()
     analyze.set_orchestrator(_orchestrator)
+    memory.set_aegis_memory(_orchestrator._aegis_memory)
     yield
     # Shutdown
     _orchestrator = None
+
+# Global orchestrator instance
+_orchestrator: Orchestrator | None = None
 
 
 app = FastAPI(
@@ -49,6 +50,7 @@ app.include_router(analysis.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
 app.include_router(market.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
+app.include_router(memory.router, prefix="/api")
 
 
 @app.get("/api/health")

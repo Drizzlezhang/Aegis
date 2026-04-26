@@ -2,16 +2,37 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { runAnalysis, type AnalysisResult, type AnalysisRecommendation } from '@/lib/api';
 
 const SYMBOLS = ['QQQ', 'SPY', 'NVDA', 'MSFT', 'AAPL', 'PLTR', 'NFLX', 'INTC', 'TSM', 'TSLA', 'KO'];
 
-interface AnalysisResult {
-  symbol: string;
-  status: string;
-  agentSequence: string[];
-  recommendationsCount: number;
-  executionTime: number;
-  report: string;
+function RecommendationCard({ rec }: { rec: AnalysisRecommendation }) {
+  return (
+    <div className="rounded-lg bg-slate-800/50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-slate-200">{rec.type}</span>
+        <span className="text-xs rounded-full bg-slate-700 px-2 py-0.5 text-slate-300">
+          {Math.round(rec.confidence * 100)}% confidence
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400">
+        <div>Contract: <span className="text-slate-200">{rec.contractSymbol}</span></div>
+        <div>Strike: <span className="text-slate-200">${rec.strike}</span></div>
+        <div>Expiry: <span className="text-slate-200">{rec.expiry}</span></div>
+        <div>Entry: <span className="text-slate-200">${rec.entryPrice}</span></div>
+        {rec.targetPrice !== null && (
+          <div>Target: <span className="text-emerald-400">${rec.targetPrice}</span></div>
+        )}
+        {rec.stopLoss !== null && (
+          <div>Stop: <span className="text-rose-400">${rec.stopLoss}</span></div>
+        )}
+        {rec.riskRewardRatio !== null && (
+          <div>R/R: <span className="text-slate-200">{rec.riskRewardRatio.toFixed(2)}</span></div>
+        )}
+      </div>
+      <p className="text-xs text-slate-500 leading-relaxed">{rec.reasoning}</p>
+    </div>
+  );
 }
 
 export default function AnalyzeForm() {
@@ -28,7 +49,7 @@ export default function AnalyzeForm() {
     );
   };
 
-  const runAnalysis = async () => {
+  const handleAnalyze = async () => {
     if (selected.length === 0) return;
 
     setRunning(true);
@@ -38,19 +59,7 @@ export default function AnalyzeForm() {
     setCurrentStep('Initiating analysis...');
 
     try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols: selected }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-        throw new Error(errData.detail || `Request failed: ${res.status}`);
-      }
-
-      const data = await res.json();
-      const results: AnalysisResult[] = data.results || [];
+      const data = await runAnalysis(selected);
 
       // Animate progress for UX
       for (let i = 0; i <= 100; i += 10) {
@@ -59,7 +68,7 @@ export default function AnalyzeForm() {
         await new Promise((r) => setTimeout(r, 150));
       }
 
-      setResults(results);
+      setResults(data.results);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
@@ -111,7 +120,7 @@ export default function AnalyzeForm() {
 
       {/* Run Button */}
       <button
-        onClick={runAnalysis}
+        onClick={handleAnalyze}
         disabled={running || selected.length === 0}
         className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500"
       >
@@ -143,14 +152,10 @@ export default function AnalyzeForm() {
 
       {/* Results */}
       {results.length > 0 && (
-        <div className="card">
-          <h3 className="mb-3 text-sm font-semibold text-slate-300">Results</h3>
-          <div className="space-y-2">
-            {results.map((result) => (
-              <div
-                key={result.symbol}
-                className="flex items-center justify-between rounded-lg bg-slate-800/50 p-3"
-              >
+        <div className="space-y-4">
+          {results.map((result) => (
+            <div key={result.symbol} className="card">
+              <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span
                     className={`h-2 w-2 rounded-full ${
@@ -174,8 +179,25 @@ export default function AnalyzeForm() {
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+
+              {result.report && (
+                <p className="mb-3 text-xs text-slate-500 leading-relaxed whitespace-pre-line">
+                  {result.report}
+                </p>
+              )}
+
+              {result.recommendations.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Strategy Recommendations
+                  </h4>
+                  {result.recommendations.map((rec, idx) => (
+                    <RecommendationCard key={`${result.symbol}-${idx}`} rec={rec} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

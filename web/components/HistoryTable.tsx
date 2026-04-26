@@ -2,25 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-
-interface HistoryEntry {
-  id: number;
-  symbol: string;
-  tradeDate: string;
-  agentSequence: string[];
-  recommendationsCount: number;
-  executionTime: number;
-  success: boolean;
-}
+import { useRouter } from 'next/navigation';
+import { getAnalysisHistory, type HistoryEntry } from '@/lib/api';
 
 export default function HistoryTable() {
+  const router = useRouter();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
-    fetch('/api/analysis')
-      .then((res) => res.json())
+    getAnalysisHistory(undefined, 50)
       .then((data) => {
         setEntries(data);
         setLoading(false);
@@ -68,7 +60,11 @@ export default function HistoryTable() {
           </thead>
           <tbody className="divide-y divide-slate-800">
             {filtered.map((entry) => (
-              <tr key={entry.id} className="hover:bg-slate-900/50">
+              <tr
+                key={entry.id}
+                className="hover:bg-slate-900/50 cursor-pointer"
+                onClick={() => router.push(`/history/${entry.id}`)}
+              >
                 <td className="px-4 py-2 font-medium text-slate-200">{entry.symbol}</td>
                 <td className="px-4 py-2 text-slate-500">{entry.tradeDate}</td>
                 <td className="px-4 py-2">
@@ -97,8 +93,9 @@ export default function HistoryTable() {
                   <Link
                     href={`/symbol/${entry.symbol}`}
                     className="text-xs font-medium text-blue-400 hover:text-blue-300"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    View →
+                    Symbol →
                   </Link>
                 </td>
               </tr>

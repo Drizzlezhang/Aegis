@@ -1,7 +1,13 @@
 """Analysis history API routes."""
 
-from fastapi import APIRouter, Query
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+from src.agents.aegis_memory.storage import AnalysisStorage
+from src.config import get_config
 
 router = APIRouter()
 
@@ -17,16 +23,27 @@ class HistoryEntry(BaseModel):
     success: bool
 
 
-_HISTORY: list[HistoryEntry] = [
-    HistoryEntry(id=1, symbol="QQQ", tradeDate="2026-04-24", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=3, executionTime=12.5, success=True),
-    HistoryEntry(id=2, symbol="SPY", tradeDate="2026-04-24", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=2, executionTime=11.8, success=True),
-    HistoryEntry(id=3, symbol="NVDA", tradeDate="2026-04-24", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=3, executionTime=14.2, success=True),
-    HistoryEntry(id=4, symbol="AAPL", tradeDate="2026-04-23", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=0, executionTime=10.5, success=True),
-    HistoryEntry(id=5, symbol="INTC", tradeDate="2026-04-23", agentSequence=["Data-Harvester"], recommendationsCount=0, executionTime=2.1, success=False),
-    HistoryEntry(id=6, symbol="TSLA", tradeDate="2026-04-22", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=2, executionTime=13.7, success=True),
-    HistoryEntry(id=7, symbol="PLTR", tradeDate="2026-04-22", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=3, executionTime=12.9, success=True),
-    HistoryEntry(id=8, symbol="KO", tradeDate="2026-04-21", agentSequence=["Data-Harvester", "Quant-Brain", "Strategy-Execution", "Aegis-Memory"], recommendationsCount=1, executionTime=11.2, success=True),
-]
+class AnalysisDetail(BaseModel):
+    """Full analysis detail."""
+    id: int
+    symbol: str
+    tradeDate: str
+    agentSequence: list[str]
+    recommendations: list[dict[str, Any]]
+    actionReport: str
+    executionTime: float
+    success: bool
+    createdAt: str
+
+
+def _get_storage() -> AnalysisStorage:
+    """Get AnalysisStorage instance."""
+    config = get_config()
+    db_path = Path(config.memory.sqlite_path).expanduser()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    storage = AnalysisStorage(db_path)
+    storage.ensure_schema()
+    return storage
 
 
 @router.get("/analysis", response_model=list[HistoryEntry])
@@ -35,7 +52,37 @@ async def get_analysis_history(
     limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
 ) -> list[HistoryEntry]:
     """Get analysis history with optional filtering."""
-    results = _HISTORY
-    if symbol:
-        results = [r for r in results if r.symbol == symbol.upper()]
-    return results[:limit]
+    storage = _get_storage()
+    rows = storage.get_analysis_history(symbol=symbol, limit=limit)
+    return [
+        HistoryEntry(
+            id=r["id"],
+            symbol=r["symbol"],
+            tradeDate=r["tradeDate"],
+            agentSequence=r["agentSequence"],
+            recommendationsCount=r["recommendationsCount"],
+            executionTime=r["executionTime"],
+            success=r["success"],
+        )
+        for r in rows
+    ]
+
+
+@router.get("/analysis/{analysis_id}", response_model=AnalysisDetail)
+async def get_analysis_detail(analysis_id: int) -> AnalysisDetail:
+    """Get full analysis detail by ID."""
+    storage = _get_storage()
+    row = storage.get_analysis_by_id(analysis_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    return AnalysisDetail(
+        id=row["id"],
+        symbol=row["symbol"],
+        tradeDate=row["tradeDate"],
+        agentSequence=row["agentSequence"],
+        recommendations=row["recommendations"],
+        actionReport=row["actionReport"] or "",
+        executionTime=row["executionTime"],
+        success=row["success"],
+        createdAt=row["createdAt"] or "",
+    )

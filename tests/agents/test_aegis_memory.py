@@ -321,6 +321,15 @@ class TestAegisMemoryAgent:
         assert "analysis_results" in tables
 
     @pytest.mark.asyncio
+    async def test_initialize_degrades_when_vector_store_init_fails(self, agent):
+        """Test initialization degrades gracefully when vector store setup fails."""
+        with patch('src.agents.aegis_memory.vector_store.VectorStore.__init__', side_effect=RuntimeError("chromadb unavailable")):
+            await agent.initialize()
+
+        assert agent._vector_store is None
+        assert await agent.get_vector_store_stats() == {"error": "Vector store not available"}
+
+    @pytest.mark.asyncio
     async def test_run_records_analysis(self, agent, sample_agent_state):
         """Test run() records analysis to database."""
         await agent.initialize()

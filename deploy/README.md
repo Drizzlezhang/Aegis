@@ -70,18 +70,57 @@ AEGIS_ENVIRONMENT=production
 AEGIS_LOG_LEVEL=INFO
 
 # Data Sources
-YFINANCE_ENABLED=true
-ALPHA_VANTAGE_API_KEY=your_key
-ALPHA_VANTAGE_ENABLED=true
+AEGIS_DATA_SOURCE__YFINANCE_ENABLED=true
+AEGIS_DATA_SOURCE__ALPHA_VANTAGE_ENABLED=false
+AEGIS_DATA_SOURCE__FUTU_ENABLED=false
 
 # LLM
-LLM_PROVIDER=deepseek
-LLM_API_KEY=your_key
-LLM_REASONING_MODEL=deepseek-chat
+AEGIS_LLM__PROVIDER=deepseek
+AEGIS_LLM__API_KEY=your_key
+AEGIS_LLM__REASONING_MODEL=deepseek-v3.2
 
 # Memory
-CHROMA_PERSIST_DIR=/app/data/chroma
+AEGIS_MEMORY__STORAGE_TYPE=sqlite
+AEGIS_MEMORY__SQLITE_PATH=/app/data/memory.db
+AEGIS_AGENT__AEGIS_MEMORY_ENABLED=true
 ```
+
+## Slim Production Image
+
+The default production Docker image is intentionally built in slim mode for the AWS 2GB RAM target.
+
+Included by default:
+- FastAPI backend
+- Next.js frontend
+- SQLite-backed Aegis-Memory persistence
+- Analysis history / market notes / trading actions APIs
+
+Excluded by default:
+- `chromadb`
+- `sentence-transformers`
+- heavy transitive ML dependencies such as `torch`
+
+This means the production image keeps historical memory storage, but semantic vector search is optional.
+
+### Expected behavior without memory extras
+
+When `chromadb` and `sentence-transformers` are not installed:
+- app startup still succeeds
+- `/api/memory/stats` still responds
+- SQLite-backed history and notes remain available
+- semantic search endpoints degrade gracefully with empty results or unavailable vector stats
+
+This is the recommended production mode on small AWS instances.
+
+### Enable semantic search explicitly
+
+If you need vector search outside the slim production profile, install the optional memory extras:
+
+```bash
+pip install -e ".[memory]"
+```
+
+Only enable this on hosts with enough disk and memory headroom.
 
 ## Operations
 

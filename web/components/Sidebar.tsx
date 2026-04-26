@@ -6,9 +6,11 @@ import { SYMBOLS } from '@/lib/mock-data';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard' },
+  { href: '/market', label: 'Market' },
   { href: '/analyze', label: 'Run Analysis' },
   { href: '/backtest', label: 'Backtest' },
   { href: '/history', label: 'History' },
+  { href: '/memory', label: 'Aegis Memory' },
   { href: '/status', label: 'System Status' },
 ];
 

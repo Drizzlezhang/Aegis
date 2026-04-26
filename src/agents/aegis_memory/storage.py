@@ -4,6 +4,7 @@ import json
 import logging
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 from src.models import AgentState
 
@@ -36,6 +37,8 @@ class AnalysisStorage:
                     valuation_summary TEXT,
                     recommendations TEXT,
                     action_report TEXT,
+                    execution_time REAL DEFAULT 0,
+                    success INTEGER DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -75,8 +78,10 @@ class AnalysisStorage:
 
         self._initialized = True
 
-    def record_analysis(self, state: AgentState) -> None:
-        """Record analysis result to database."""
+    def record_analysis(
+        self, state: AgentState, execution_time: float = 0.0, success: bool = True
+    ) -> int:
+        """Record analysis result to database. Returns inserted row id."""
         try:
             with sqlite3.connect(str(self._db_path)) as conn:
                 ohlcv_summary = None
@@ -128,12 +133,13 @@ class AnalysisStorage:
                     for r in state.recommended_options
                 ]) if state.recommended_options else None
 
-                conn.execute("""
+                cursor = conn.execute("""
                     INSERT INTO analysis_results (
                         symbol, trade_date, agent_sequence, ohlcv_summary,
                         options_summary, support_levels, resistance_levels,
-                        valuation_summary, recommendations, action_report
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        valuation_summary, recommendations, action_report,
+                        execution_time, success
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     state.symbol,
                     str(state.trade_date),
@@ -144,11 +150,96 @@ class AnalysisStorage:
                     resistance_levels,
                     valuation_summary,
                     recommendations,
-                    state.action_report
+                    state.action_report,
+                    execution_time,
+                    1 if success else 0,
                 ))
 
                 conn.commit()
-                logger.info(f"Analysis recorded for {state.symbol}")
+                row_id = cursor.lastrowid or 0
+                logger.info(f"Analysis recorded for {state.symbol} (id={row_id})")
+                return row_id
 
         except Exception as e:
             logger.error(f"Error recording analysis: {e}")
+            return 0
+
+    def get_analysis_history(
+        self, symbol: str | None = None, limit: int = 20, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        """Get analysis history from database."""
+        self.ensure_schema()
+        try:
+            with sqlite3.connect(str(self._db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                if symbol:
+                    rows = conn.execute(
+                        """SELECT id, symbol, trade_date, agent_sequence,
+                           recommendations, execution_time, success, created_at
+                           FROM analysis_results
+                           WHERE symbol = ?
+                           ORDER BY created_at DESC
+                           LIMIT ? OFFSET ?""",
+                        (symbol.upper(), limit, offset),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """SELECT id, symbol, trade_date, agent_sequence,
+                           recommendations, execution_time, success, created_at
+                           FROM analysis_results
+                           ORDER BY created_at DESC
+                           LIMIT ? OFFSET ?""",
+                        (limit, offset),
+                    ).fetchall()
+
+                results = []
+                for row in rows:
+                    recs = json.loads(row["recommendations"] or "[]")
+                    agent_seq = json.loads(row["agent_sequence"] or "[]")
+                    results.append({
+                        "id": row["id"],
+                        "symbol": row["symbol"],
+                        "tradeDate": row["trade_date"],
+                        "agentSequence": agent_seq,
+                        "recommendationsCount": len(recs),
+                        "executionTime": row["execution_time"] or 0.0,
+                        "success": bool(row["success"]),
+                    })
+                return results
+        except Exception as e:
+            logger.error(f"Error fetching analysis history: {e}")
+            return []
+
+    def get_analysis_by_id(self, analysis_id: int) -> dict[str, Any] | None:
+        """Get a single analysis record by id."""
+        self.ensure_schema()
+        try:
+            with sqlite3.connect(str(self._db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    """SELECT * FROM analysis_results WHERE id = ?""",
+                    (analysis_id,),
+                ).fetchone()
+
+                if not row:
+                    return None
+
+                return {
+                    "id": row["id"],
+                    "symbol": row["symbol"],
+                    "tradeDate": row["trade_date"],
+                    "agentSequence": json.loads(row["agent_sequence"] or "[]"),
+                    "ohlcvSummary": json.loads(row["ohlcv_summary"] or "null"),
+                    "optionsSummary": json.loads(row["options_summary"] or "null"),
+                    "supportLevels": json.loads(row["support_levels"] or "[]"),
+                    "resistanceLevels": json.loads(row["resistance_levels"] or "[]"),
+                    "valuationSummary": json.loads(row["valuation_summary"] or "null"),
+                    "recommendations": json.loads(row["recommendations"] or "[]"),
+                    "actionReport": row["action_report"],
+                    "executionTime": row["execution_time"] or 0.0,
+                    "success": bool(row["success"]),
+                    "createdAt": row["created_at"],
+                }
+        except Exception as e:
+            logger.error(f"Error fetching analysis by id: {e}")
+            return None
