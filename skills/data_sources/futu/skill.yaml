@@ -1,10 +1,11 @@
 name: futu_ohlcv
-version: "0.1.0"
-description: "Futu (富途) HK/A-share/US OHLCV data source. Requires FutuNiuNiu OpenD service running locally."
+version: "0.2.0"
+description: "Futu (富途) HK/A-share/US OHLCV and options chain data source with Greeks. Requires FutuNiuNiu OpenD service running locally."
 type: data_source
 dependencies:
   - requests>=2.31.0
   - pandas>=2.0.0
+  - futu-api>=8.0.0
 config:
   requires_env:
     - FUTU_OPEND_ADDRESS
@@ -14,4 +15,4 @@ config:
   retry_delay: 1
   default_period: "60d"
   default_interval: "1d"
-  market: "HK"  # HK | US | SH | SZ
+  market: "US"  # HK | US | SH | SZ

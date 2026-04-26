@@ -24,9 +24,20 @@ from typing import Any
 import cachetools
 import requests
 
+from src.models import OptionChain
 from src.skills.base import BaseSkill, SkillResult, SkillType
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_float(value: Any) -> float | None:
+    """Safely convert to float."""
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (ValueError, TypeError):
+        return None
 
 # Optional: futu-api SDK
 try:
@@ -67,7 +78,7 @@ class FutuSkill(BaseSkill):
 
     @property
     def description(self) -> str:
-        return "Futu (富途) HK/A-share/US OHLCV data source"
+        return "Futu (富途) HK/A-share/US OHLCV and options chain data source with Greeks"
 
     @property
     def version(self) -> str:
@@ -266,13 +277,146 @@ class FutuSkill(BaseSkill):
             logger.error(f"Failed to get quote for {symbol}: {e}")
             return {}
 
+    async def get_options_chain(self, symbol: str) -> OptionChain | None:
+        """Get options chain with Greeks for a symbol."""
+        import asyncio
+
+        cache_key = f"options_{symbol}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        if not FUTU_SDK_AVAILABLE or not self._quote_ctx:
+            logger.warning("Futu SDK not available for options chain")
+            return None
+
+        try:
+            futu_symbol = self._normalize_symbol(symbol)
+
+            # Get spot price first
+            spot_data = await self.get_quote(symbol)
+            spot_price = float(spot_data.get("last_price", 0)) if spot_data else 0.0
+
+            # Get option chain for next ~2 years to cover LEAPS
+            today = datetime.now().date()
+            end_date = today + __import__("datetime").timedelta(days=730)
+
+            ret, data = await asyncio.to_thread(
+                self._quote_ctx.get_option_chain,
+                futu_symbol,
+                str(today),
+                str(end_date),
+            )
+
+            if ret != RET_OK:
+                logger.warning(f"Futu option chain error for {symbol}: {data}")
+                return None
+
+            from .options import futu_df_to_option_chain
+
+            chain = futu_df_to_option_chain(symbol, data, spot_price)
+            if chain:
+                self._cache[cache_key] = chain
+            return chain
+
+        except Exception as e:
+            logger.error(f"Failed to get options chain for {symbol} from Futu: {e}")
+            return None
+
+    async def get_market_indices(self) -> list[dict[str, Any]]:
+        """Get market index snapshots."""
+        import asyncio
+
+        cache_key = "market_indices"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        if not FUTU_SDK_AVAILABLE or not self._quote_ctx:
+            logger.warning("Futu SDK not available for market indices")
+            return []
+
+        indices = [
+            {"symbol": "US.HSI", "name": "Hang Seng", "market": "HK"},
+            {"symbol": "US.VIX", "name": "VIX", "market": "US"},
+        ]
+
+        results = []
+        for idx in indices:
+            try:
+                ret, data = await asyncio.to_thread(
+                    self._quote_ctx.get_market_snapshot, [idx["symbol"]]
+                )
+                if ret != RET_OK or data.empty:
+                    continue
+                row = data.iloc[0]
+                price = float(row.get("last_price", 0))
+                prev = float(row.get("prev_close", price))
+                change = price - prev
+                change_pct = (change / prev * 100) if prev else 0.0
+                results.append({
+                    "symbol": idx["symbol"],
+                    "name": idx["name"],
+                    "price": round(price, 2),
+                    "change": round(change, 2),
+                    "change_percent": round(change_pct, 2),
+                    "timestamp": datetime.now(),
+                    "market": idx.get("market", ""),
+                })
+            except Exception as e:
+                logger.warning(f"Failed to get index {idx['symbol']}: {e}")
+                continue
+
+        self._cache[cache_key] = results
+        return results
+
+    async def get_fundamentals(self, symbol: str) -> dict[str, Any]:
+        """Get fundamental data for a symbol."""
+        import asyncio
+
+        cache_key = f"fundamentals_{symbol}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        if not FUTU_SDK_AVAILABLE or not self._quote_ctx:
+            logger.warning("Futu SDK not available for fundamentals")
+            return {}
+
+        try:
+            futu_symbol = self._normalize_symbol(symbol)
+            # Use US market for fundamentals lookup
+            ret, data = await asyncio.to_thread(
+                self._quote_ctx.get_stock_basicinfo,
+                "US",
+                "STOCK",
+            )
+            if ret != RET_OK or data.empty:
+                return {}
+
+            row = data[data["code"] == futu_symbol]
+            if row.empty:
+                return {}
+
+            r = row.iloc[0]
+            fundamentals = {
+                "pe_ratio": _safe_float(r.get("pe_ratio")),
+                "eps": _safe_float(r.get("eps")),
+                "market_cap": _safe_float(r.get("market_cap")),
+                "dividend_yield": _safe_float(r.get("dividend_yield")),
+                "beta": _safe_float(r.get("beta")),
+            }
+            fundamentals = {k: v for k, v in fundamentals.items() if v is not None}
+            self._cache[cache_key] = fundamentals
+            return fundamentals
+        except Exception as e:
+            logger.error(f"Failed to get fundamentals for {symbol}: {e}")
+            return {}
+
     async def execute(self, params: dict[str, Any]) -> SkillResult:
         """Execute the skill."""
         try:
             symbol = params.get("symbol", "").upper()
             data_type = params.get("data_type", "ohlcv")
 
-            if not symbol:
+            if not symbol and data_type not in ("market_indices",):
                 return SkillResult.error_result("Symbol is required")
 
             if not self._opend_address:
@@ -288,6 +432,29 @@ class FutuSkill(BaseSkill):
                 return SkillResult.success_result(
                     ohlcv_data,
                     {"symbol": symbol, "data_type": "ohlcv", "source": "futu"},
+                )
+
+            elif data_type == "options":
+                options_chain = await self.get_options_chain(symbol)
+                if options_chain is None:
+                    return SkillResult.error_result(f"No options data for {symbol}")
+                return SkillResult.success_result(
+                    options_chain,
+                    {"symbol": symbol, "data_type": "options", "source": "futu"},
+                )
+
+            elif data_type == "fundamentals":
+                fundamentals = await self.get_fundamentals(symbol)
+                return SkillResult.success_result(
+                    fundamentals,
+                    {"symbol": symbol, "data_type": "fundamentals", "source": "futu"},
+                )
+
+            elif data_type == "market_indices":
+                indices = await self.get_market_indices()
+                return SkillResult.success_result(
+                    indices,
+                    {"data_type": "market_indices", "count": len(indices), "source": "futu"},
                 )
 
             elif data_type == "quote":
