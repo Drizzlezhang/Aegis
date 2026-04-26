@@ -1,6 +1,8 @@
 """Tests for symbol API endpoints."""
 
-import pytest
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 from src.api.main import app
@@ -11,23 +13,44 @@ client = TestClient(app)
 class TestGetSymbols:
     """Tests for GET /api/symbols."""
 
-    def test_returns_list(self) -> None:
-        response = client.get("/api/symbols")
+    def test_returns_latest_symbol_data_from_live_quote_source(self) -> None:
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=[])
+        mock_skill.get_fundamentals = AsyncMock(
+            return_value={
+                "market_cap": 1500000000000,
+                "average_volume": 42000000,
+                "volume": 36000000,
+            }
+        )
+
+        with patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill):
+            response = client.get("/api/symbols")
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) == 11
+        assert len(data) > 0
 
-    def test_symbol_structure(self) -> None:
-        response = client.get("/api/symbols")
-        data = response.json()
-        symbol = data[0]
-        assert symbol["symbol"] == "QQQ"
-        assert symbol["name"] == "Invesco QQQ Trust"
-        assert isinstance(symbol["price"], float)
-        assert isinstance(symbol["volume"], int)
-        assert symbol["trend"] in ("up", "down", "neutral")
-        assert symbol["analysisStatus"] in ("completed", "pending", "error")
+    def test_symbol_payload_uses_quote_and_fundamentals_values(self) -> None:
+        ohlcv_point = MagicMock(close=512.34, open=500.0, volume=12345678)
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=[ohlcv_point])
+        mock_skill.get_fundamentals = AsyncMock(
+            return_value={
+                "market_cap": 987654321000,
+                "average_volume": 23000000,
+                "volume": 12345678,
+            }
+        )
+
+        with patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill):
+            response = client.get("/api/symbols")
+
+        assert response.status_code == 200
+        first = response.json()[0]
+        assert first["price"] == 512.34
+        assert first["volume"] == 12345678
 
     def test_required_fields(self) -> None:
         response = client.get("/api/symbols")
@@ -52,6 +75,231 @@ class TestGetSymbolDetail:
         assert "recommendations" in data
         assert isinstance(data["supports"], list)
         assert isinstance(data["resistances"], list)
+
+    def test_detail_payload_uses_latest_price_volume_and_fundamentals(self) -> None:
+        ohlcv_points = [
+            MagicMock(symbol="QQQ", open=500.0, close=505.0, volume=10000000),
+            MagicMock(symbol="QQQ", open=506.0, close=512.34, volume=12345678),
+        ]
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=ohlcv_points)
+        mock_skill.get_fundamentals = AsyncMock(
+            return_value={
+                "market_cap": 987654321000,
+                "average_volume": 23000000,
+                "volume": 12345678,
+                "pe_ratio": 31.25,
+            }
+        )
+
+        with patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill):
+            response = client.get("/api/symbols/QQQ")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["price"] == 512.34
+        assert data["change"] == 7.34
+        assert data["changePercent"] == 1.45
+        assert data["volume"] == 12345678
+        assert data["avgVolume"] == 23000000
+        assert data["marketCap"] == "$987.65B"
+        assert data["peRatio"] == 31.25
+
+    def test_detail_payload_uses_algorithmic_analysis_levels(self) -> None:
+        ohlcv_points = [
+            MagicMock(symbol="QQQ", open=500.0, close=505.0, volume=10000000),
+            MagicMock(symbol="QQQ", open=506.0, close=512.34, volume=12345678),
+        ]
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=ohlcv_points)
+        mock_skill.get_fundamentals = AsyncMock(
+            return_value={
+                "market_cap": 987654321000,
+                "average_volume": 23000000,
+                "volume": 12345678,
+                "pe_ratio": 31.25,
+            }
+        )
+        mock_volume_profile = SimpleNamespace(
+            poc_price=510.0,
+            vah_price=520.0,
+            val_price=500.0,
+            total_volume=22345678.0,
+        )
+        support_levels = [
+            SimpleNamespace(price=498.0, confidence=0.8, source="volume_profile"),
+            SimpleNamespace(price=492.0, confidence=0.6, source="technical"),
+        ]
+        resistance_levels = [
+            SimpleNamespace(price=518.0, confidence=0.7, source="volume_profile"),
+            SimpleNamespace(price=525.0, confidence=0.8, source="gex"),
+        ]
+
+        with (
+            patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill),
+            patch("src.api.routes.symbols.VolumeProfileSkill", create=True) as volume_profile_skill_cls,
+            patch(
+                "src.api.routes.symbols.create_support_resistance_levels",
+                return_value=(support_levels, resistance_levels),
+                create=True,
+            ),
+        ):
+            volume_profile_skill_cls.return_value.calculate_volume_profile.return_value = mock_volume_profile
+            response = client.get("/api/symbols/QQQ")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["volumeProfile"] == {
+            "poc": 510.0,
+            "vah": 520.0,
+            "val": 500.0,
+            "volumeAtPoc": 22345678,
+        }
+        assert data["supports"] == [
+            {
+                "level": 498.0,
+                "type": "support",
+                "strength": "strong",
+                "source": "Volume Profile",
+            },
+            {
+                "level": 492.0,
+                "type": "support",
+                "strength": "moderate",
+                "source": "Technical",
+            },
+        ]
+        assert data["resistances"] == [
+            {
+                "level": 518.0,
+                "type": "resistance",
+                "strength": "moderate",
+                "source": "Volume Profile",
+            },
+            {
+                "level": 525.0,
+                "type": "resistance",
+                "strength": "strong",
+                "source": "GEX Wall",
+            },
+        ]
+
+    def test_detail_payload_uses_real_gex_walls(self) -> None:
+        ohlcv_points = [
+            MagicMock(symbol="QQQ", open=500.0, close=505.0, volume=10000000),
+            MagicMock(symbol="QQQ", open=506.0, close=512.34, volume=12345678),
+        ]
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=ohlcv_points)
+        mock_skill.get_fundamentals = AsyncMock(
+            return_value={
+                "market_cap": 987654321000,
+                "average_volume": 23000000,
+                "volume": 12345678,
+                "pe_ratio": 31.25,
+            }
+        )
+        mock_skill.get_options_chain = AsyncMock(return_value=SimpleNamespace(symbol="QQQ"))
+        mock_gex_walls = [
+            SimpleNamespace(strike=500.0, net_gex=-1800000.0, wall_type="support"),
+            SimpleNamespace(strike=520.0, net_gex=2400000.0, wall_type="resistance"),
+        ]
+
+        with (
+            patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill),
+            patch("src.api.routes.symbols.GEXCalculatorSkill", create=True) as gex_skill_cls,
+        ):
+            gex_skill_cls.return_value.calculate_gex_walls.return_value = mock_gex_walls
+            response = client.get("/api/symbols/QQQ")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["gexWalls"] == [
+            {
+                "strike": 500,
+                "gamma": -1800000.0,
+                "type": "put",
+                "strength": "strong",
+            },
+            {
+                "strike": 520,
+                "gamma": 2400000.0,
+                "type": "call",
+                "strength": "strong",
+            },
+        ]
+
+    def test_detail_payload_uses_dynamic_recommendations(self) -> None:
+        ohlcv_points = [
+            MagicMock(symbol="QQQ", open=500.0, close=505.0, volume=10000000),
+            MagicMock(symbol="QQQ", open=506.0, close=512.34, volume=12345678),
+        ]
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=ohlcv_points)
+        mock_skill.get_fundamentals = AsyncMock(
+            return_value={
+                "market_cap": 987654321000,
+                "average_volume": 23000000,
+                "volume": 12345678,
+                "pe_ratio": 31.25,
+            }
+        )
+        mock_skill.get_options_chain = AsyncMock(return_value=SimpleNamespace(symbol="QQQ"))
+        mock_volume_profile = SimpleNamespace(
+            poc_price=510.0,
+            vah_price=520.0,
+            val_price=500.0,
+            total_volume=22345678.0,
+        )
+        support_levels = [SimpleNamespace(price=500.0, confidence=0.8, source="volume_profile")]
+        resistance_levels = [SimpleNamespace(price=520.0, confidence=0.8, source="gex")]
+        mock_gex_walls = [SimpleNamespace(strike=520.0, net_gex=2400000.0, wall_type="resistance")]
+
+        with (
+            patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill),
+            patch("src.api.routes.symbols.VolumeProfileSkill", create=True) as volume_profile_skill_cls,
+            patch(
+                "src.api.routes.symbols.create_support_resistance_levels",
+                return_value=(support_levels, resistance_levels),
+                create=True,
+            ),
+            patch("src.api.routes.symbols.GEXCalculatorSkill", create=True) as gex_skill_cls,
+        ):
+            volume_profile_skill_cls.return_value.calculate_volume_profile.return_value = mock_volume_profile
+            gex_skill_cls.return_value.calculate_gex_walls.return_value = mock_gex_walls
+            response = client.get("/api/symbols/QQQ")
+
+        assert response.status_code == 200
+        recs = response.json()["recommendations"]
+        assert recs == [
+            {
+                "id": "support-leaps",
+                "type": "LEAPS",
+                "description": "Buy QQQ LEAPS Call near $500 support with upside to $520 resistance",
+                "riskLevel": "medium",
+                "expectedReturn": "1.5% to resistance",
+                "expiration": "Jan 2027",
+                "strike": "$500",
+            },
+            {
+                "id": "resistance-bull-spread",
+                "type": "Bull Spread",
+                "description": "Structure QQQ bull call spread from $500 support toward $520 resistance",
+                "riskLevel": "low",
+                "expectedReturn": "Defined-risk upside into resistance",
+                "expiration": "Jul 2026",
+                "strike": "$500 / $520",
+            },
+            {
+                "id": "gex-covered-call",
+                "type": "Covered Call",
+                "description": "Sell QQQ covered call into GEX resistance at $520",
+                "riskLevel": "low",
+                "expectedReturn": "Income at key resistance",
+                "expiration": "May 2026",
+                "strike": "$520",
+            },
+        ]
 
     def test_symbol_case_insensitive(self) -> None:
         response = client.get("/api/symbols/qqq")
