@@ -2,16 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getMessage } from '@/i18n/get-message';
+import { useLocale } from './LocaleProvider';
+import LocaleSwitcher from './LocaleSwitcher';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/analyze', label: 'Analyze' },
-  { href: '/history', label: 'History' },
-  { href: '/status', label: 'Status' },
+  { href: '/', key: 'common.dashboard' as const },
+  { href: '/analyze', key: 'common.analyze' as const },
+  { href: '/history', key: 'common.history' as const },
+  { href: '/status', key: 'common.status' as const },
 ];
 
 export default function Header() {
   const pathname = usePathname();
+  const { locale } = useLocale();
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
@@ -29,10 +33,11 @@ export default function Header() {
                 href={item.href}
                 className={`transition-colors ${active ? 'text-blue-400' : 'hover:text-slate-200'}`}
               >
-                {item.label}
+                {getMessage(locale, item.key)}
               </Link>
             );
           })}
+          <LocaleSwitcher />
           <span className="text-slate-700">|</span>
           <span className="text-xs text-slate-600">v0.1.0</span>
         </nav>

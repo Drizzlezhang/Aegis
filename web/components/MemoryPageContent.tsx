@@ -9,6 +9,8 @@ import {
   type MarketNoteItem,
   type MemorySearchResult,
 } from '@/lib/api';
+import { getMessage } from '@/i18n/get-message';
+import { useLocale } from './LocaleProvider';
 
 export default function MemoryPageContent() {
   const [stats, setStats] = useState<MemoryStats | null>(null);
@@ -17,6 +19,7 @@ export default function MemoryPageContent() {
   const [searchResults, setSearchResults] = useState<MemorySearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { locale } = useLocale();
 
   useEffect(() => {
     Promise.all([getMemoryStats(), getMarketNotes(undefined, undefined, 10)])
@@ -42,33 +45,33 @@ export default function MemoryPageContent() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Aegis Memory</h1>
+        <h1 className="text-2xl font-bold text-slate-100">Aegis 记忆</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Semantic search and trading memory
+          语义搜索与交易记忆
         </p>
       </div>
 
       {loading && (
         <div className="card">
-          <p className="text-sm text-slate-500">Loading memory...</p>
+          <p className="text-sm text-slate-500">{getMessage(locale, 'interaction.loadingMemory')}</p>
         </div>
       )}
 
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Analysis Results" value={stats.analysis_results} />
-          <StatCard label="Market Notes" value={stats.market_notes} />
-          <StatCard label="Trading Actions" value={stats.trading_actions} />
-          <StatCard label="Embedding Dim" value={stats.embedding_dimension} />
+          <StatCard label={getMessage(locale, 'interaction.analysisResults')} value={stats.analysis_results} />
+          <StatCard label={getMessage(locale, 'interaction.marketNotes')} value={stats.market_notes} />
+          <StatCard label={getMessage(locale, 'interaction.tradingActions')} value={stats.trading_actions} />
+          <StatCard label={getMessage(locale, 'interaction.embeddingDim')} value={stats.embedding_dimension} />
         </div>
       )}
 
       <div className="card space-y-3">
-        <h3 className="text-sm font-semibold text-slate-300">Semantic Search</h3>
+        <h3 className="text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.semanticSearch')}</h3>
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="Search analysis results..."
+            placeholder={getMessage(locale, 'interaction.searchAnalysisResults')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -79,7 +82,7 @@ export default function MemoryPageContent() {
             disabled={searching || !query.trim()}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {searching ? 'Searching...' : 'Search'}
+            {searching ? getMessage(locale, 'interaction.searching') : getMessage(locale, 'common.search')}
           </button>
         </div>
 
@@ -100,23 +103,23 @@ export default function MemoryPageContent() {
         )}
 
         {searchResults.length === 0 && !searching && query && (
-          <p className="text-xs text-slate-500">No results found.</p>
+          <p className="text-xs text-slate-500">{getMessage(locale, 'interaction.noResultsFound')}</p>
         )}
       </div>
 
       <div className="card">
         <h3 className="mb-3 text-sm font-semibold text-slate-300">
-          Market Notes ({notes.length})
+          {getMessage(locale, 'interaction.marketNotes')} ({notes.length})
         </h3>
         {notes.length === 0 ? (
-          <p className="text-xs text-slate-500">No market notes yet.</p>
+          <p className="text-xs text-slate-500">{getMessage(locale, 'interaction.noMarketNotesYet')}</p>
         ) : (
           <div className="space-y-2">
             {notes.map((note) => (
               <div key={note.id} className="rounded-lg bg-slate-800/50 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-300">
-                    {note.symbol || 'General'}
+                    {note.symbol || getMessage(locale, 'interaction.general')}
                   </span>
                   <span className="text-xs text-slate-500">{note.note_date}</span>
                 </div>

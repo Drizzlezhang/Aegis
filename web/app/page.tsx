@@ -3,9 +3,11 @@ import MarketIndexCard from '@/components/market-index-card';
 import MarketSentimentInline from '@/components/market-sentiment-inline';
 import Sidebar from '@/components/Sidebar';
 import SymbolCard from '@/components/SymbolCard';
+import { getMessage } from '@/i18n/get-message';
 import { getMarketIndices, getSymbols, MarketIndexData, SymbolInfo } from '@/lib/api';
 
 export default async function Home() {
+  const locale = 'zh-CN';
   let symbols: SymbolInfo[] = [];
   let indices: MarketIndexData[] = [];
   try {
@@ -28,16 +30,16 @@ export default async function Home() {
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
+              <h1 className="text-2xl font-bold text-slate-100">{getMessage(locale, 'common.dashboard')}</h1>
               <p className="mt-1 text-sm text-slate-500">
-                Multi-Agent quantitative analysis overview
+                多 Agent 量化分析总览
               </p>
             </div>
 
             {indices.length > 0 && (
               <div className="mb-6">
                 <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-300">Market Indices</h2>
+                  <h2 className="text-sm font-semibold text-slate-300">市场指数</h2>
                   <MarketSentimentInline indices={indices} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -62,11 +64,11 @@ export default async function Home() {
             </div>
 
             <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <h2 className="text-sm font-semibold text-slate-300">System Status</h2>
+              <h2 className="text-sm font-semibold text-slate-300">系统状态</h2>
               <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
-                <span>Agents: 4 active</span>
-                <span>Skills: 6 loaded</span>
-                <span>Last update: just now</span>
+                <span>Agents: 4 活跃</span>
+                <span>Skills: 6 已加载</span>
+                <span>最近更新: 刚刚</span>
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { LocaleProvider } from '@/components/LocaleProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -12,9 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <body className="min-h-screen bg-slate-950 text-slate-200">
-        {children}
+        <LocaleProvider initialLocale="zh-CN">{children}</LocaleProvider>
       </body>
     </html>
   );

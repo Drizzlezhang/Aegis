@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getMessage } from '@/i18n/get-message';
+import { useLocale } from './LocaleProvider';
 
 interface AgentStatus {
   name: string;
@@ -42,6 +44,7 @@ interface StatusData {
 export default function StatusPanel() {
   const [data, setData] = useState<StatusData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { locale } = useLocale();
 
   useEffect(() => {
     fetch('/api/status')
@@ -56,7 +59,7 @@ export default function StatusPanel() {
   if (loading) {
     return (
       <div className="card">
-        <p className="text-sm text-slate-500">Loading system status...</p>
+        <p className="text-sm text-slate-500">{getMessage(locale, 'interaction.loadingSystemStatus')}</p>
       </div>
     );
   }
@@ -64,7 +67,7 @@ export default function StatusPanel() {
   if (!data) {
     return (
       <div className="card">
-        <p className="text-sm text-rose-400">Failed to load system status</p>
+        <p className="text-sm text-rose-400">{getMessage(locale, 'interaction.failedToLoadSystemStatus')}</p>
       </div>
     );
   }
@@ -73,12 +76,11 @@ export default function StatusPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Health Overview */}
       <div className="card">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-300">Health Overview</h3>
+          <h3 className="text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.healthOverview')}</h3>
           <span className={allHealthy ? 'badge-green' : 'badge-red'}>
-            {allHealthy ? 'All Systems Operational' : 'Issues Detected'}
+            {allHealthy ? getMessage(locale, 'interaction.allSystemsOperational') : getMessage(locale, 'interaction.issuesDetected')}
           </span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -89,9 +91,8 @@ export default function StatusPanel() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Agents */}
         <div className="card">
-          <h3 className="mb-3 text-sm font-semibold text-slate-300">Agents</h3>
+          <h3 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.agents')}</h3>
           <div className="space-y-2">
             {data.agents.map((agent) => (
               <div
@@ -101,21 +102,20 @@ export default function StatusPanel() {
                 <div>
                   <p className="text-sm font-medium text-slate-200">{agent.name}</p>
                   <p className="text-xs text-slate-500">
-                    Last run: {new Date(agent.lastRun).toLocaleTimeString()}
+                    {getMessage(locale, 'interaction.lastRun')}: {new Date(agent.lastRun).toLocaleTimeString()}
                   </p>
                 </div>
                 <div className="text-right">
                   <AgentStatusBadge status={agent.status} />
-                  <p className="mt-0.5 text-xs text-slate-500">{agent.executions} runs</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{agent.executions} {getMessage(locale, 'interaction.runs')}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Skills */}
         <div className="card">
-          <h3 className="mb-3 text-sm font-semibold text-slate-300">Skills</h3>
+          <h3 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.skills')}</h3>
           <div className="space-y-2">
             {data.skills.map((skill) => (
               <div
@@ -127,7 +127,7 @@ export default function StatusPanel() {
                   <p className="text-xs text-slate-500">{skill.type}</p>
                 </div>
                 <span className={skill.loaded ? 'badge-green' : 'badge-red'}>
-                  {skill.loaded ? 'Loaded' : 'Error'}
+                  {skill.loaded ? getMessage(locale, 'interaction.loaded') : getMessage(locale, 'common.error')}
                 </span>
               </div>
             ))}
@@ -135,14 +135,13 @@ export default function StatusPanel() {
         </div>
       </div>
 
-      {/* System Info */}
       <div className="card">
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">System Info</h3>
+        <h3 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.systemInfo')}</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <InfoItem label="Version" value={data.system.version} />
-          <InfoItem label="Uptime" value={data.system.uptime} />
-          <InfoItem label="Memory" value={data.system.memoryUsage} />
-          <InfoItem label="Python" value={data.system.pythonVersion} />
+          <InfoItem label={getMessage(locale, 'interaction.version')} value={data.system.version} />
+          <InfoItem label={getMessage(locale, 'interaction.uptime')} value={data.system.uptime} />
+          <InfoItem label={getMessage(locale, 'interaction.memory')} value={data.system.memoryUsage} />
+          <InfoItem label={getMessage(locale, 'interaction.python')} value={data.system.pythonVersion} />
           <InfoItem label="Node.js" value={data.system.nodeVersion} />
         </div>
       </div>

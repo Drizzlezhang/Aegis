@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import type { SymbolInfo } from '@/lib/api';
+import { getMessage } from '@/i18n/get-message';
+import { useLocale } from './LocaleProvider';
 
 interface SymbolCardProps {
   symbol: SymbolInfo;
@@ -16,6 +18,7 @@ function formatVolume(n: number): string {
 
 export default function SymbolCard({ symbol }: SymbolCardProps) {
   const positive = symbol.change >= 0;
+  const { locale } = useLocale();
 
   return (
     <Link
@@ -27,7 +30,7 @@ export default function SymbolCard({ symbol }: SymbolCardProps) {
           <h3 className="text-lg font-bold text-slate-100">{symbol.symbol}</h3>
           <p className="text-xs text-slate-500">{symbol.name}</p>
         </div>
-        <StatusBadge status={symbol.analysisStatus} />
+        <StatusBadge status={symbol.analysisStatus} locale={locale} />
       </div>
 
       <div className="mt-3 flex items-end justify-between">
@@ -42,29 +45,29 @@ export default function SymbolCard({ symbol }: SymbolCardProps) {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500">Vol</p>
+          <p className="text-xs text-slate-500">{getMessage(locale, 'interaction.vol')}</p>
           <p className="text-sm font-medium text-slate-300">{formatVolume(symbol.volume)}</p>
         </div>
       </div>
 
       <div className="mt-3">
-        <TrendIndicator trend={symbol.trend} />
+        <TrendIndicator trend={symbol.trend} locale={locale} />
       </div>
     </Link>
   );
 }
 
-function StatusBadge({ status }: { status: SymbolInfo['analysisStatus'] }) {
-  if (status === 'completed') return <span className="badge-green">Done</span>;
-  if (status === 'pending') return <span className="badge-amber">Pending</span>;
-  return <span className="badge-red">Error</span>;
+function StatusBadge({ status, locale }: { status: SymbolInfo['analysisStatus']; locale: 'zh-CN' | 'en' }) {
+  if (status === 'completed') return <span className="badge-green">{getMessage(locale, 'interaction.done')}</span>;
+  if (status === 'pending') return <span className="badge-amber">{getMessage(locale, 'interaction.pending')}</span>;
+  return <span className="badge-red">{getMessage(locale, 'common.error')}</span>;
 }
 
-function TrendIndicator({ trend }: { trend: SymbolInfo['trend'] }) {
+function TrendIndicator({ trend, locale }: { trend: SymbolInfo['trend']; locale: 'zh-CN' | 'en' }) {
   const bars = [
-    { label: 'Bearish', active: trend === 'down', color: 'bg-rose-500' },
-    { label: 'Neutral', active: trend === 'neutral', color: 'bg-amber-500' },
-    { label: 'Bullish', active: trend === 'up', color: 'bg-emerald-500' },
+    { label: getMessage(locale, 'interaction.bearish'), active: trend === 'down', color: 'bg-rose-500' },
+    { label: getMessage(locale, 'interaction.neutral'), active: trend === 'neutral', color: 'bg-amber-500' },
+    { label: getMessage(locale, 'interaction.bullish'), active: trend === 'up', color: 'bg-emerald-500' },
   ];
 
   return (

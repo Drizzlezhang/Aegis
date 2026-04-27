@@ -34,46 +34,43 @@ export default async function MarketPage() {
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-5xl space-y-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-100">Market Overview</h1>
-              <p className="mt-1 text-sm text-slate-500">Real-time market indices and sentiment</p>
+              <h1 className="text-2xl font-bold text-slate-100">市场概览</h1>
+              <p className="mt-1 text-sm text-slate-500">实时市场指数与情绪概览</p>
             </div>
 
             {error && (
               <div className="card">
-                <p className="text-sm text-rose-400">Error: {error}</p>
+                <p className="text-sm text-rose-400">错误: {error}</p>
               </div>
             )}
 
-            {/* Sentiment Overview */}
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="card text-center">
-                <p className="text-xs text-slate-500">Market Sentiment</p>
+                <p className="text-xs text-slate-500">市场情绪</p>
                 <span className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${sentiment.bg} ${sentiment.text}`}>
                   {sentiment.label}
                 </span>
               </div>
               <div className="card text-center">
-                <p className="text-xs text-slate-500">VIX Level</p>
+                <p className="text-xs text-slate-500">VIX 水平</p>
                 <p className={`mt-2 text-lg font-semibold ${getVixStyle(ctx.regime)}`}>
                   {ctx.vix !== null ? ctx.vix.toFixed(2) : '—'}
                 </p>
               </div>
               <div className="card text-center">
-                <p className="text-xs text-slate-500">Position Sizing</p>
+                <p className="text-xs text-slate-500">仓位建议</p>
                 <p className="mt-2 text-lg font-semibold text-slate-200">
                   {ctx.positionFactor === 1.0 ? '100%' : `${(ctx.positionFactor * 100).toFixed(0)}%`}
                 </p>
               </div>
             </div>
 
-            {/* Warning */}
             {ctx.warning && (
               <div className="rounded-xl border border-amber-800 bg-amber-900/20 p-4">
                 <p className="text-sm font-medium text-amber-400">{ctx.warning}</p>
               </div>
             )}
 
-            {/* Index Cards */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {indices.map((idx) => {
                 const positive = idx.change >= 0;
@@ -103,7 +100,7 @@ export default async function MarketPage() {
 
             {indices.length === 0 && !error && (
               <div className="card">
-                <p className="text-sm text-slate-500">No market data available.</p>
+                <p className="text-sm text-slate-500">暂无市场数据。</p>
               </div>
             )}
           </div>

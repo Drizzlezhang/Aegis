@@ -15,6 +15,8 @@ import {
   YAxis,
 } from 'recharts';
 import { runBacktest } from '@/lib/api';
+import { getMessage } from '@/i18n/get-message';
+import { useLocale } from './LocaleProvider';
 
 interface BacktestConfig {
   symbol: string;
@@ -82,6 +84,7 @@ export default function BacktestPageContent() {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { locale } = useLocale();
 
   const handleRunBacktest = async () => {
     setLoading(true);
@@ -105,33 +108,33 @@ export default function BacktestPageContent() {
         monthlyReturns: apiResult.monthlyReturns,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Backtest failed');
+      setError(err instanceof Error ? err.message : getMessage(locale, 'interaction.backtestFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   const strategyNames: Record<string, string> = {
-    leaps_call: 'LEAPS Call',
+    leaps_call: getMessage(locale, 'interaction.leapsCall'),
     bull_spread: 'Bull Spread',
     covered_call: 'Covered Call',
   };
 
   const signalTypeNames: Record<string, string> = {
     sma_crossover: 'SMA Crossover',
-    rsi: 'RSI',
-    sma_rsi_combo: 'SMA + RSI Combo',
+    rsi: getMessage(locale, 'interaction.rsi'),
+    sma_rsi_combo: getMessage(locale, 'interaction.smaRsiCombo'),
   };
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Strategy Backtest</h1>
-        <p className="mt-1 text-sm text-slate-500">Simulate historical performance of options strategies</p>
+        <h1 className="text-2xl font-bold text-slate-100">策略回测</h1>
+        <p className="mt-1 text-sm text-slate-500">模拟期权策略的历史表现</p>
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-300">Configuration</h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.configuration')}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <div>
             <label className="mb-1 block text-xs text-slate-500">Symbol</label>
@@ -146,40 +149,40 @@ export default function BacktestPageContent() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">Strategy</label>
+            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.strategy')}</label>
             <select
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
               value={config.strategy}
               onChange={(e) => setConfig({ ...config, strategy: e.target.value as BacktestConfig['strategy'] })}
             >
-              <option value="leaps_call">LEAPS Call</option>
+              <option value="leaps_call">{getMessage(locale, 'interaction.leapsCall')}</option>
               <option value="bull_spread">Bull Spread</option>
               <option value="covered_call">Covered Call</option>
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">Signal Type</label>
+            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.signalType')}</label>
             <select
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
               value={config.signalType}
               onChange={(e) => setConfig({ ...config, signalType: e.target.value as BacktestConfig['signalType'] })}
             >
               <option value="sma_crossover">SMA Crossover</option>
-              <option value="rsi">RSI</option>
-              <option value="sma_rsi_combo">SMA + RSI Combo</option>
+              <option value="rsi">{getMessage(locale, 'interaction.rsi')}</option>
+              <option value="sma_rsi_combo">{getMessage(locale, 'interaction.smaRsiCombo')}</option>
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">Start Date</label>
+            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.startDate')}</label>
             <input type="date" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200" value={config.startDate} onChange={(e) => setConfig({ ...config, startDate: e.target.value })} />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">End Date</label>
+            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.endDate')}</label>
             <input type="date" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200" value={config.endDate} onChange={(e) => setConfig({ ...config, endDate: e.target.value })} />
           </div>
           <div className="flex items-end">
             <button onClick={handleRunBacktest} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-              {loading ? 'Running...' : 'Run Backtest'}
+              {loading ? getMessage(locale, 'interaction.running') : getMessage(locale, 'interaction.runBacktest')}
             </button>
           </div>
         </div>
@@ -190,17 +193,17 @@ export default function BacktestPageContent() {
       {result && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <MetricCard label="Total Return" value={result.metrics.totalReturn} suffix="%" color={result.metrics.totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
-            <MetricCard label="Annualized" value={result.metrics.annualizedReturn} suffix="%" />
-            <MetricCard label="Win Rate" value={result.metrics.winRate} suffix="%" />
-            <MetricCard label="Profit Factor" value={result.metrics.profitFactor} />
-            <MetricCard label="Max Drawdown" value={result.metrics.maxDrawdown} suffix="%" color="text-rose-400" />
-            <MetricCard label="Sharpe Ratio" value={result.metrics.sharpeRatio} />
+            <MetricCard label={getMessage(locale, 'interaction.totalReturn')} value={result.metrics.totalReturn} suffix="%" color={result.metrics.totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
+            <MetricCard label={getMessage(locale, 'interaction.annualized')} value={result.metrics.annualizedReturn} suffix="%" />
+            <MetricCard label={getMessage(locale, 'interaction.winRate')} value={result.metrics.winRate} suffix="%" />
+            <MetricCard label={getMessage(locale, 'interaction.profitFactor')} value={result.metrics.profitFactor} />
+            <MetricCard label={getMessage(locale, 'interaction.maxDrawdown')} value={result.metrics.maxDrawdown} suffix="%" color="text-rose-400" />
+            <MetricCard label={getMessage(locale, 'interaction.sharpeRatio')} value={result.metrics.sharpeRatio} />
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
             <h3 className="mb-4 text-sm font-semibold text-slate-300">
-              Equity Curve — {config.symbol} {strategyNames[config.strategy]} ({signalTypeNames[config.signalType]})
+              {getMessage(locale, 'interaction.equityCurve')} — {config.symbol} {strategyNames[config.strategy]} ({signalTypeNames[config.signalType]})
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={result.equityCurve} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -229,7 +232,7 @@ export default function BacktestPageContent() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h3 className="mb-4 text-sm font-semibold text-slate-300">Monthly Returns</h3>
+              <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.monthlyReturns')}</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={result.monthlyReturns} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
@@ -239,7 +242,7 @@ export default function BacktestPageContent() {
                     contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
                     formatter={(value: unknown) => {
                       const num = typeof value === 'number' ? value : Number(value);
-                      return [`${num.toFixed(2)}%`, 'Return'];
+                      return [`${num.toFixed(2)}%`, getMessage(locale, 'interaction.return')];
                     }}
                   />
                   <Bar dataKey="return" radius={[4, 4, 0, 0]}>
@@ -252,30 +255,30 @@ export default function BacktestPageContent() {
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h3 className="mb-4 text-sm font-semibold text-slate-300">Trade Statistics</h3>
+              <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.tradeStatistics')}</h3>
               <div className="space-y-3">
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">Total Trades</span><span className="text-sm font-medium text-slate-200">{result.metrics.totalTrades}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">Winning Trades</span><span className="text-sm font-medium text-emerald-400">{Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">Losing Trades</span><span className="text-sm font-medium text-rose-400">{result.metrics.totalTrades - Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">Average Win</span><span className="text-sm font-medium text-emerald-400">${result.metrics.avgWin.toFixed(0)}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">Average Loss</span><span className="text-sm font-medium text-rose-400">${result.metrics.avgLoss.toFixed(0)}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">Best Trade</span><span className="text-sm font-medium text-emerald-400">+{result.metrics.bestTrade.toFixed(2)}%</span></div>
-                <div className="flex justify-between"><span className="text-xs text-slate-500">Worst Trade</span><span className="text-sm font-medium text-rose-400">{result.metrics.worstTrade.toFixed(2)}%</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.totalTrades')}</span><span className="text-sm font-medium text-slate-200">{result.metrics.totalTrades}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.winningTrades')}</span><span className="text-sm font-medium text-emerald-400">{Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.losingTrades')}</span><span className="text-sm font-medium text-rose-400">{result.metrics.totalTrades - Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageWin')}</span><span className="text-sm font-medium text-emerald-400">${result.metrics.avgWin.toFixed(0)}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageLoss')}</span><span className="text-sm font-medium text-rose-400">${result.metrics.avgLoss.toFixed(0)}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.bestTrade')}</span><span className="text-sm font-medium text-emerald-400">+{result.metrics.bestTrade.toFixed(2)}%</span></div>
+                <div className="flex justify-between"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.worstTrade')}</span><span className="text-sm font-medium text-rose-400">{result.metrics.worstTrade.toFixed(2)}%</span></div>
               </div>
             </div>
           </div>
 
           {result.trades.length > 0 && (
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h3 className="mb-4 text-sm font-semibold text-slate-300">Trade History</h3>
+              <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.tradeHistory')}</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-left">
-                      <th className="pb-2 text-xs font-medium text-slate-500">Date</th>
-                      <th className="pb-2 text-xs font-medium text-slate-500">Price</th>
+                      <th className="pb-2 text-xs font-medium text-slate-500">{getMessage(locale, 'interaction.date')}</th>
+                      <th className="pb-2 text-xs font-medium text-slate-500">{getMessage(locale, 'interaction.price')}</th>
                       <th className="pb-2 text-xs font-medium text-slate-500">P&L</th>
-                      <th className="pb-2 text-xs font-medium text-slate-500">Return</th>
+                      <th className="pb-2 text-xs font-medium text-slate-500">{getMessage(locale, 'interaction.return')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -289,7 +292,7 @@ export default function BacktestPageContent() {
                     ))}
                   </tbody>
                 </table>
-                {result.trades.length > 10 && <p className="mt-2 text-xs text-slate-500">Showing 10 of {result.trades.length} trades</p>}
+                {result.trades.length > 10 && <p className="mt-2 text-xs text-slate-500">{getMessage(locale, 'interaction.showingTrades').replace('{shown}', '10').replace('{total}', String(result.trades.length))}</p>}
               </div>
             </div>
           )}
