@@ -1,5 +1,7 @@
 """Symbol-related API routes."""
 
+import asyncio
+import time
 from typing import Any
 
 from fastapi import APIRouter
@@ -11,6 +13,10 @@ from skills.data_sources.yfinance_skill.skill import YFinanceSkill
 from src.agents.quant_brain.core import create_support_resistance_levels
 
 router = APIRouter()
+
+_WATCHLIST_CACHE_TTL_SECONDS = 15
+_WATCHLIST_MAX_CONCURRENCY = 4
+_watchlist_cache: dict[str, Any] = {"expires_at": 0.0, "data": None}
 
 
 class SymbolInfo(BaseModel):
@@ -300,51 +306,55 @@ async def _get_latest_snapshot(symbol: str) -> dict[str, Any] | None:
         return None
 
 
-async def _get_latest_symbol_info() -> list[SymbolInfo]:
-    """Get latest symbol snapshot data from yfinance, falling back to seeded values."""
+async def _get_symbol_info(info: dict[str, Any], semaphore: asyncio.Semaphore) -> SymbolInfo:
+    price = float(info["price"])
+    change = float(info["change"])
+    change_percent = float(info["changePercent"])
+    volume = int(info["volume"])
+
     skill = YFinanceSkill()
-    results: list[SymbolInfo] = []
 
-    for info in _SYMBOLS:
-        price = float(info["price"])
-        change = float(info["change"])
-        change_percent = float(info["changePercent"])
-        volume = int(info["volume"])
-
-        try:
+    try:
+        async with semaphore:
             ohlcv = await skill.get_ohlcv(info["symbol"], period="5d", interval="1d")
             fundamentals = await skill.get_fundamentals(info["symbol"])
 
-            if ohlcv:
-                latest = ohlcv[-1]
-                prev_close = ohlcv[-2].close if len(ohlcv) > 1 else latest.open
-                price = round(float(latest.close), 2)
-                change = round(float(latest.close - prev_close), 2)
-                change_percent = round((change / prev_close * 100), 2) if prev_close else 0.0
-                volume = int(fundamentals.get("volume") or latest.volume or volume)
+        if ohlcv:
+            latest = ohlcv[-1]
+            prev_close = ohlcv[-2].close if len(ohlcv) > 1 else latest.open
+            price = round(float(latest.close), 2)
+            change = round(float(latest.close - prev_close), 2)
+            change_percent = round((change / prev_close * 100), 2) if prev_close else 0.0
+            volume = int(fundamentals.get("volume") or latest.volume or volume)
 
-            avg_volume = fundamentals.get("average_volume")
-            analysis_status = info["analysisStatus"]
-            trend = "up" if change > 0 else "down" if change < 0 else "neutral"
+        analysis_status = info["analysisStatus"]
+        trend = "up" if change > 0 else "down" if change < 0 else "neutral"
 
-            results.append(
-                SymbolInfo(
-                    symbol=info["symbol"],
-                    name=info["name"],
-                    price=price,
-                    change=change,
-                    changePercent=change_percent,
-                    volume=volume,
-                    trend=trend,
-                    analysisStatus=analysis_status,
-                )
-            )
-            continue
-        except Exception:
-            pass
+        return SymbolInfo(
+            symbol=info["symbol"],
+            name=info["name"],
+            price=price,
+            change=change,
+            changePercent=change_percent,
+            volume=volume,
+            trend=trend,
+            analysisStatus=analysis_status,
+        )
+    except Exception:
+        return SymbolInfo(**info)
 
-        results.append(SymbolInfo(**info))
 
+async def _get_latest_symbol_info() -> list[SymbolInfo]:
+    """Get latest symbol snapshot data from yfinance, falling back to seeded values."""
+    now = time.time()
+    cached = _watchlist_cache.get("data")
+    if cached is not None and _watchlist_cache.get("expires_at", 0.0) > now:
+        return cached
+
+    semaphore = asyncio.Semaphore(_WATCHLIST_MAX_CONCURRENCY)
+    results = await asyncio.gather(*[_get_symbol_info(info, semaphore) for info in _SYMBOLS])
+    _watchlist_cache["data"] = results
+    _watchlist_cache["expires_at"] = now + _WATCHLIST_CACHE_TTL_SECONDS
     return results
 
 

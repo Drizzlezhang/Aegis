@@ -282,6 +282,43 @@ export interface AnalysisResponse {
   totalTime: number;
 }
 
+export async function loadSymbolPageData(
+  symbol: string,
+  deps: {
+    getSymbolDetail: typeof getSymbolDetail;
+    getMarketIndices: typeof getMarketIndices;
+    getSymbols: typeof getSymbols;
+  } = {
+    getSymbolDetail,
+    getMarketIndices,
+    getSymbols,
+  }
+): Promise<{
+  detail: SymbolDetail;
+  indices: MarketIndexData[];
+  symbols: SymbolInfo[];
+}> {
+  const detailPromise = deps.getSymbolDetail(symbol.toUpperCase());
+  const indicesPromise = deps.getMarketIndices();
+  const symbolsPromise = deps.getSymbols();
+
+  const [detailResult, indicesResult, symbolsResult] = await Promise.allSettled([
+    detailPromise,
+    indicesPromise,
+    symbolsPromise,
+  ]);
+
+  if (detailResult.status !== 'fulfilled') {
+    throw detailResult.reason;
+  }
+
+  return {
+    detail: detailResult.value,
+    indices: indicesResult.status === 'fulfilled' ? indicesResult.value.indices || [] : [],
+    symbols: symbolsResult.status === 'fulfilled' ? symbolsResult.value : [],
+  };
+}
+
 export async function runAnalysis(symbols: string[]): Promise<AnalysisResponse> {
   return fetchApi<AnalysisResponse>('/api/analyze', {
     method: 'POST',

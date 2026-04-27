@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 import GEXChart from '@/components/gex-chart';
 import Header from '@/components/Header';
@@ -7,8 +8,16 @@ import Sidebar from '@/components/Sidebar';
 import SupportResistance from '@/components/SupportResistance';
 import StrategyRecommendations from '@/components/StrategyRecommendations';
 import VolumeProfileChart from '@/components/volume-profile-chart';
-import SymbolAnalysisPanel from '@/components/SymbolAnalysisPanel';
-import { getMarketIndices, getSymbolDetail, getSymbols, MarketIndexData, SymbolInfo } from '@/lib/api';
+import { getChangeColorClasses } from '@/lib/change-color';
+import { getMarketIndices, getSymbolDetail, getSymbols, loadSymbolPageData, MarketIndexData, SymbolInfo } from '@/lib/api';
+
+const LazySymbolAnalysisPanel = dynamic(() => import('@/components/SymbolAnalysisPanel'), {
+  loading: () => (
+    <div className="card">
+      <p className="text-sm text-slate-400">Loading analysis panel...</p>
+    </div>
+  ),
+});
 
 interface PageProps {
   params: Promise<{ symbol: string }>;
@@ -21,25 +30,20 @@ export default async function SymbolPage({ params }: PageProps) {
   let symbols: SymbolInfo[] = [];
 
   try {
-    detail = await getSymbolDetail(symbol.toUpperCase());
+    const data = await loadSymbolPageData(symbol, {
+      getSymbolDetail,
+      getMarketIndices,
+      getSymbols,
+    });
+    detail = data.detail;
+    indices = data.indices;
+    symbols = data.symbols;
   } catch {
     notFound();
   }
 
-  try {
-    const marketResp = await getMarketIndices();
-    indices = marketResp.indices || [];
-  } catch {
-    indices = [];
-  }
-
-  try {
-    symbols = await getSymbols();
-  } catch {
-    symbols = [];
-  }
-
   const positive = detail.change >= 0;
+  const changeColors = getChangeColorClasses(positive);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -65,11 +69,7 @@ export default async function SymbolPage({ params }: PageProps) {
                 <p className="text-3xl font-semibold text-slate-100">
                   ${detail.price.toFixed(2)}
                 </p>
-                <p
-                  className={`text-sm font-medium ${
-                    positive ? 'text-emerald-400' : 'text-rose-400'
-                  }`}
-                >
+                <p className={`text-sm font-medium ${changeColors.text}`}>
                   {positive ? '+' : ''}
                   {detail.change.toFixed(2)} ({positive ? '+' : ''}
                   {detail.changePercent.toFixed(2)}%)
@@ -111,7 +111,7 @@ export default async function SymbolPage({ params }: PageProps) {
             />
 
             {/* Live Multi-Agent Analysis */}
-            <SymbolAnalysisPanel symbol={detail.symbol} />
+            <LazySymbolAnalysisPanel symbol={detail.symbol} />
 
             {/* Dynamic Strategy Recommendations */}
             <StrategyRecommendations recommendations={detail.recommendations} />

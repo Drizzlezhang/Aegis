@@ -1,13 +1,23 @@
 """Tests for symbol API endpoints."""
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def reset_watchlist_cache() -> None:
+    from src.api.routes import symbols
+
+    symbols._watchlist_cache["expires_at"] = 0.0
+    symbols._watchlist_cache["data"] = None
 
 
 class TestGetSymbols:
@@ -51,6 +61,47 @@ class TestGetSymbols:
         first = response.json()[0]
         assert first["price"] == 512.34
         assert first["volume"] == 12345678
+
+    def test_caches_symbols_response_for_15_seconds(self) -> None:
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(return_value=[])
+        mock_skill.get_fundamentals = AsyncMock(return_value={})
+
+        with patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill):
+            first = client.get("/api/symbols")
+            second = client.get("/api/symbols")
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert mock_skill.get_ohlcv.await_count == 11
+        assert mock_skill.get_fundamentals.await_count == 11
+
+    def test_limits_highest_concurrency_with_request_pool(self) -> None:
+        from src.api.routes import symbols
+
+        active = 0
+        peak = 0
+
+        async def fake_ohlcv(*_args, **_kwargs):
+            return []
+
+        async def fake_fundamentals(*_args, **_kwargs):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            await asyncio.sleep(0.01)
+            active -= 1
+            return {}
+
+        mock_skill = MagicMock()
+        mock_skill.get_ohlcv = AsyncMock(side_effect=fake_ohlcv)
+        mock_skill.get_fundamentals = AsyncMock(side_effect=fake_fundamentals)
+
+        with patch("src.api.routes.symbols.YFinanceSkill", return_value=mock_skill):
+            response = client.get("/api/symbols")
+
+        assert response.status_code == 200
+        assert peak <= symbols._WATCHLIST_MAX_CONCURRENCY
 
     def test_required_fields(self) -> None:
         response = client.get("/api/symbols")
