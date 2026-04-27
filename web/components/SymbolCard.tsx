@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { SymbolInfo } from '@/lib/api';
 import { getMessage } from '@/i18n/get-message';
+import { getChangeColorClasses } from '@/lib/change-color';
 import { useLocale } from './LocaleProvider';
 
 interface SymbolCardProps {
@@ -18,6 +19,7 @@ function formatVolume(n: number): string {
 
 export default function SymbolCard({ symbol }: SymbolCardProps) {
   const positive = symbol.change >= 0;
+  const changeColors = getChangeColorClasses(positive);
   const { locale } = useLocale();
 
   return (
@@ -38,7 +40,7 @@ export default function SymbolCard({ symbol }: SymbolCardProps) {
           <p className="text-2xl font-semibold text-slate-100">
             ${symbol.price.toFixed(2)}
           </p>
-          <p className={`text-sm font-medium ${positive ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <p className={`text-sm font-medium ${changeColors.text}`}>
             {positive ? '+' : ''}
             {symbol.change.toFixed(2)} ({positive ? '+' : ''}
             {symbol.changePercent.toFixed(2)}%)
@@ -64,10 +66,12 @@ function StatusBadge({ status, locale }: { status: SymbolInfo['analysisStatus'];
 }
 
 function TrendIndicator({ trend, locale }: { trend: SymbolInfo['trend']; locale: 'zh-CN' | 'en' }) {
+  const downColors = getChangeColorClasses(false);
+  const upColors = getChangeColorClasses(true);
   const bars = [
-    { label: getMessage(locale, 'interaction.bearish'), active: trend === 'down', color: 'bg-rose-500' },
+    { label: getMessage(locale, 'interaction.bearish'), active: trend === 'down', color: downColors.solid },
     { label: getMessage(locale, 'interaction.neutral'), active: trend === 'neutral', color: 'bg-amber-500' },
-    { label: getMessage(locale, 'interaction.bullish'), active: trend === 'up', color: 'bg-emerald-500' },
+    { label: getMessage(locale, 'interaction.bullish'), active: trend === 'up', color: upColors.solid },
   ];
 
   return (

@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { runBacktest } from '@/lib/api';
 import { getMessage } from '@/i18n/get-message';
+import { getChangeColorClasses } from '@/lib/change-color';
 import { useLocale } from './LocaleProvider';
 
 interface BacktestConfig {
@@ -67,6 +68,14 @@ function MetricCard({ label, value, suffix = '', color = 'text-slate-200' }: { l
       </p>
     </div>
   );
+}
+
+function getChangeTextClass(value: number) {
+  return getChangeColorClasses(value >= 0).text;
+}
+
+function getChangeSolidColor(value: number) {
+  return getChangeColorClasses(value >= 0).solid;
 }
 
 export default function BacktestPageContent() {
@@ -193,7 +202,7 @@ export default function BacktestPageContent() {
       {result && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <MetricCard label={getMessage(locale, 'interaction.totalReturn')} value={result.metrics.totalReturn} suffix="%" color={result.metrics.totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
+            <MetricCard label={getMessage(locale, 'interaction.totalReturn')} value={result.metrics.totalReturn} suffix="%" color={getChangeTextClass(result.metrics.totalReturn)} />
             <MetricCard label={getMessage(locale, 'interaction.annualized')} value={result.metrics.annualizedReturn} suffix="%" />
             <MetricCard label={getMessage(locale, 'interaction.winRate')} value={result.metrics.winRate} suffix="%" />
             <MetricCard label={getMessage(locale, 'interaction.profitFactor')} value={result.metrics.profitFactor} />
@@ -247,7 +256,7 @@ export default function BacktestPageContent() {
                   />
                   <Bar dataKey="return" radius={[4, 4, 0, 0]}>
                     {result.monthlyReturns.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.return >= 0 ? '#10b981' : '#f43f5e'} />
+                      <Cell key={`cell-${index}`} fill={getChangeSolidColor(entry.return)} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -258,12 +267,12 @@ export default function BacktestPageContent() {
               <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.tradeStatistics')}</h3>
               <div className="space-y-3">
                 <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.totalTrades')}</span><span className="text-sm font-medium text-slate-200">{result.metrics.totalTrades}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.winningTrades')}</span><span className="text-sm font-medium text-emerald-400">{Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.losingTrades')}</span><span className="text-sm font-medium text-rose-400">{result.metrics.totalTrades - Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageWin')}</span><span className="text-sm font-medium text-emerald-400">${result.metrics.avgWin.toFixed(0)}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageLoss')}</span><span className="text-sm font-medium text-rose-400">${result.metrics.avgLoss.toFixed(0)}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.bestTrade')}</span><span className="text-sm font-medium text-emerald-400">+{result.metrics.bestTrade.toFixed(2)}%</span></div>
-                <div className="flex justify-between"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.worstTrade')}</span><span className="text-sm font-medium text-rose-400">{result.metrics.worstTrade.toFixed(2)}%</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.winningTrades')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgWin)}`}>{Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.losingTrades')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgLoss * -1)}`}>{result.metrics.totalTrades - Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageWin')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgWin)}`}>${result.metrics.avgWin.toFixed(0)}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageLoss')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgLoss * -1)}`}>${result.metrics.avgLoss.toFixed(0)}</span></div>
+                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.bestTrade')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.bestTrade)}`}>+{result.metrics.bestTrade.toFixed(2)}%</span></div>
+                <div className="flex justify-between"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.worstTrade')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.worstTrade)}`}>{result.metrics.worstTrade.toFixed(2)}%</span></div>
               </div>
             </div>
           </div>
@@ -286,8 +295,8 @@ export default function BacktestPageContent() {
                       <tr key={i} className="border-b border-slate-800/50">
                         <td className="py-2 text-slate-300">{trade.date}</td>
                         <td className="py-2 text-slate-300">${trade.price.toFixed(2)}</td>
-                        <td className={`py-2 ${(trade.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toFixed(0)}</td>
-                        <td className={`py-2 ${(trade.pnlPercent || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{(trade.pnlPercent || 0) >= 0 ? '+' : ''}{(trade.pnlPercent || 0).toFixed(2)}%</td>
+                        <td className={`py-2 ${getChangeTextClass(trade.pnl || 0)}`}>{(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toFixed(0)}</td>
+                        <td className={`py-2 ${getChangeTextClass(trade.pnlPercent || 0)}`}>{(trade.pnlPercent || 0) >= 0 ? '+' : ''}{(trade.pnlPercent || 0).toFixed(2)}%</td>
                       </tr>
                     ))}
                   </tbody>

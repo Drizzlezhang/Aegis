@@ -1,5 +1,7 @@
 'use client';
 
+import { getChangeColorClasses } from '@/lib/change-color';
+
 export interface MarketIndexProps {
   symbol: string;
   name: string;
@@ -16,8 +18,7 @@ export default function MarketIndexCard({
   change_percent,
 }: MarketIndexProps) {
   const isUp = change >= 0;
-  const colorClass = isUp ? 'text-emerald-400' : 'text-rose-400';
-  const bgClass = isUp ? 'bg-emerald-500/10' : 'bg-rose-500/10';
+  const changeColors = getChangeColorClasses(isUp);
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
@@ -28,9 +29,9 @@ export default function MarketIndexCard({
             {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
-        <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${bgClass}`}>
-          <span className={`text-xs ${colorClass}`}>{isUp ? '▲' : '▼'}</span>
-          <span className={`text-xs font-medium ${colorClass}`}>
+        <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${changeColors.bg}`}>
+          <span className={`text-xs ${changeColors.text}`}>{isUp ? '▲' : '▼'}</span>
+          <span className={`text-xs font-medium ${changeColors.text}`}>
             {isUp ? '+' : ''}
             {change_percent.toFixed(2)}%
           </span>

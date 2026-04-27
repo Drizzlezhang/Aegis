@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getMessage } from '@/i18n/get-message';
 import type { SymbolInfo } from '@/lib/api';
+import { getChangeColorClasses } from '@/lib/change-color';
 import { useLocale } from './LocaleProvider';
 
 const NAV_ITEMS = [
@@ -58,6 +59,7 @@ export default function Sidebar({ symbols = [] }: SidebarProps) {
             const href = `/symbol/${s.symbol}`;
             const active = pathname === href;
             const positive = s.change >= 0;
+            const changeColors = getChangeColorClasses(positive);
             return (
               <li key={s.symbol}>
                 <Link
@@ -69,7 +71,7 @@ export default function Sidebar({ symbols = [] }: SidebarProps) {
                   }`}
                 >
                   <span className="font-medium">{s.symbol}</span>
-                  <span className={`text-xs ${positive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span className={`text-xs ${changeColors.text}`}>
                     {positive ? '+' : ''}
                     {s.changePercent.toFixed(2)}%
                   </span>

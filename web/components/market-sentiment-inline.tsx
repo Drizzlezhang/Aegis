@@ -1,6 +1,7 @@
 'use client';
 
 import { MarketIndexData } from '@/lib/api';
+import { getChangeColorClasses } from '@/lib/change-color';
 import { getSentimentStyle, getVixStyle, parseMarketContext } from '@/lib/market-context';
 
 interface MarketSentimentInlineProps {
@@ -12,6 +13,8 @@ export default function MarketSentimentInline({ indices }: MarketSentimentInline
 
   const ctx = parseMarketContext(indices);
   const sentimentStyle = getSentimentStyle(ctx.sentiment);
+  const spxChangeColors = ctx.spxChange !== null ? getChangeColorClasses(ctx.spxChange >= 0) : null;
+  const ndxChangeColors = ctx.ndxChange !== null ? getChangeColorClasses(ctx.ndxChange >= 0) : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -26,13 +29,13 @@ export default function MarketSentimentInline({ indices }: MarketSentimentInline
       )}
 
       {ctx.spxChange !== null && (
-        <span className={ctx.spxChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+        <span className={spxChangeColors?.text}>
           SPX {ctx.spxChange >= 0 ? '+' : ''}{ctx.spxChange.toFixed(2)}%
         </span>
       )}
 
       {ctx.ndxChange !== null && (
-        <span className={ctx.ndxChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+        <span className={ndxChangeColors?.text}>
           NDX {ctx.ndxChange >= 0 ? '+' : ''}{ctx.ndxChange.toFixed(2)}%
         </span>
       )}

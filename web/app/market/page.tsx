@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { getChangeColorClasses } from '@/lib/change-color';
 import { getMarketIndices, getSymbols, type MarketIndexData, type SymbolInfo } from '@/lib/api';
 import { parseMarketContext, getSentimentStyle, getVixStyle } from '@/lib/market-context';
 
@@ -74,6 +75,7 @@ export default async function MarketPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {indices.map((idx) => {
                 const positive = idx.change >= 0;
+                const changeColors = getChangeColorClasses(positive);
                 return (
                   <div key={idx.symbol} className="card">
                     <div className="flex items-center justify-between">
@@ -85,7 +87,7 @@ export default async function MarketPage() {
                         <p className="text-lg font-semibold text-slate-100">
                           {idx.price.toFixed(2)}
                         </p>
-                        <p className={`text-xs font-medium ${positive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <p className={`text-xs font-medium ${changeColors.text}`}>
                           {positive ? '+' : ''}{idx.change.toFixed(2)} ({positive ? '+' : ''}{idx.change_percent.toFixed(2)}%)
                         </p>
                       </div>

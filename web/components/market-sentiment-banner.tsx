@@ -1,6 +1,7 @@
 'use client';
 
 import { MarketIndexData } from '@/lib/api';
+import { getChangeColorClasses } from '@/lib/change-color';
 import { getSentimentStyle, getVixStyle, parseMarketContext } from '@/lib/market-context';
 
 interface MarketSentimentBannerProps {
@@ -10,9 +11,9 @@ interface MarketSentimentBannerProps {
 function changeBadge(label: string, value: number | null) {
   if (value === null) return null;
   const isUp = value >= 0;
-  const color = isUp ? 'text-emerald-400' : 'text-rose-400';
+  const changeColors = getChangeColorClasses(isUp);
   return (
-    <span className={`text-xs ${color}`}>
+    <span className={`text-xs ${changeColors.text}`}>
       {label}: {isUp ? '+' : ''}{value.toFixed(2)}%
     </span>
   );
