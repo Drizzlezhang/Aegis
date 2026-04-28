@@ -57,8 +57,8 @@ export default function Sidebar({ symbols = [] }: SidebarProps) {
                     textDecoration: 'none',
                     fontSize: 14,
                     fontWeight: active ? 700 : 500,
-                    color: active ? 'primary.main' : 'text.primary',
-                    backgroundColor: active ? 'action.selected' : 'transparent',
+                    color: active ? 'primary.contrastText' : 'text.primary',
+                    backgroundColor: active ? 'primary.main' : 'transparent',
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       backgroundColor: 'action.hover',
@@ -94,8 +94,8 @@ export default function Sidebar({ symbols = [] }: SidebarProps) {
                     py: 1.25,
                     borderRadius: '18px',
                     textDecoration: 'none',
-                    color: 'text.primary',
-                    backgroundColor: active ? 'action.selected' : 'transparent',
+                    color: active ? 'primary.contrastText' : 'text.primary',
+                    backgroundColor: active ? 'primary.main' : 'transparent',
                     '&:hover': {
                       backgroundColor: 'action.hover',
                     },

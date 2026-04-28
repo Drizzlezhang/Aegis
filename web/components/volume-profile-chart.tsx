@@ -53,17 +53,17 @@ export default function VolumeProfileChart({
       </Typography>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--outline)" horizontal={false} />
           <XAxis
             dataKey="level"
-            stroke="#7c7c8c"
+            stroke="var(--text-secondary)"
             fontSize={10}
             tickLine={false}
             axisLine={false}
             interval={2}
           />
           <YAxis
-            stroke="#7c7c8c"
+            stroke="var(--text-secondary)"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -72,8 +72,8 @@ export default function VolumeProfileChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'rgba(24,24,30,0.96)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--outline)',
               borderRadius: '16px',
               fontSize: '12px',
             }}
@@ -81,7 +81,7 @@ export default function VolumeProfileChart({
               const num = typeof value === 'number' ? value : Number(value);
               return [num.toLocaleString(), 'Volume'];
             }}
-            labelStyle={{ color: '#b0b0bb' }}
+            labelStyle={{ color: 'var(--text-secondary)' }}
           />
           <ReferenceLine
             x={`$${val.toFixed(0)}`}
@@ -91,9 +91,9 @@ export default function VolumeProfileChart({
           />
           <ReferenceLine
             x={`$${poc.toFixed(0)}`}
-            stroke="#6750A4"
+            stroke="var(--primary-main)"
             strokeWidth={2}
-            label={{ value: 'POC', position: 'insideTopLeft', fill: '#6750A4', fontSize: 10 }}
+            label={{ value: 'POC', position: 'insideTopLeft', fill: 'var(--primary-main)', fontSize: 10 }}
           />
           <ReferenceLine
             x={`$${vah.toFixed(0)}`}
@@ -101,15 +101,15 @@ export default function VolumeProfileChart({
             strokeDasharray="3 3"
             label={{ value: 'VAH', position: 'insideTopLeft', fill: '#f59e0b', fontSize: 10 }}
           />
-          <Bar dataKey="volume" fill="#6750A4" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="volume" fill="var(--primary-main)" radius={[4, 4, 0, 0]}>
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={isInValueArea(entry.rawPrice) ? '#6750A4' : '#7c7c8c'} />
+              <Cell key={`cell-${index}`} fill={isInValueArea(entry.rawPrice) ? 'var(--primary-main)' : 'var(--text-secondary)'} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-2 flex justify-between text-xs text-slate-500">
-        <span>POC: <span className="text-[color:#6750A4]">${poc.toFixed(2)}</span></span>
+      <div className="mt-2 flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <span>POC: <span style={{ color: 'var(--primary-main)' }}>${poc.toFixed(2)}</span></span>
         <span>VAH: <span className="text-amber-500">${vah.toFixed(2)}</span></span>
         <span>VAL: <span className="text-amber-500">${val.toFixed(2)}</span></span>
       </div>

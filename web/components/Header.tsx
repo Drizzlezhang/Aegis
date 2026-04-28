@@ -41,8 +41,8 @@ export default function Header() {
                 width: 38,
                 height: 38,
                 borderRadius: '14px',
-                background: 'linear-gradient(135deg, #6750A4 0%, #D0BCFF 100%)',
-                boxShadow: '0 10px 24px rgba(103, 80, 164, 0.28)',
+                background: 'linear-gradient(135deg, var(--primary-main) 0%, var(--primary-hover) 100%)',
+                boxShadow: '0 10px 24px var(--primary-soft)',
               }}
             />
             <Box>
@@ -66,7 +66,20 @@ export default function Header() {
                   clickable
                   color={active ? 'primary' : 'default'}
                   variant={active ? 'filled' : 'outlined'}
-                  sx={{ borderRadius: '999px', fontWeight: 600 }}
+                  sx={{
+                    borderRadius: '999px',
+                    fontWeight: 600,
+                    ...(active
+                      ? {
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          borderColor: 'primary.main',
+                          '& .MuiChip-label': {
+                            color: 'inherit',
+                          },
+                        }
+                      : {}),
+                  }}
                 />
               </Link>
             );

@@ -64,14 +64,14 @@ export default function PriceChart({
         <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6750A4" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#6750A4" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--primary-main)" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="var(--primary-main)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--outline)" />
           <XAxis
             dataKey="date"
-            stroke="#7c7c8c"
+            stroke="var(--text-secondary)"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -79,7 +79,7 @@ export default function PriceChart({
           />
           <YAxis
             domain={[minPrice, maxPrice]}
-            stroke="#7c7c8c"
+            stroke="var(--text-secondary)"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -88,8 +88,8 @@ export default function PriceChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'rgba(24,24,30,0.96)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--outline)',
               borderRadius: '16px',
               fontSize: '12px',
             }}
@@ -97,7 +97,7 @@ export default function PriceChart({
               const num = typeof value === 'number' ? value : Number(value);
               return [`$${num.toFixed(2)}`, 'Price'];
             }}
-            labelStyle={{ color: '#b0b0bb' }}
+            labelStyle={{ color: 'var(--text-secondary)' }}
           />
           {supports.slice(0, 2).map((s, i) => (
             <ReferenceLine
@@ -132,11 +132,11 @@ export default function PriceChart({
           <Area
             type="monotone"
             dataKey="price"
-            stroke="#6750A4"
+            stroke="var(--primary-main)"
             strokeWidth={2}
             fill="url(#priceGradient)"
             dot={false}
-            activeDot={{ r: 4, fill: '#6750A4', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: 'var(--primary-main)', stroke: 'var(--surface)', strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>
