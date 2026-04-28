@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
+import { Chip, Paper, Typography } from '@mui/material';
 import GEXChart from '@/components/gex-chart';
 import Header from '@/components/Header';
 import MarketSentimentBanner from '@/components/market-sentiment-banner';
@@ -52,32 +53,25 @@ export default async function SymbolPage({ params }: PageProps) {
         <Sidebar symbols={symbols} />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-5xl space-y-4">
-            {/* Market Sentiment Banner */}
-            {indices.length > 0 && (
-              <MarketSentimentBanner indices={indices} />
-            )}
+            {indices.length > 0 && <MarketSentimentBanner indices={indices} />}
 
-            {/* Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-100">
-                  {detail.symbol}
-                </h1>
-                <p className="text-sm text-slate-500">{detail.name}</p>
+            <Paper elevation={0} className="card">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-[var(--foreground)]">{detail.symbol}</h1>
+                  <p className="text-sm text-slate-500">{detail.name}</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-3xl font-semibold text-[var(--foreground)]">${detail.price.toFixed(2)}</p>
+                  <p className={`text-sm font-medium ${changeColors.text}`}>
+                    {positive ? '+' : ''}
+                    {detail.change.toFixed(2)} ({positive ? '+' : ''}
+                    {detail.changePercent.toFixed(2)}%)
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-semibold text-slate-100">
-                  ${detail.price.toFixed(2)}
-                </p>
-                <p className={`text-sm font-medium ${changeColors.text}`}>
-                  {positive ? '+' : ''}
-                  {detail.change.toFixed(2)} ({positive ? '+' : ''}
-                  {detail.changePercent.toFixed(2)}%)
-                </p>
-              </div>
-            </div>
+            </Paper>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard label="Volume" value={detail.volume.toLocaleString()} />
               <StatCard label="Avg Volume" value={detail.avgVolume.toLocaleString()} />
@@ -85,7 +79,6 @@ export default async function SymbolPage({ params }: PageProps) {
               <StatCard label="P/E Ratio" value={detail.peRatio.toString()} />
             </div>
 
-            {/* Charts */}
             <div className="grid gap-4 lg:grid-cols-2">
               <PriceChart
                 currentPrice={detail.price}
@@ -103,17 +96,14 @@ export default async function SymbolPage({ params }: PageProps) {
 
             <GEXChart walls={detail.gexWalls} currentPrice={detail.price} />
 
-            {/* Support / Resistance */}
             <SupportResistance
               supports={detail.supports}
               resistances={detail.resistances}
               currentPrice={detail.price}
             />
 
-            {/* Live Multi-Agent Analysis */}
             <LazySymbolAnalysisPanel symbol={detail.symbol} />
 
-            {/* Dynamic Strategy Recommendations */}
             <StrategyRecommendations recommendations={detail.recommendations} />
           </div>
         </main>
@@ -124,9 +114,13 @@ export default async function SymbolPage({ params }: PageProps) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-200">{value}</p>
-    </div>
+    <Paper elevation={0} className="card-muted">
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 1, fontWeight: 700, color: 'text.primary' }}>
+        {value}
+      </Typography>
+    </Paper>
   );
 }

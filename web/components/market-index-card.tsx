@@ -1,5 +1,6 @@
 'use client';
 
+import { Paper, Stack, Typography } from '@mui/material';
 import { getChangeColorClasses } from '@/lib/change-color';
 
 export interface MarketIndexProps {
@@ -21,23 +22,36 @@ export default function MarketIndexCard({
   const changeColors = getChangeColorClasses(isUp);
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-      <div className="flex items-center justify-between">
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2.25,
+        borderRadius: '24px',
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
         <div>
-          <p className="text-xs font-medium text-slate-400">{name}</p>
-          <p className="mt-1 text-lg font-bold text-slate-100">
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            {name}
+          </Typography>
+          <Typography variant="h6" sx={{ mt: 0.5, fontWeight: 800, color: 'text.primary' }}>
             {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
+          </Typography>
         </div>
-        <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${changeColors.bg}`}>
+        <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${changeColors.bg}`}>
           <span className={`text-xs ${changeColors.text}`}>{isUp ? '▲' : '▼'}</span>
-          <span className={`text-xs font-medium ${changeColors.text}`}>
+          <span className={`text-xs font-semibold ${changeColors.text}`}>
             {isUp ? '+' : ''}
             {change_percent.toFixed(2)}%
           </span>
         </div>
-      </div>
-      <p className="mt-1 text-xs text-slate-500">{symbol}</p>
-    </div>
+      </Stack>
+      <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+        {symbol}
+      </Typography>
+    </Paper>
   );
 }

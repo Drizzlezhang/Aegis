@@ -1,5 +1,6 @@
 'use client';
 
+import { Chip } from '@mui/material';
 import { MarketIndexData } from '@/lib/api';
 import { getChangeColorClasses } from '@/lib/change-color';
 import { getSentimentStyle, getVixStyle, parseMarketContext } from '@/lib/market-context';
@@ -18,7 +19,7 @@ export default function MarketSentimentInline({ indices }: MarketSentimentInline
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
-      <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium ${sentimentStyle.bg} ${sentimentStyle.text}`}>
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${sentimentStyle.bg} ${sentimentStyle.text}`}>
         {sentimentStyle.label}
       </span>
 
@@ -40,17 +41,9 @@ export default function MarketSentimentInline({ indices }: MarketSentimentInline
         </span>
       )}
 
-      {ctx.positionFactor !== 1.0 && (
-        <span className="text-amber-400">
-          Sizing {(ctx.positionFactor * 100).toFixed(0)}%
-        </span>
-      )}
+      {ctx.positionFactor !== 1.0 && <Chip label={`Sizing ${(ctx.positionFactor * 100).toFixed(0)}%`} size="small" color="warning" variant="outlined" />}
 
-      {ctx.warning && (
-        <span className="text-amber-400">
-          {ctx.warning}
-        </span>
-      )}
+      {ctx.warning && <Chip label={ctx.warning} size="small" color="warning" variant="outlined" />}
     </div>
   );
 }

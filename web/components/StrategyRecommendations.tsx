@@ -1,5 +1,6 @@
 'use client';
 
+import { Chip, Paper, Stack, Typography } from '@mui/material';
 import type { StrategyRecommendation } from '@/lib/api';
 
 interface StrategyRecommendationsProps {
@@ -8,25 +9,30 @@ interface StrategyRecommendationsProps {
 
 export default function StrategyRecommendations({ recommendations }: StrategyRecommendationsProps) {
   return (
-    <div className="card">
-      <h3 className="mb-3 text-sm font-semibold text-slate-300">Strategy Recommendations</h3>
-      <div className="space-y-3">
+    <Paper elevation={0} className="card">
+      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+        Strategy Recommendations
+      </Typography>
+      <Stack spacing={2}>
         {recommendations.map((rec) => (
-          <div
+          <Paper
             key={rec.id}
-            className="rounded-lg border border-slate-800 bg-slate-800/30 p-3 transition-colors hover:border-slate-700"
+            elevation={0}
+            className="card-muted"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <span className="rounded bg-blue-950 px-2 py-0.5 text-xs font-medium text-blue-400">
-                  {rec.type}
-                </span>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Chip label={rec.type} size="small" color="primary" variant="outlined" />
                 <RiskBadge level={rec.riskLevel} />
               </div>
-              <span className="text-xs font-medium text-emerald-400">{rec.expectedReturn}</span>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: 'success.main' }}>
+                {rec.expectedReturn}
+              </Typography>
             </div>
 
-            <p className="mt-2 text-sm text-slate-300">{rec.description}</p>
+            <Typography variant="body2" sx={{ mt: 1.5, color: 'text.primary' }}>
+              {rec.description}
+            </Typography>
 
             {(rec.expiration || rec.strike) && (
               <div className="mt-2 flex gap-3 text-xs text-slate-500">
@@ -34,18 +40,19 @@ export default function StrategyRecommendations({ recommendations }: StrategyRec
                 {rec.strike && <span>Strike: {rec.strike}</span>}
               </div>
             )}
-          </div>
+          </Paper>
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Paper>
   );
 }
 
 function RiskBadge({ level }: { level: StrategyRecommendation['riskLevel'] }) {
-  const map: Record<string, string> = {
-    low: 'badge-green',
-    medium: 'badge-amber',
-    high: 'badge-red',
+  const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
+    low: 'success',
+    medium: 'warning',
+    high: 'error',
   };
-  return <span className={map[level] || 'badge-blue'}>{level}</span>;
+
+  return <Chip label={level} size="small" color={colorMap[level] || 'default'} />;
 }

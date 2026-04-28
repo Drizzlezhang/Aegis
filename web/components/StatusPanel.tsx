@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
 import { getMessage } from '@/i18n/get-message';
 import { useLocale } from './LocaleProvider';
 
@@ -58,85 +59,127 @@ export default function StatusPanel() {
 
   if (loading) {
     return (
-      <div className="card">
-        <p className="text-sm text-slate-500">{getMessage(locale, 'interaction.loadingSystemStatus')}</p>
-      </div>
+      <Paper elevation={0} className="card">
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          {getMessage(locale, 'interaction.loadingSystemStatus')}
+        </Typography>
+      </Paper>
     );
   }
 
   if (!data) {
     return (
-      <div className="card">
-        <p className="text-sm text-rose-400">{getMessage(locale, 'interaction.failedToLoadSystemStatus')}</p>
-      </div>
+      <Paper elevation={0} className="card">
+        <Typography variant="body2" sx={{ color: 'error.main' }}>
+          {getMessage(locale, 'interaction.failedToLoadSystemStatus')}
+        </Typography>
+      </Paper>
     );
   }
 
   const allHealthy = Object.values(data.health).every((v) => v);
 
   return (
-    <div className="space-y-4">
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.healthOverview')}</h3>
-          <span className={allHealthy ? 'badge-green' : 'badge-red'}>
-            {allHealthy ? getMessage(locale, 'interaction.allSystemsOperational') : getMessage(locale, 'interaction.issuesDetected')}
-          </span>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+    <Stack spacing={3}>
+      <Paper elevation={0} className="card">
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {getMessage(locale, 'interaction.healthOverview')}
+          </Typography>
+          <Chip
+            label={allHealthy ? getMessage(locale, 'interaction.allSystemsOperational') : getMessage(locale, 'interaction.issuesDetected')}
+            color={allHealthy ? 'success' : 'error'}
+            variant="filled"
+            sx={{ fontWeight: 700, borderRadius: '999px' }}
+          />
+        </Stack>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {Object.entries(data.health).map(([key, value]) => (
             <HealthItem key={key} name={key} healthy={value} />
           ))}
         </div>
-      </div>
+      </Paper>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="card">
-          <h3 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.agents')}</h3>
-          <div className="space-y-2">
+        <Paper elevation={0} className="card">
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+            {getMessage(locale, 'interaction.agents')}
+          </Typography>
+          <Stack spacing={2}>
             {data.agents.map((agent) => (
-              <div
+              <Box
                 key={agent.name}
-                className="flex items-center justify-between rounded-lg bg-slate-800/50 p-2"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  p: 2,
+                  borderRadius: '20px',
+                  bgcolor: 'action.hover',
+                }}
               >
                 <div>
-                  <p className="text-sm font-medium text-slate-200">{agent.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {agent.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     {getMessage(locale, 'interaction.lastRun')}: {new Date(agent.lastRun).toLocaleTimeString()}
-                  </p>
+                  </Typography>
                 </div>
                 <div className="text-right">
                   <AgentStatusBadge status={agent.status} />
-                  <p className="mt-0.5 text-xs text-slate-500">{agent.executions} {getMessage(locale, 'interaction.runs')}</p>
+                  <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.secondary' }}>
+                    {agent.executions} {getMessage(locale, 'interaction.runs')}
+                  </Typography>
                 </div>
-              </div>
+              </Box>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Paper>
 
-        <div className="card">
-          <h3 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.skills')}</h3>
-          <div className="space-y-2">
+        <Paper elevation={0} className="card">
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+            {getMessage(locale, 'interaction.skills')}
+          </Typography>
+          <Stack spacing={2}>
             {data.skills.map((skill) => (
-              <div
+              <Box
                 key={skill.name}
-                className="flex items-center justify-between rounded-lg bg-slate-800/50 p-2"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  p: 2,
+                  borderRadius: '20px',
+                  bgcolor: 'action.hover',
+                }}
               >
                 <div>
-                  <p className="text-sm font-medium text-slate-200">{skill.name}</p>
-                  <p className="text-xs text-slate-500">{skill.type}</p>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {skill.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {skill.type}
+                  </Typography>
                 </div>
-                <span className={skill.loaded ? 'badge-green' : 'badge-red'}>
-                  {skill.loaded ? getMessage(locale, 'interaction.loaded') : getMessage(locale, 'common.error')}
-                </span>
-              </div>
+                <Chip
+                  label={skill.loaded ? getMessage(locale, 'interaction.loaded') : getMessage(locale, 'common.error')}
+                  color={skill.loaded ? 'success' : 'error'}
+                  variant="filled"
+                  sx={{ fontWeight: 700, borderRadius: '999px' }}
+                />
+              </Box>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Paper>
       </div>
 
-      <div className="card">
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.systemInfo')}</h3>
+      <Paper elevation={0} className="card">
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+          {getMessage(locale, 'interaction.systemInfo')}
+        </Typography>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <InfoItem label={getMessage(locale, 'interaction.version')} value={data.system.version} />
           <InfoItem label={getMessage(locale, 'interaction.uptime')} value={data.system.uptime} />
@@ -144,34 +187,49 @@ export default function StatusPanel() {
           <InfoItem label={getMessage(locale, 'interaction.python')} value={data.system.pythonVersion} />
           <InfoItem label="Node.js" value={data.system.nodeVersion} />
         </div>
-      </div>
-    </div>
+      </Paper>
+    </Stack>
   );
 }
 
 function HealthItem({ name, healthy }: { name: string; healthy: boolean }) {
   return (
-    <div className="rounded-lg bg-slate-800/50 p-2 text-center">
-      <div className={`mx-auto h-2 w-2 rounded-full ${healthy ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-      <p className="mt-1 text-xs capitalize text-slate-400">{name.replace('_', ' ')}</p>
-    </div>
+    <Paper elevation={0} sx={{ p: 1.5, borderRadius: '18px', bgcolor: 'action.hover', textAlign: 'center' }}>
+      <div className={`mx-auto h-2.5 w-2.5 rounded-full ${healthy ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+      <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary', textTransform: 'capitalize' }}>
+        {name.replace('_', ' ')}
+      </Typography>
+    </Paper>
   );
 }
 
 function AgentStatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    idle: 'badge-green',
-    running: 'badge-amber',
-    error: 'badge-red',
+  const map: Record<string, 'success' | 'warning' | 'error' | 'primary'> = {
+    idle: 'success',
+    running: 'warning',
+    error: 'error',
   };
-  return <span className={map[status] || 'badge-blue'}>{status}</span>;
+
+  return (
+    <Chip
+      label={status}
+      color={map[status] || 'primary'}
+      variant="filled"
+      size="small"
+      sx={{ fontWeight: 700, borderRadius: '999px', textTransform: 'capitalize' }}
+    />
+  );
 }
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-800/50 p-2">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-0.5 text-sm font-medium text-slate-200">{value}</p>
-    </div>
+    <Paper elevation={0} sx={{ p: 1.5, borderRadius: '18px', bgcolor: 'action.hover' }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 700, color: 'text.primary' }}>
+        {value}
+      </Typography>
+    </Paper>
   );
 }

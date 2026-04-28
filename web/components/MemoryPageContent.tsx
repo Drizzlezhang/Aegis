@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button, Chip, Paper, Stack, TextField, Typography } from '@mui/material';
 import {
   getMemoryStats,
   getMarketNotes,
@@ -44,17 +45,17 @@ export default function MemoryPageContent() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100">Aegis 记忆</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          语义搜索与交易记忆
-        </p>
+      <div className="card">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Aegis 记忆</h1>
+        <p className="mt-1 text-sm text-slate-500">语义搜索与交易记忆</p>
       </div>
 
       {loading && (
-        <div className="card">
-          <p className="text-sm text-slate-500">{getMessage(locale, 'interaction.loadingMemory')}</p>
-        </div>
+        <Paper elevation={0} className="card">
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {getMessage(locale, 'interaction.loadingMemory')}
+          </Typography>
+        </Paper>
       )}
 
       {stats && (
@@ -66,90 +67,102 @@ export default function MemoryPageContent() {
         </div>
       )}
 
-      <div className="card space-y-3">
-        <h3 className="text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.semanticSearch')}</h3>
+      <Paper elevation={0} className="card">
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+          {getMessage(locale, 'interaction.semanticSearch')}
+        </Typography>
         <div className="flex gap-2">
-          <input
-            type="text"
+          <TextField
+            fullWidth
+            size="small"
             placeholder={getMessage(locale, 'interaction.searchAnalysisResults')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-slate-600"
           />
-          <button
+          <Button
             onClick={handleSearch}
             disabled={searching || !query.trim()}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            variant="contained"
+            sx={{ minWidth: 120, borderRadius: '16px', px: 2.5, fontWeight: 700 }}
           >
             {searching ? getMessage(locale, 'interaction.searching') : getMessage(locale, 'common.search')}
-          </button>
+          </Button>
         </div>
 
         {searchResults.length > 0 && (
-          <div className="space-y-2">
+          <Stack spacing={2} sx={{ mt: 2 }}>
             {searchResults.map((r) => (
-              <div key={r.id} className="rounded-lg bg-slate-800/50 p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-300">ID: {r.id}</span>
-                  <span className="text-xs text-emerald-400">
-                    {(r.similarity_score * 100).toFixed(1)}% match
-                  </span>
+              <Paper key={r.id} elevation={0} className="card-muted">
+                <div className="flex items-center justify-between gap-3">
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    ID: {r.id}
+                  </Typography>
+                  <Chip label={`${(r.similarity_score * 100).toFixed(1)}% match`} size="small" color="success" variant="outlined" />
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">{r.document}</p>
-              </div>
+                <Typography variant="body2" sx={{ mt: 1.5, color: 'text.secondary', lineHeight: 1.7 }}>
+                  {r.document}
+                </Typography>
+              </Paper>
             ))}
-          </div>
+          </Stack>
         )}
 
         {searchResults.length === 0 && !searching && query && (
-          <p className="text-xs text-slate-500">{getMessage(locale, 'interaction.noResultsFound')}</p>
+          <Typography variant="caption" sx={{ mt: 2, display: 'block', color: 'text.secondary' }}>
+            {getMessage(locale, 'interaction.noResultsFound')}
+          </Typography>
         )}
-      </div>
+      </Paper>
 
-      <div className="card">
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">
-          {getMessage(locale, 'interaction.marketNotes')} ({notes.length})
-        </h3>
+      <Paper elevation={0} className="card">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {getMessage(locale, 'interaction.marketNotes')}
+          </Typography>
+          <Chip label={String(notes.length)} size="small" variant="outlined" />
+        </div>
         {notes.length === 0 ? (
-          <p className="text-xs text-slate-500">{getMessage(locale, 'interaction.noMarketNotesYet')}</p>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {getMessage(locale, 'interaction.noMarketNotesYet')}
+          </Typography>
         ) : (
-          <div className="space-y-2">
+          <Stack spacing={2}>
             {notes.map((note) => (
-              <div key={note.id} className="rounded-lg bg-slate-800/50 p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-300">
+              <Paper key={note.id} elevation={0} className="card-muted">
+                <div className="flex items-center justify-between gap-3">
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                     {note.symbol || getMessage(locale, 'interaction.general')}
-                  </span>
-                  <span className="text-xs text-slate-500">{note.note_date}</span>
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {note.note_date}
+                  </Typography>
                 </div>
-                <span className="mt-1 inline-block rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-400">
-                  {note.category}
-                </span>
-                <p className="mt-1 text-xs text-slate-400 leading-relaxed">{note.content}</p>
+                <Chip label={note.category} size="small" sx={{ mt: 1.5, width: 'fit-content' }} />
+                <Typography variant="body2" sx={{ mt: 1.5, color: 'text.secondary', lineHeight: 1.7 }}>
+                  {note.content}
+                </Typography>
                 {note.tags.length > 0 && (
-                  <div className="mt-1 flex gap-1">
+                  <div className="mt-2 flex flex-wrap gap-1">
                     {note.tags.map((tag) => (
-                      <span key={tag} className="text-xs text-slate-500">
-                        #{tag}
-                      </span>
+                      <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
                     ))}
                   </div>
                 )}
-              </div>
+              </Paper>
             ))}
-          </div>
+          </Stack>
         )}
-      </div>
+      </Paper>
     </div>
   );
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+    <Paper elevation={0} className="card-muted">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-slate-200">{value}</p>
-    </div>
+      <p className="mt-1 text-lg font-semibold text-[var(--foreground)]">{value}</p>
+    </Paper>
   );
 }

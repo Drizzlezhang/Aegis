@@ -1,5 +1,6 @@
 'use client';
 
+import { Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import type { SupportResistance as SR } from '@/lib/mock-data';
 
 interface SupportResistanceProps {
@@ -19,51 +20,67 @@ export default function SupportResistance({ supports, resistances, currentPrice 
   const range = maxL - minL || 1;
 
   return (
-    <div className="card">
-      <h3 className="mb-3 text-sm font-semibold text-slate-300">Support / Resistance</h3>
-      <div className="space-y-2">
+    <Paper elevation={0} className="card">
+      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+        Support / Resistance
+      </Typography>
+      <Stack spacing={2}>
         {all.map((item, i) => {
           const pct = ((item.level - minL) / range) * 100;
           const isSupport = item.type === 'support';
+          const barColor = isSupport ? '#10b981' : '#f43f5e';
           return (
             <div key={i} className="relative">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <span className={`inline-block h-2 w-2 rounded-full ${isSupport ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <span className="font-medium text-slate-200">${item.level.toFixed(2)}</span>
-                  <span className={`text-xs ${isSupport ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span className="font-medium text-[var(--foreground)]">${item.level.toFixed(2)}</span>
+                  <span className={`text-xs ${isSupport ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {isSupport ? 'S' : 'R'}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500">{item.source}</span>
+                <div className="flex items-center gap-2">
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{item.source}</Typography>
                   <StrengthBadge strength={item.strength} />
-                  <span className="w-12 text-right text-xs text-slate-400">{item.dist.toFixed(1)}%</span>
+                  <Typography variant="caption" sx={{ minWidth: 42, textAlign: 'right', color: 'text.secondary' }}>
+                    {item.dist.toFixed(1)}%
+                  </Typography>
                 </div>
               </div>
-              <div className="mt-1 h-1 w-full rounded-full bg-slate-800">
-                <div
-                  className={`h-1 rounded-full ${isSupport ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              <LinearProgress
+                variant="determinate"
+                value={pct}
+                sx={{
+                  mt: 1,
+                  height: 6,
+                  borderRadius: 999,
+                  bgcolor: 'action.hover',
+                  '& .MuiLinearProgress-bar': {
+                    borderRadius: 999,
+                    backgroundColor: barColor,
+                  },
+                }}
+              />
             </div>
           );
         })}
-      </div>
+      </Stack>
 
-      <div className="mt-3 rounded-lg bg-slate-800/50 p-2 text-center text-sm text-slate-400">
-        Current: <span className="font-semibold text-slate-200">${currentPrice.toFixed(2)}</span>
-      </div>
-    </div>
+      <Paper elevation={0} className="card-muted" sx={{ mt: 2, textAlign: 'center' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Current: <span className="font-semibold text-[var(--foreground)]">${currentPrice.toFixed(2)}</span>
+        </Typography>
+      </Paper>
+    </Paper>
   );
 }
 
 function StrengthBadge({ strength }: { strength: SR['strength'] }) {
-  const map: Record<string, string> = {
-    weak: 'badge-blue',
-    moderate: 'badge-amber',
-    strong: 'badge-green',
+  const colorMap: Record<string, 'primary' | 'warning' | 'success'> = {
+    weak: 'primary',
+    moderate: 'warning',
+    strong: 'success',
   };
-  return <span className={map[strength] || 'badge-blue'}>{strength}</span>;
+
+  return <Chip label={strength} size="small" color={colorMap[strength] || 'primary'} variant="outlined" />;
 }

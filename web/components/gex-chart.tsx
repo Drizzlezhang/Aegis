@@ -1,5 +1,6 @@
 'use client';
 
+import { Paper, Typography } from '@mui/material';
 import {
   CartesianGrid,
   ReferenceLine,
@@ -48,16 +49,18 @@ export default function GEXChart({ walls, currentPrice }: GEXChartProps) {
   const maxGamma = Math.max(...walls.map((w) => w.gamma), 0.1);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-slate-300">GEX Walls</h3>
+    <Paper elevation={0} className="card">
+      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+        GEX Walls
+      </Typography>
       <ResponsiveContainer width="100%" height={220}>
         <ScatterChart margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" />
           <XAxis
             type="number"
             dataKey="x"
             name="Strike"
-            stroke="#475569"
+            stroke="#7c7c8c"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -71,7 +74,7 @@ export default function GEXChart({ walls, currentPrice }: GEXChartProps) {
             type="number"
             dataKey="y"
             name="Gamma"
-            stroke="#475569"
+            stroke="#7c7c8c"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -83,9 +86,9 @@ export default function GEXChart({ walls, currentPrice }: GEXChartProps) {
           <Tooltip
             cursor={{ strokeDasharray: '3 3' }}
             contentStyle={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '8px',
+              backgroundColor: 'rgba(24,24,30,0.96)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '16px',
               fontSize: '12px',
             }}
             formatter={(_: unknown, __: unknown, props: { payload?: { x: number; y: number; type: string; strength: string } }) => {
@@ -96,31 +99,21 @@ export default function GEXChart({ walls, currentPrice }: GEXChartProps) {
                 p.type === 'call' ? 'Call Wall' : 'Put Wall',
               ];
             }}
-            labelStyle={{ color: '#94a3b8' }}
+            labelStyle={{ color: '#b0b0bb' }}
           />
           <ReferenceLine
             x={currentPrice}
-            stroke="#6366f1"
+            stroke="#6750A4"
             strokeDasharray="5 5"
             label={{
               value: `Spot $${currentPrice.toFixed(0)}`,
               position: 'insideTopRight',
-              fill: '#6366f1',
+              fill: '#6750A4',
               fontSize: 10,
             }}
           />
-          <Scatter
-            name="Call Walls"
-            data={callData}
-            fill="#f43f5e"
-            opacity={0.8}
-          />
-          <Scatter
-            name="Put Walls"
-            data={putData}
-            fill="#10b981"
-            opacity={0.8}
-          />
+          <Scatter name="Call Walls" data={callData} fill="#f43f5e" opacity={0.8} />
+          <Scatter name="Put Walls" data={putData} fill="#10b981" opacity={0.8} />
         </ScatterChart>
       </ResponsiveContainer>
       <div className="mt-2 flex gap-4 text-xs text-slate-500">
@@ -133,10 +126,10 @@ export default function GEXChart({ walls, currentPrice }: GEXChartProps) {
           Put Wall
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full bg-indigo-500" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[color:#6750A4]" />
           Spot Price
         </span>
       </div>
-    </div>
+    </Paper>
   );
 }

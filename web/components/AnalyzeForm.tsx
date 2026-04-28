@@ -2,36 +2,37 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { runAnalysis, type AnalysisResult, type AnalysisRecommendation } from '@/lib/api';
 
 const SYMBOLS = ['QQQ', 'SPY', 'NVDA', 'MSFT', 'AAPL', 'PLTR', 'NFLX', 'INTC', 'TSM', 'TSLA', 'KO'];
 
 function RecommendationCard({ rec }: { rec: AnalysisRecommendation }) {
   return (
-    <div className="rounded-lg bg-slate-800/50 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-200">{rec.type}</span>
-        <span className="text-xs rounded-full bg-slate-700 px-2 py-0.5 text-slate-300">
-          {Math.round(rec.confidence * 100)}% confidence
-        </span>
+    <Paper elevation={0} sx={{ p: 2, borderRadius: '20px', bgcolor: 'action.hover' }}>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-[var(--foreground)]">{rec.type}</span>
+          <Chip label={`${Math.round(rec.confidence * 100)}% confidence`} size="small" variant="outlined" />
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
+          <div>Contract: <span className="text-[var(--foreground)]">{rec.contractSymbol}</span></div>
+          <div>Strike: <span className="text-[var(--foreground)]">${rec.strike}</span></div>
+          <div>Expiry: <span className="text-[var(--foreground)]">{rec.expiry}</span></div>
+          <div>Entry: <span className="text-[var(--foreground)]">${rec.entryPrice}</span></div>
+          {rec.targetPrice !== null && (
+            <div>Target: <span className="text-emerald-500">${rec.targetPrice}</span></div>
+          )}
+          {rec.stopLoss !== null && (
+            <div>Stop: <span className="text-rose-500">${rec.stopLoss}</span></div>
+          )}
+          {rec.riskRewardRatio !== null && (
+            <div>R/R: <span className="text-[var(--foreground)]">{rec.riskRewardRatio.toFixed(2)}</span></div>
+          )}
+        </div>
+        <p className="text-xs leading-relaxed text-slate-500">{rec.reasoning}</p>
       </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400">
-        <div>Contract: <span className="text-slate-200">{rec.contractSymbol}</span></div>
-        <div>Strike: <span className="text-slate-200">${rec.strike}</span></div>
-        <div>Expiry: <span className="text-slate-200">{rec.expiry}</span></div>
-        <div>Entry: <span className="text-slate-200">${rec.entryPrice}</span></div>
-        {rec.targetPrice !== null && (
-          <div>Target: <span className="text-emerald-400">${rec.targetPrice}</span></div>
-        )}
-        {rec.stopLoss !== null && (
-          <div>Stop: <span className="text-rose-400">${rec.stopLoss}</span></div>
-        )}
-        {rec.riskRewardRatio !== null && (
-          <div>R/R: <span className="text-slate-200">{rec.riskRewardRatio.toFixed(2)}</span></div>
-        )}
-      </div>
-      <p className="text-xs text-slate-500 leading-relaxed">{rec.reasoning}</p>
-    </div>
+    </Paper>
   );
 }
 
@@ -45,7 +46,7 @@ export default function AnalyzeForm() {
 
   const toggleSymbol = (sym: string) => {
     setSelected((prev) =>
-      prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]
+      prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym],
     );
   };
 
@@ -61,7 +62,6 @@ export default function AnalyzeForm() {
     try {
       const data = await runAnalysis(selected);
 
-      // Animate progress for UX
       for (let i = 0; i <= 100; i += 10) {
         setProgress(i);
         setCurrentStep(`Processing... ${i}%`);
@@ -80,100 +80,92 @@ export default function AnalyzeForm() {
 
   return (
     <div className="space-y-4">
-      {/* Symbol Selection */}
-      <div className="card">
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">Select Symbols</h3>
+      <Paper elevation={0} className="card">
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+          Select Symbols
+        </Typography>
         <div className="flex flex-wrap gap-2">
           {SYMBOLS.map((sym) => {
             const active = selected.includes(sym);
             return (
-              <button
+              <Button
                 key={sym}
                 onClick={() => toggleSymbol(sym)}
                 disabled={running}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-blue-950 text-blue-300 ring-1 ring-blue-800'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                } disabled:opacity-50`}
+                variant={active ? 'contained' : 'outlined'}
+                color={active ? 'primary' : 'inherit'}
+                sx={{ borderRadius: '999px', minWidth: 0, px: 2 }}
               >
                 {sym}
-              </button>
+              </Button>
             );
           })}
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-xs text-slate-500">
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {selected.length} symbol{selected.length !== 1 ? 's' : ''} selected
-          </p>
+          </Typography>
           {selected.length > 0 && (
-            <button
-              onClick={() => setSelected([])}
-              disabled={running}
-              className="text-xs text-slate-500 hover:text-slate-300 disabled:opacity-50"
-            >
+            <Button onClick={() => setSelected([])} disabled={running} size="small">
               Clear all
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </Paper>
 
-      {/* Run Button */}
-      <button
+      <Button
         onClick={handleAnalyze}
         disabled={running || selected.length === 0}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500"
+        variant="contained"
+        size="large"
+        fullWidth
+        sx={{ borderRadius: '18px', py: 1.4, fontWeight: 700 }}
       >
         {running ? 'Running Analysis...' : `Analyze ${selected.length > 0 ? selected.length + ' Symbol' + (selected.length > 1 ? 's' : '') : ''}`}
-      </button>
+      </Button>
 
-      {/* Error */}
       {error && (
-        <div className="card">
-          <p className="text-sm text-rose-400">Error: {error}</p>
-        </div>
+        <Paper elevation={0} className="card">
+          <Typography variant="body2" sx={{ color: 'error.main' }}>Error: {error}</Typography>
+        </Paper>
       )}
 
-      {/* Progress */}
       {running && (
-        <div className="card">
+        <Paper elevation={0} className="card">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-300">{currentStep}</span>
+            <span className="text-[var(--foreground)]">{currentStep}</span>
             <span className="text-slate-500">{Math.round(progress)}%</span>
           </div>
-          <div className="mt-2 h-2 w-full rounded-full bg-slate-800">
-            <div
-              className="h-2 rounded-full bg-blue-500 transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{
+              mt: 2,
+              height: 10,
+              borderRadius: 999,
+              bgcolor: 'action.hover',
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 999,
+              },
+            }}
+          />
+        </Paper>
       )}
 
-      {/* Results */}
       {results.length > 0 && (
         <div className="space-y-4">
           {results.map((result) => (
-            <div key={result.symbol} className="card">
+            <Paper key={result.symbol} elevation={0} className="card">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      result.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
-                    }`}
-                  />
-                  <span className="font-medium text-slate-200">{result.symbol}</span>
-                  <span className="text-xs text-slate-500">
-                    {result.recommendationsCount} recommendations
-                  </span>
+                  <span className={`h-2.5 w-2.5 rounded-full ${result.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                  <span className="font-semibold text-[var(--foreground)]">{result.symbol}</span>
+                  <span className="text-xs text-slate-500">{result.recommendationsCount} recommendations</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-slate-500">{result.agentSequence.length} agents</span>
                   {result.status === 'success' && (
-                    <Link
-                      href={`/symbol/${result.symbol}`}
-                      className="text-xs font-medium text-blue-400 hover:text-blue-300"
-                    >
+                    <Link href={`/symbol/${result.symbol}`} className="text-xs font-semibold text-[color:#6750A4] hover:opacity-80">
                       View →
                     </Link>
                   )}
@@ -181,22 +173,24 @@ export default function AnalyzeForm() {
               </div>
 
               {result.report && (
-                <p className="mb-3 text-xs text-slate-500 leading-relaxed whitespace-pre-line">
+                <p className="mb-3 whitespace-pre-line text-xs leading-relaxed text-slate-500">
                   {result.report}
                 </p>
               )}
 
               {result.recommendations.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Strategy Recommendations
                   </h4>
-                  {result.recommendations.map((rec, idx) => (
-                    <RecommendationCard key={`${result.symbol}-${idx}`} rec={rec} />
-                  ))}
+                  <Stack spacing={2}>
+                    {result.recommendations.map((rec, idx) => (
+                      <RecommendationCard key={`${result.symbol}-${idx}`} rec={rec} />
+                    ))}
+                  </Stack>
                 </div>
               )}
-            </div>
+            </Paper>
           ))}
         </div>
       )}

@@ -1,5 +1,6 @@
 'use client';
 
+import { Paper, Typography } from '@mui/material';
 import {
   Bar,
   BarChart,
@@ -27,7 +28,6 @@ export default function VolumeProfileChart({
   volumeAtPoc,
   currentPrice,
 }: VolumeProfileChartProps) {
-  // Generate mock volume distribution around POC
   const bins = 12;
   const range = vah - val;
   const binSize = range / bins;
@@ -35,7 +35,6 @@ export default function VolumeProfileChart({
 
   for (let i = 0; i < bins; i++) {
     const priceLevel = val + binSize * i + binSize / 2;
-    // Volume peaks at POC, tapers off
     const distanceFromPoc = Math.abs(priceLevel - poc) / (range / 2);
     const volume = Math.round(volumeAtPoc * Math.max(0.2, 1 - distanceFromPoc * 0.9));
     data.push({
@@ -48,21 +47,23 @@ export default function VolumeProfileChart({
   const isInValueArea = (price: number) => price >= val && price <= vah;
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-slate-300">Volume Profile</h3>
+    <Paper elevation={0} className="card">
+      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+        Volume Profile
+      </Typography>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" horizontal={false} />
           <XAxis
             dataKey="level"
-            stroke="#475569"
+            stroke="#7c7c8c"
             fontSize={10}
             tickLine={false}
             axisLine={false}
             interval={2}
           />
           <YAxis
-            stroke="#475569"
+            stroke="#7c7c8c"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -71,50 +72,47 @@ export default function VolumeProfileChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '8px',
+              backgroundColor: 'rgba(24,24,30,0.96)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '16px',
               fontSize: '12px',
             }}
             formatter={(value) => {
               const num = typeof value === 'number' ? value : Number(value);
               return [num.toLocaleString(), 'Volume'];
             }}
-            labelStyle={{ color: '#94a3b8' }}
+            labelStyle={{ color: '#b0b0bb' }}
           />
-          {/* VAL line */}
           <ReferenceLine
             x={`$${val.toFixed(0)}`}
             stroke="#f59e0b"
             strokeDasharray="3 3"
             label={{ value: 'VAL', position: 'insideTopRight', fill: '#f59e0b', fontSize: 10 }}
           />
-          {/* POC line */}
           <ReferenceLine
             x={`$${poc.toFixed(0)}`}
-            stroke="#8b5cf6"
+            stroke="#6750A4"
             strokeWidth={2}
-            label={{ value: 'POC', position: 'insideTopLeft', fill: '#8b5cf6', fontSize: 10 }}
+            label={{ value: 'POC', position: 'insideTopLeft', fill: '#6750A4', fontSize: 10 }}
           />
-          {/* VAH line */}
           <ReferenceLine
             x={`$${vah.toFixed(0)}`}
             stroke="#f59e0b"
             strokeDasharray="3 3"
             label={{ value: 'VAH', position: 'insideTopLeft', fill: '#f59e0b', fontSize: 10 }}
           />
-          <Bar dataKey="volume" fill="#6366f1" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="volume" fill="#6750A4" radius={[4, 4, 0, 0]}>
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={isInValueArea(entry.rawPrice) ? '#6366f1' : '#334155'} />
+              <Cell key={`cell-${index}`} fill={isInValueArea(entry.rawPrice) ? '#6750A4' : '#7c7c8c'} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <div className="mt-2 flex justify-between text-xs text-slate-500">
-        <span>POC: <span className="text-violet-400">${poc.toFixed(2)}</span></span>
-        <span>VAH: <span className="text-amber-400">${vah.toFixed(2)}</span></span>
-        <span>VAL: <span className="text-amber-400">${val.toFixed(2)}</span></span>
+        <span>POC: <span className="text-[color:#6750A4]">${poc.toFixed(2)}</span></span>
+        <span>VAH: <span className="text-amber-500">${vah.toFixed(2)}</span></span>
+        <span>VAL: <span className="text-amber-500">${val.toFixed(2)}</span></span>
       </div>
-    </div>
+    </Paper>
   );
 }

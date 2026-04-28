@@ -2,7 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
+import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
+import { AppBar, Box, Chip, IconButton, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import { getMessage } from '@/i18n/get-message';
+import { useThemeMode } from '@/components/theme/AppThemeProvider';
 import { useLocale } from './LocaleProvider';
 import LocaleSwitcher from './LocaleSwitcher';
 
@@ -16,32 +20,80 @@ const NAV_ITEMS = [
 export default function Header() {
   const pathname = usePathname();
   const { locale } = useLocale();
+  const { mode, toggleMode } = useThemeMode();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold text-blue-400 hover:text-blue-300">
-          <span className="inline-block h-6 w-6 rounded bg-blue-500" />
-          Aegis-Trader
+    <AppBar
+      position="sticky"
+      color="transparent"
+      elevation={0}
+      sx={{
+        backdropFilter: 'blur(18px)',
+        backgroundColor: 'color-mix(in srgb, var(--surface) 84%, transparent)',
+        borderBottom: '1px solid var(--outline)',
+      }}
+    >
+      <Toolbar sx={{ mx: 'auto', width: '100%', maxWidth: 1280, gap: 2, px: { xs: 2, md: 3 } }}>
+        <Link href="/" className="no-underline">
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #6750A4 0%, #D0BCFF 100%)',
+                boxShadow: '0 10px 24px rgba(103, 80, 164, 0.28)',
+              }}
+            />
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'text.primary' }}>
+                Aegis-Trader
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Material dashboard
+              </Typography>
+            </Box>
+          </Stack>
         </Link>
-        <nav className="hidden items-center gap-5 text-sm font-medium text-slate-400 sm:flex">
+
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 3, flex: 1, display: { xs: 'none', sm: 'flex' } }}>
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`transition-colors ${active ? 'text-blue-400' : 'hover:text-slate-200'}`}
-              >
-                {getMessage(locale, item.key)}
+              <Link key={item.href} href={item.href} className="no-underline">
+                <Chip
+                  label={getMessage(locale, item.key)}
+                  clickable
+                  color={active ? 'primary' : 'default'}
+                  variant={active ? 'filled' : 'outlined'}
+                  sx={{ borderRadius: '999px', fontWeight: 600 }}
+                />
               </Link>
             );
           })}
+        </Stack>
+
+        <Stack direction="row" spacing={1} alignItems="center">
           <LocaleSwitcher />
-          <span className="text-slate-700">|</span>
-          <span className="text-xs text-slate-600">v0.1.0</span>
-        </nav>
-      </div>
-    </header>
+          <Tooltip title={mode === 'dark' ? '切换到浅色模式' : '切换到深色模式'}>
+            <IconButton
+              aria-label={mode === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
+              onClick={toggleMode}
+              sx={{
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              {mode === 'dark' ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+            </IconButton>
+          </Tooltip>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: { xs: 'none', md: 'block' } }}>
+            v0.1.0
+          </Typography>
+        </Stack>
+      </Toolbar>
+    </AppBar>
   );
 }

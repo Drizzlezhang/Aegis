@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Paper, Typography } from '@mui/material';
 import {
   Area,
   AreaChart,
@@ -24,7 +25,6 @@ export default function PriceChart({
   resistances,
 }: PriceChartProps) {
   const data = useMemo(() => {
-    // Generate 30 days of mock price data based on current price
     const days = 30;
     const volatility = currentPrice * 0.02;
     const result = [];
@@ -41,35 +41,37 @@ export default function PriceChart({
         fullDate: date.toISOString(),
       });
     }
-    // Ensure last point matches current price
+
     result[result.length - 1].price = currentPrice;
     return result;
   }, [currentPrice]);
 
   const minPrice = useMemo(
     () => Math.min(...data.map((d) => d.price), ...supports.map((s) => s.level)) * 0.98,
-    [data, supports]
+    [data, supports],
   );
   const maxPrice = useMemo(
     () => Math.max(...data.map((d) => d.price), ...resistances.map((r) => r.level)) * 1.02,
-    [data, resistances]
+    [data, resistances],
   );
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-slate-300">Price Trend (30D)</h3>
+    <Paper elevation={0} className="card">
+      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+        Price Trend (30D)
+      </Typography>
       <ResponsiveContainer width="100%" height={280}>
         <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              <stop offset="5%" stopColor="#6750A4" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#6750A4" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" />
           <XAxis
             dataKey="date"
-            stroke="#475569"
+            stroke="#7c7c8c"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -77,7 +79,7 @@ export default function PriceChart({
           />
           <YAxis
             domain={[minPrice, maxPrice]}
-            stroke="#475569"
+            stroke="#7c7c8c"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -86,18 +88,17 @@ export default function PriceChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '8px',
+              backgroundColor: 'rgba(24,24,30,0.96)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '16px',
               fontSize: '12px',
             }}
             formatter={(value) => {
               const num = typeof value === 'number' ? value : Number(value);
               return [`$${num.toFixed(2)}`, 'Price'];
             }}
-            labelStyle={{ color: '#94a3b8' }}
+            labelStyle={{ color: '#b0b0bb' }}
           />
-          {/* Support lines */}
           {supports.slice(0, 2).map((s, i) => (
             <ReferenceLine
               key={`support-${i}`}
@@ -113,7 +114,6 @@ export default function PriceChart({
               }}
             />
           ))}
-          {/* Resistance lines */}
           {resistances.slice(0, 2).map((r, i) => (
             <ReferenceLine
               key={`resistance-${i}`}
@@ -132,14 +132,14 @@ export default function PriceChart({
           <Area
             type="monotone"
             dataKey="price"
-            stroke="#6366f1"
+            stroke="#6750A4"
             strokeWidth={2}
             fill="url(#priceGradient)"
             dot={false}
-            activeDot={{ r: 4, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: '#6750A4', stroke: '#fff', strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </Paper>
   );
 }

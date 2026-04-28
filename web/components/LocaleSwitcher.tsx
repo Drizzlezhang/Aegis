@@ -1,28 +1,45 @@
 'use client';
 
+import { Button, ButtonGroup } from '@mui/material';
 import { useLocale } from './LocaleProvider';
 
 export default function LocaleSwitcher() {
   const { locale, setLocale } = useLocale();
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <button
+    <ButtonGroup
+      size="small"
+      variant="outlined"
+      aria-label="locale switcher"
+      sx={{
+        borderRadius: '999px',
+        bgcolor: 'background.paper',
+        '& .MuiButton-root': {
+          borderColor: 'divider',
+          minWidth: 0,
+          px: 1.5,
+          py: 0.5,
+          fontSize: 12,
+          fontWeight: 700,
+        },
+      }}
+    >
+      <Button
         type="button"
         aria-pressed={locale === 'zh-CN'}
+        variant={locale === 'zh-CN' ? 'contained' : 'outlined'}
         onClick={() => setLocale('zh-CN')}
-        className={`rounded px-2 py-1 transition-colors ${locale === 'zh-CN' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
       >
         中文
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         aria-pressed={locale === 'en'}
+        variant={locale === 'en' ? 'contained' : 'outlined'}
         onClick={() => setLocale('en')}
-        className={`rounded px-2 py-1 transition-colors ${locale === 'en' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
       >
         English
-      </button>
-    </div>
+      </Button>
+    </ButtonGroup>
   );
 }

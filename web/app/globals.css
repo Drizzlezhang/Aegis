@@ -3,16 +3,27 @@
 @tailwind utilities;
 
 :root {
-  --background: #020617;
-  --foreground: #e2e8f0;
-  --card: #0f172a;
-  --card-border: #1e293b;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #10b981;
-  --danger: #f43f5e;
-  --warning: #f59e0b;
-  --muted: #64748b;
+  color-scheme: dark;
+  --background: #0f0d13;
+  --foreground: #f5eff7;
+  --surface: #17151c;
+  --surface-muted: #211f26;
+  --outline: rgba(202, 196, 208, 0.16);
+  --outline-strong: rgba(202, 196, 208, 0.28);
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --background: #f5f1fb;
+  --foreground: #1d1b20;
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-muted: rgba(255, 255, 255, 0.96);
+  --outline: rgba(121, 116, 126, 0.18);
+  --outline-strong: rgba(121, 116, 126, 0.28);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 html {
@@ -20,35 +31,54 @@ html {
 }
 
 body {
-  background-color: var(--background);
+  background:
+    radial-gradient(circle at top, rgba(103, 80, 164, 0.18), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: Roboto, 'Noto Sans SC', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border border-slate-800 bg-slate-900 p-4;
+    @apply rounded-[28px] border p-5 shadow-sm backdrop-blur;
+    background: var(--surface);
+    border-color: var(--outline);
+  }
+
+  .card-muted {
+    @apply rounded-[24px] border p-4 shadow-sm backdrop-blur;
+    background: var(--surface-muted);
+    border-color: var(--outline);
   }
 
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
   }
 
   .badge-green {
-    @apply badge bg-emerald-950 text-emerald-400;
+    @apply badge;
+    background: rgba(16, 185, 129, 0.14);
+    color: #10b981;
   }
 
   .badge-red {
-    @apply badge bg-rose-950 text-rose-400;
+    @apply badge;
+    background: rgba(244, 63, 94, 0.14);
+    color: #f43f5e;
   }
 
   .badge-blue {
-    @apply badge bg-blue-950 text-blue-400;
+    @apply badge;
+    background: rgba(103, 80, 164, 0.14);
+    color: #b69df8;
   }
 
   .badge-amber {
-    @apply badge bg-amber-950 text-amber-400;
+    @apply badge;
+    background: rgba(245, 158, 11, 0.14);
+    color: #f59e0b;
   }
 }

@@ -29,17 +29,15 @@ export default async function Home() {
         <Sidebar symbols={symbols} />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-100">{getMessage(locale, 'common.dashboard')}</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                多 Agent 量化分析总览
-              </p>
+            <div className="card mb-6">
+              <h1 className="text-3xl font-bold text-[var(--foreground)]">{getMessage(locale, 'common.dashboard')}</h1>
+              <p className="mt-2 text-sm text-slate-500">多 Agent 量化分析总览</p>
             </div>
 
             {indices.length > 0 && (
               <div className="mb-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-300">市场指数</h2>
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-[var(--foreground)]">市场指数</h2>
                   <MarketSentimentInline indices={indices} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -63,8 +61,8 @@ export default async function Home() {
               ))}
             </div>
 
-            <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <h2 className="text-sm font-semibold text-slate-300">系统状态</h2>
+            <div className="card-muted mt-6">
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">系统状态</h2>
               <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
                 <span>Agents: 4 活跃</span>
                 <span>Skills: 6 已加载</span>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Box, Paper, Stack, Typography } from '@mui/material';
 import { getMessage } from '@/i18n/get-message';
 import type { SymbolInfo } from '@/lib/api';
 import { getChangeColorClasses } from '@/lib/change-color';
@@ -26,60 +27,92 @@ export default function Sidebar({ symbols = [] }: SidebarProps) {
   const { locale } = useLocale();
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-slate-800 bg-slate-900/50 lg:block">
-      <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto p-3">
-        <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {getMessage(locale, 'common.navigation')}
-        </h2>
-        <ul className="mb-4 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <li key={item.href}>
-                <Link
+    <aside className="hidden w-72 shrink-0 lg:block">
+      <div className="sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto px-4 pb-4">
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            borderRadius: '28px',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Typography variant="overline" sx={{ color: 'text.secondary', px: 1 }}>
+            {getMessage(locale, 'common.navigation')}
+          </Typography>
+          <Stack spacing={1} sx={{ mb: 3, mt: 1 }}>
+            {NAV_ITEMS.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Box
+                  key={item.href}
+                  component={Link}
                   href={item.href}
-                  className={`block rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                    active
-                      ? 'bg-blue-950/50 text-blue-300'
-                      : 'text-slate-300 hover:bg-slate-800'
-                  }`}
+                  sx={{
+                    px: 1.5,
+                    py: 1.25,
+                    borderRadius: '18px',
+                    textDecoration: 'none',
+                    fontSize: 14,
+                    fontWeight: active ? 700 : 500,
+                    color: active ? 'primary.main' : 'text.primary',
+                    backgroundColor: active ? 'action.selected' : 'transparent',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
                 >
                   {getMessage(locale, item.key)}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                </Box>
+              );
+            })}
+          </Stack>
 
-        <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {getMessage(locale, 'common.watchlist')}
-        </h2>
-        <ul className="space-y-1">
-          {symbols.map((s) => {
-            const href = `/symbol/${s.symbol}`;
-            const active = pathname === href;
-            const positive = s.change >= 0;
-            const changeColors = getChangeColorClasses(positive);
-            return (
-              <li key={s.symbol}>
-                <Link
+          <Typography variant="overline" sx={{ color: 'text.secondary', px: 1 }}>
+            {getMessage(locale, 'common.watchlist')}
+          </Typography>
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            {symbols.map((s) => {
+              const href = `/symbol/${s.symbol}`;
+              const active = pathname === href;
+              const positive = s.change >= 0;
+              const changeColors = getChangeColorClasses(positive);
+              return (
+                <Box
+                  key={s.symbol}
+                  component={Link}
                   href={href}
-                  className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                    active
-                      ? 'bg-blue-950/50 text-blue-300'
-                      : 'text-slate-300 hover:bg-slate-800'
-                  }`}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    px: 1.5,
+                    py: 1.25,
+                    borderRadius: '18px',
+                    textDecoration: 'none',
+                    color: 'text.primary',
+                    backgroundColor: active ? 'action.selected' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
                 >
-                  <span className="font-medium">{s.symbol}</span>
-                  <span className={`text-xs ${changeColors.text}`}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {s.symbol}
+                  </Typography>
+                  <span className={`text-xs font-semibold ${changeColors.text}`}>
                     {positive ? '+' : ''}
                     {s.changePercent.toFixed(2)}%
                   </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                </Box>
+              );
+            })}
+          </Stack>
+        </Paper>
       </div>
     </aside>
   );

@@ -11,6 +11,7 @@ export default async function StatusPage() {
   } catch {
     symbols = [];
   }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -18,11 +19,9 @@ export default async function StatusPage() {
         <Sidebar symbols={symbols} />
         <main className="flex-1 p-4 lg:p-6">
           <div className="mx-auto max-w-5xl">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-100">系统状态</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Agent 健康状态、Skills 与系统指标
-              </p>
+            <div className="card mb-6">
+              <h1 className="text-3xl font-bold text-[var(--foreground)]">系统状态</h1>
+              <p className="mt-2 text-sm text-slate-500">Agent 健康状态、Skills 与系统指标</p>
             </div>
             <StatusPanel />
           </div>

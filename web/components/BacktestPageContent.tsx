@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Button, Chip, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { runBacktest } from '@/lib/api';
 import { getMessage } from '@/i18n/get-message';
 import { getChangeColorClasses } from '@/lib/change-color';
@@ -58,15 +59,15 @@ interface BacktestResult {
   monthlyReturns: { month: string; return: number }[];
 }
 
-function MetricCard({ label, value, suffix = '', color = 'text-slate-200' }: { label: string; value: string | number; suffix?: string; color?: string }) {
+function MetricCard({ label, value, suffix = '', color = 'text-[var(--foreground)]' }: { label: string; value: string | number; suffix?: string; color?: string }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+    <Paper elevation={0} className="card-muted">
       <p className="text-xs text-slate-500">{label}</p>
       <p className={`mt-1 text-lg font-semibold ${color}`}>
         {typeof value === 'number' ? value.toFixed(2) : value}
         {suffix}
       </p>
-    </div>
+    </Paper>
   );
 }
 
@@ -137,67 +138,79 @@ export default function BacktestPageContent() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100">策略回测</h1>
-        <p className="mt-1 text-sm text-slate-500">模拟期权策略的历史表现</p>
+      <div className="card">
+        <h1 className="text-3xl font-bold text-[var(--foreground)]">策略回测</h1>
+        <p className="mt-2 text-sm text-slate-500">模拟期权策略的历史表现</p>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.configuration')}</h2>
+      <Paper elevation={0} className="card">
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+          {getMessage(locale, 'interaction.configuration')}
+        </Typography>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">Symbol</label>
-            <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
-              value={config.symbol}
-              onChange={(e) => setConfig({ ...config, symbol: e.target.value })}
-            >
-              {['QQQ', 'SPY', 'NVDA', 'AAPL', 'TSLA', 'MSFT', 'PLTR'].map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.strategy')}</label>
-            <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
-              value={config.strategy}
-              onChange={(e) => setConfig({ ...config, strategy: e.target.value as BacktestConfig['strategy'] })}
-            >
-              <option value="leaps_call">{getMessage(locale, 'interaction.leapsCall')}</option>
-              <option value="bull_spread">Bull Spread</option>
-              <option value="covered_call">Covered Call</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.signalType')}</label>
-            <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
-              value={config.signalType}
-              onChange={(e) => setConfig({ ...config, signalType: e.target.value as BacktestConfig['signalType'] })}
-            >
-              <option value="sma_crossover">SMA Crossover</option>
-              <option value="rsi">{getMessage(locale, 'interaction.rsi')}</option>
-              <option value="sma_rsi_combo">{getMessage(locale, 'interaction.smaRsiCombo')}</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.startDate')}</label>
-            <input type="date" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200" value={config.startDate} onChange={(e) => setConfig({ ...config, startDate: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">{getMessage(locale, 'interaction.endDate')}</label>
-            <input type="date" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200" value={config.endDate} onChange={(e) => setConfig({ ...config, endDate: e.target.value })} />
-          </div>
+          <TextField
+            select
+            label="Symbol"
+            value={config.symbol}
+            onChange={(e) => setConfig({ ...config, symbol: e.target.value })}
+            size="small"
+          >
+            {['QQQ', 'SPY', 'NVDA', 'AAPL', 'TSLA', 'MSFT', 'PLTR'].map((s) => (
+              <MenuItem key={s} value={s}>{s}</MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            label={getMessage(locale, 'interaction.strategy')}
+            value={config.strategy}
+            onChange={(e) => setConfig({ ...config, strategy: e.target.value as BacktestConfig['strategy'] })}
+            size="small"
+          >
+            <MenuItem value="leaps_call">{getMessage(locale, 'interaction.leapsCall')}</MenuItem>
+            <MenuItem value="bull_spread">Bull Spread</MenuItem>
+            <MenuItem value="covered_call">Covered Call</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            label={getMessage(locale, 'interaction.signalType')}
+            value={config.signalType}
+            onChange={(e) => setConfig({ ...config, signalType: e.target.value as BacktestConfig['signalType'] })}
+            size="small"
+          >
+            <MenuItem value="sma_crossover">SMA Crossover</MenuItem>
+            <MenuItem value="rsi">{getMessage(locale, 'interaction.rsi')}</MenuItem>
+            <MenuItem value="sma_rsi_combo">{getMessage(locale, 'interaction.smaRsiCombo')}</MenuItem>
+          </TextField>
+
+          <TextField
+            type="date"
+            label={getMessage(locale, 'interaction.startDate')}
+            value={config.startDate}
+            onChange={(e) => setConfig({ ...config, startDate: e.target.value })}
+            size="small"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
+          <TextField
+            type="date"
+            label={getMessage(locale, 'interaction.endDate')}
+            value={config.endDate}
+            onChange={(e) => setConfig({ ...config, endDate: e.target.value })}
+            size="small"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
           <div className="flex items-end">
-            <button onClick={handleRunBacktest} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+            <Button onClick={handleRunBacktest} disabled={loading} variant="contained" fullWidth sx={{ borderRadius: '16px', py: 1.2, fontWeight: 700 }}>
               {loading ? getMessage(locale, 'interaction.running') : getMessage(locale, 'interaction.runBacktest')}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Paper>
 
-      {error && <div className="rounded-xl border border-rose-800 bg-rose-900/30 p-4 text-sm text-rose-300">{error}</div>}
+      {error && <div className="card-muted border-rose-300/40 bg-rose-500/10 text-sm text-rose-400">{error}</div>}
 
       {result && (
         <>
@@ -210,80 +223,89 @@ export default function BacktestPageContent() {
             <MetricCard label={getMessage(locale, 'interaction.sharpeRatio')} value={result.metrics.sharpeRatio} />
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-            <h3 className="mb-4 text-sm font-semibold text-slate-300">
+          <Paper elevation={0} className="card">
+            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
               {getMessage(locale, 'interaction.equityCurve')} — {config.symbol} {strategyNames[config.strategy]} ({signalTypeNames[config.signalType]})
-            </h3>
+            </Typography>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={result.equityCurve} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#6750A4" stopOpacity={0.32} />
+                    <stop offset="95%" stopColor="#6750A4" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="date" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} interval={Math.floor(result.equityCurve.length / 8)} />
-                <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`} width={50} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" />
+                <XAxis dataKey="date" stroke="#7c7c8c" fontSize={10} tickLine={false} axisLine={false} interval={Math.floor(result.equityCurve.length / 8)} />
+                <YAxis stroke="#7c7c8c" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`} width={50} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: 'rgba(24,24,30,0.96)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', fontSize: '12px' }}
                   formatter={(value: unknown) => {
                     const num = typeof value === 'number' ? value : Number(value);
                     return [`$${num.toFixed(0)}`, ''];
                   }}
-                  labelStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: '#b0b0bb' }}
                 />
-                <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} fill="url(#equityGradient)" dot={false} name="Strategy" />
-                <Line type="monotone" dataKey="benchmark" stroke="#475569" strokeWidth={1} strokeDasharray="4 4" dot={false} name="Buy & Hold" />
+                <Area type="monotone" dataKey="value" stroke="#6750A4" strokeWidth={2} fill="url(#equityGradient)" dot={false} name="Strategy" />
+                <Line type="monotone" dataKey="benchmark" stroke="#8f8f9d" strokeWidth={1} strokeDasharray="4 4" dot={false} name="Buy & Hold" />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          </Paper>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.monthlyReturns')}</h3>
+            <Paper elevation={0} className="card">
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+                {getMessage(locale, 'interaction.monthlyReturns')}
+              </Typography>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={result.monthlyReturns} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="month" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v.toFixed(0)}%`} width={40} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,140,0.2)" vertical={false} />
+                  <XAxis dataKey="month" stroke="#7c7c8c" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#7c7c8c" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v.toFixed(0)}%`} width={40} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ backgroundColor: 'rgba(24,24,30,0.96)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', fontSize: '12px' }}
                     formatter={(value: unknown) => {
                       const num = typeof value === 'number' ? value : Number(value);
                       return [`${num.toFixed(2)}%`, getMessage(locale, 'interaction.return')];
                     }}
                   />
-                  <Bar dataKey="return" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="return" radius={[8, 8, 0, 0]}>
                     {result.monthlyReturns.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={getChangeSolidColor(entry.return)} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </Paper>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.tradeStatistics')}</h3>
+            <Paper elevation={0} className="card">
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
+                {getMessage(locale, 'interaction.tradeStatistics')}
+              </Typography>
               <div className="space-y-3">
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.totalTrades')}</span><span className="text-sm font-medium text-slate-200">{result.metrics.totalTrades}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.winningTrades')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgWin)}`}>{Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.losingTrades')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgLoss * -1)}`}>{result.metrics.totalTrades - Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100))}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageWin')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgWin)}`}>${result.metrics.avgWin.toFixed(0)}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.averageLoss')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.avgLoss * -1)}`}>${result.metrics.avgLoss.toFixed(0)}</span></div>
-                <div className="flex justify-between border-b border-slate-800 pb-2"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.bestTrade')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.bestTrade)}`}>+{result.metrics.bestTrade.toFixed(2)}%</span></div>
-                <div className="flex justify-between"><span className="text-xs text-slate-500">{getMessage(locale, 'interaction.worstTrade')}</span><span className={`text-sm font-medium ${getChangeTextClass(result.metrics.worstTrade)}`}>{result.metrics.worstTrade.toFixed(2)}%</span></div>
+                <StatRow label={getMessage(locale, 'interaction.totalTrades')} value={String(result.metrics.totalTrades)} />
+                <StatRow label={getMessage(locale, 'interaction.winningTrades')} value={String(Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100)))} valueClass={getChangeTextClass(result.metrics.avgWin)} />
+                <StatRow label={getMessage(locale, 'interaction.losingTrades')} value={String(result.metrics.totalTrades - Math.round(result.metrics.totalTrades * (result.metrics.winRate / 100)))} valueClass={getChangeTextClass(result.metrics.avgLoss * -1)} />
+                <StatRow label={getMessage(locale, 'interaction.averageWin')} value={`$${result.metrics.avgWin.toFixed(0)}`} valueClass={getChangeTextClass(result.metrics.avgWin)} />
+                <StatRow label={getMessage(locale, 'interaction.averageLoss')} value={`$${result.metrics.avgLoss.toFixed(0)}`} valueClass={getChangeTextClass(result.metrics.avgLoss * -1)} />
+                <StatRow label={getMessage(locale, 'interaction.bestTrade')} value={`+${result.metrics.bestTrade.toFixed(2)}%`} valueClass={getChangeTextClass(result.metrics.bestTrade)} />
+                <StatRow label={getMessage(locale, 'interaction.worstTrade')} value={`${result.metrics.worstTrade.toFixed(2)}%`} valueClass={getChangeTextClass(result.metrics.worstTrade)} />
               </div>
-            </div>
+            </Paper>
           </div>
 
           {result.trades.length > 0 && (
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h3 className="mb-4 text-sm font-semibold text-slate-300">{getMessage(locale, 'interaction.tradeHistory')}</h3>
+            <Paper elevation={0} className="card">
+              <div className="mb-3 flex items-center justify-between">
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  {getMessage(locale, 'interaction.tradeHistory')}
+                </Typography>
+                <Chip label={`${result.trades.length} trades`} size="small" variant="outlined" />
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-800 text-left">
+                    <tr className="border-b text-left" style={{ borderColor: 'var(--outline)' }}>
                       <th className="pb-2 text-xs font-medium text-slate-500">{getMessage(locale, 'interaction.date')}</th>
                       <th className="pb-2 text-xs font-medium text-slate-500">{getMessage(locale, 'interaction.price')}</th>
                       <th className="pb-2 text-xs font-medium text-slate-500">P&L</th>
@@ -292,9 +314,9 @@ export default function BacktestPageContent() {
                   </thead>
                   <tbody>
                     {result.trades.slice(0, 10).map((trade, i) => (
-                      <tr key={i} className="border-b border-slate-800/50">
-                        <td className="py-2 text-slate-300">{trade.date}</td>
-                        <td className="py-2 text-slate-300">${trade.price.toFixed(2)}</td>
+                      <tr key={i} className="border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                        <td className="py-2 text-[var(--foreground)]">{trade.date}</td>
+                        <td className="py-2 text-[var(--foreground)]">${trade.price.toFixed(2)}</td>
                         <td className={`py-2 ${getChangeTextClass(trade.pnl || 0)}`}>{(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toFixed(0)}</td>
                         <td className={`py-2 ${getChangeTextClass(trade.pnlPercent || 0)}`}>{(trade.pnlPercent || 0) >= 0 ? '+' : ''}{(trade.pnlPercent || 0).toFixed(2)}%</td>
                       </tr>
@@ -303,10 +325,19 @@ export default function BacktestPageContent() {
                 </table>
                 {result.trades.length > 10 && <p className="mt-2 text-xs text-slate-500">{getMessage(locale, 'interaction.showingTrades').replace('{shown}', '10').replace('{total}', String(result.trades.length))}</p>}
               </div>
-            </div>
+            </Paper>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function StatRow({ label, value, valueClass = 'text-[var(--foreground)]' }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="flex justify-between border-b pb-2" style={{ borderColor: 'var(--outline)' }}>
+      <span className="text-xs text-slate-500">{label}</span>
+      <span className={`text-sm font-medium ${valueClass}`}>{value}</span>
     </div>
   );
 }
