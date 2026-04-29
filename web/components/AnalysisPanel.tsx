@@ -1,7 +1,20 @@
 'use client';
 
 import { LinearProgress, Paper, Stack, Typography } from '@mui/material';
-import type { VolumeProfile, GexWall } from '@/lib/mock-data';
+
+interface VolumeProfile {
+  poc: number;
+  vah: number;
+  val: number;
+  volumeAtPoc: number;
+}
+
+interface GexWall {
+  strike: number;
+  gamma: number;
+  type: 'call' | 'put';
+  strength: string;
+}
 
 interface AnalysisPanelProps {
   volumeProfile: VolumeProfile;
