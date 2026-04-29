@@ -18,12 +18,14 @@ export function LocaleProvider({
   initialLocale: Locale;
   children: React.ReactNode;
 }) {
-  const [locale, setLocale] = useState<Locale>(initialLocale);
-  const value = useMemo(() => ({ locale, setLocale }), [locale]);
+  const [locale, setLocale] = useState<Locale>(() => {
+    if (typeof window === 'undefined') {
+      return initialLocale;
+    }
 
-  useEffect(() => {
-    setLocale(readStoredLocale(initialLocale));
-  }, [initialLocale]);
+    return readStoredLocale(initialLocale);
+  });
+  const value = useMemo(() => ({ locale, setLocale }), [locale]);
 
   useEffect(() => {
     writeStoredLocale(locale);

@@ -234,11 +234,13 @@ const darkTheme = createTheme({
 });
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') {
+      return 'dark';
+    }
 
-  useEffect(() => {
-    setMode(resolveInitialThemeMode());
-  }, []);
+    return resolveInitialThemeMode();
+  });
 
   useEffect(() => {
     writeStoredThemeMode(mode);

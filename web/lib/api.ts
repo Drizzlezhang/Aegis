@@ -1,14 +1,17 @@
-const DEFAULT_API_ORIGIN = 'http://127.0.0.1:8003';
+import { getServerApiBase } from '@/utils/server-api-base';
 
 function resolveApiBase(): string {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL;
-  if (configured) {
-    return configured.replace(/\/$/, '');
+  if (typeof window !== 'undefined') {
+    return '';
   }
-  return DEFAULT_API_ORIGIN;
+
+  return getServerApiBase();
 }
 
-const API_BASE = resolveApiBase();
+function buildApiUrl(path: string): string {
+  const base = resolveApiBase();
+  return `${base}${path}`;
+}
 
 export interface SymbolInfo {
   symbol: string;
@@ -133,7 +136,8 @@ export interface MarketIndicesResponse {
 }
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const requestUrl = buildApiUrl(path);
+  const res = await fetch(requestUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -141,7 +145,7 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    throw new Error(`API error for ${path}: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
