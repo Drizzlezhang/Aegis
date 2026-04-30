@@ -59,9 +59,15 @@
 - 说明：基于首页 route file 抽样结果，当前方向与 `web/CLAUDE.md`、`frontend-logic-boundary-rules.md` 中“route file 负责 orchestration、API 边界不反向依赖页面文件”的规则一致。
 
 ### 4.3 前端共享层与路由层反向依赖风险
-- 证据：针对 `web/**/*.{ts,tsx}` 做了明显 import 模式的初步扫描，未发现从共享层反向依赖 `web/app/*` 的直接命中。
-- 结论：**待确认**
-- 说明：本轮只覆盖明显 import 模式，不覆盖动态导入、别名重导出或更完整的 import 图分析；不能直接得出“完全无反向依赖”的强结论。
+- 证据：分别针对 `web/components/**/*.{ts,tsx,js,jsx}`、`web/lib/**/*.{ts,tsx,js,jsx}`、`web/i18n/**/*.{ts,tsx,js,jsx}` 做了两轮静态扫描，未发现指向 `web/app/*` 的明显 import 命中；补充的 `app/` 片段搜索也未见直接命中。
+- 证据：`web/CLAUDE.md` 与 `frontend-logic-boundary-rules.md` 已明确约束 shared UI / lib / i18n 不应反向依赖 route files。
+  - `web/CLAUDE.md:22`
+  - `web/CLAUDE.md:26`
+  - `web/CLAUDE.md:30`
+  - `web/CLAUDE.md:46`
+  - `docs/baselines/frontend-logic-boundary-rules.md:119`
+- 结论：**基本符合**
+- 说明：基于当前对明显 import 模式与 `app/` 片段引用的补充扫描，尚未发现 `web/components`、`web/lib`、`web/i18n` 对 `web/app/*` 的直接反向依赖证据；但这仍不替代对动态导入、别名重导出或更完整依赖图的系统核查，因此不应上升为“完全无反向依赖”的强结论。
 
 ### 4.4 后端 API 入口与编排层关系
 - 证据：`src/api/main.py` 通过 `Orchestrator` 初始化编排能力，并挂载各 route；入口层未见直接接入供应商模型客户端。
