@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 from src.agents.orchestrator import Orchestrator
+from src.cli_services import collect_cli_health_report, discover_cli_skills
 from src.config import get_config, reload_config
-from src.llm.client import get_client as get_llm_client
 from src.skills.registry import get_global_registry
 
 # 设置日志
@@ -77,10 +77,7 @@ async def run_analysis(
 
 async def list_skills() -> None:
     """列出所有可用技能."""
-    config = get_config()
-    registry = get_global_registry()
-    registry.skill_dirs = config.skill_dirs
-    skills = registry.discover_skills()
+    skills = discover_cli_skills()
 
     if not skills:
         print("未发现任何技能")
@@ -101,31 +98,26 @@ async def check_health() -> None:
     """检查系统健康状态."""
     print("检查系统健康状态...\n")
 
-    # 检查配置
-    try:
-        config = get_config()
+    report = collect_cli_health_report()
+
+    if report.config.ok:
+        details = report.config.details or {}
         print("✓ 配置加载成功")
-        print(f"  环境: {config.environment}")
-        print(f"  核心标的: {len(config.core_symbols)} 个")
-    except Exception as e:
-        print(f"✗ 配置加载失败: {e}")
+        print(f"  环境: {details.get('environment')}")
+        print(f"  核心标的: {details.get('core_symbols_count')} 个")
+    else:
+        print(f"✗ 配置加载失败: {report.config.error}")
 
-    # 检查技能
-    try:
-        registry = get_global_registry()
-        registry.skill_dirs = config.skill_dirs
-        skills = registry.discover_skills()
-        print(f"✓ 技能发现成功: {len(skills)} 个技能")
-    except Exception as e:
-        print(f"✗ 技能发现失败: {e}")
+    if report.skills.ok:
+        details = report.skills.details or {}
+        print(f"✓ 技能发现成功: {details.get('count')} 个技能")
+    else:
+        print(f"✗ 技能发现失败: {report.skills.error}")
 
-    # 检查 LLM 连接
-    try:
-        _llm_client = get_llm_client()
-        # 简单的连接测试
+    if report.llm.ok:
         print("✓ LLM 客户端初始化成功")
-    except Exception as e:
-        print(f"✗ LLM 客户端初始化失败: {e}")
+    else:
+        print(f"✗ LLM 客户端初始化失败: {report.llm.error}")
 
     print("\n健康检查完成")
 
