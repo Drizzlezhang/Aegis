@@ -6,10 +6,12 @@ import logging
 import sys
 from pathlib import Path
 
-from src.agents.orchestrator import Orchestrator
-from src.cli_services import collect_cli_health_report, discover_cli_skills
+from src.cli_services import (
+    collect_cli_health_report,
+    discover_cli_skills,
+    run_cli_analysis,
+)
 from src.config import get_config, reload_config
-from src.skills.registry import get_global_registry
 
 # 设置日志
 logging.basicConfig(
@@ -28,48 +30,13 @@ async def run_analysis(
     """运行分析流程."""
     logger.info(f"开始分析 {len(symbols)} 个标的: {symbols}")
 
-    # 获取配置
-    config = get_config()
-
-    # 初始化技能注册表
-    registry = get_global_registry()
-    registry.skill_dirs = config.skill_dirs
-    discovered_skills = registry.discover_skills()
-    logger.info(f"发现 {len(discovered_skills)} 个技能")
-
-    # 初始化代理编排器
-    orchestrator = Orchestrator()
-
-    # 运行分析
     try:
-        # 直接调用编排器的 analyze_symbols 方法
-        states = await orchestrator.analyze_symbols(symbols)
-
-        # 输出结果
-        if output_file:
-            with open(output_file, 'w') as f:
-                if output_format == "json":
-                    import json
-                    # 将 AgentState 列表转换为字典列表
-                    result_data = [state.dict() for state in states]
-                    json.dump(result_data, f, indent=2, default=str)
-                else:
-                    for state in states:
-                        f.write(f"=== Analysis for {state.symbol} ===\n")
-                        f.write(str(state))
-                        f.write("\n\n")
-            logger.info(f"结果已保存到: {output_file}")
-        else:
-            if output_format == "json":
-                import json
-                result_data = [state.dict() for state in states]
-                print(json.dumps(result_data, indent=2, default=str))
-            else:
-                for state in states:
-                    print(f"=== Analysis for {state.symbol} ===")
-                    print(state)
-        logger.info(f"分析完成: 处理了 {len(states)} 个标的")
-
+        processed_count = await run_cli_analysis(
+            symbols=symbols,
+            output_format=output_format,
+            output_file=output_file,
+        )
+        logger.info(f"分析完成: 处理了 {processed_count} 个标的")
     except Exception as e:
         logger.error(f"分析失败: {e}")
         sys.exit(1)
