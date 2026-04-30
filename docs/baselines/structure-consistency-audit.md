@@ -101,13 +101,31 @@
 - 说明：按入口层边界规则，CLI 入口更理想的职责应是参数解析、模式选择与结果输出编排；当前 `cli.py` 直接触达 orchestrator、registry 与 LLM client，属于入口层与下层能力边界耦合偏重的现状。该问题已足以作为后续独立治理切片，但本轮不直接改代码。
 
 ### 4.7 `src/skills/` 与顶层 `skills/` 双轨语义
-- 证据：baseline 与 `src/CLAUDE.md` 已明确：`src/skills/*` 是 Skill Framework Layer，顶层 `skills/*` 是 Skill Implementation Layer。
-  - `docs/baselines/backend-logic-boundary-rules.md:132`
-  - `docs/baselines/backend-logic-boundary-rules.md:210`
-  - `src/CLAUDE.md:25`
-  - `src/CLAUDE.md:53`
-- 结论：**偏离但暂不迁移**
-- 说明：当前规则层面已经澄清双轨语义，但仓库现实中仍保留两套相近命名，属于结构认知债务；本轮不做物理收敛，只保留为后续治理候选。
+- 证据：规则层已明确：`src/skills/*` 是 Skill Framework Layer，顶层 `skills/*` 是 Skill Implementation Layer。
+  - `docs/baselines/backend-logic-boundary-rules.md:135`
+  - `docs/baselines/backend-logic-boundary-rules.md:140`
+  - `docs/baselines/backend-logic-boundary-rules.md:218`
+  - `src/CLAUDE.md:26`
+  - `src/CLAUDE.md:54`
+- 证据：当前 `src/skills/` 实际文件集中在 `base.py`、`registry.py` 与导出入口，职责覆盖接口契约、发现/注册/加载与全局 registry 获取，没有落地具体业务 Skill 实现。
+  - `src/skills/base.py:37`
+  - `src/skills/registry.py:48`
+  - `src/skills/registry.py:62`
+  - `src/skills/registry.py:177`
+- 证据：当前顶层 `skills/*` 实际文件集中在 `skill.py` / `skill.yaml` 及局部实现支撑文件；具体 Skill 实现通过继承 `src.skills.base.BaseSkill` 落地，没有在顶层目录中发现 registry / discovery 中心逻辑。
+  - `skills/data_sources/yfinance_skill/skill.py:13`
+  - `skills/data_sources/yfinance_skill/skill.py:18`
+  - `skills/algorithms/gex_calculator/skill.py:12`
+  - `skills/algorithms/gex_calculator/skill.py:23`
+- 证据：当前仓库对两条路径的消费方式呈现双轨并存：一部分调用方通过 `src.skills` 消费 framework 能力，另一部分调用方直接 import 顶层 `skills/*` 的具体实现类。
+  - `src/agents/data_harvester/agent.py:9`
+  - `src/api/routes/market.py:7`
+  - `src/api/routes/symbols.py:10`
+  - `src/api/routes/symbols.py:12`
+  - `src/backtest/engine.py:8`
+  - `src/backtest/engine.py:156`
+- 结论：**基本符合**
+- 说明：基于当前对目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 与顶层 `skills/*` 的 framework / implementation 双轨语义已被仓库真实结构与主要引用方式支撑；当前更突出的问题不是“语义未定义”，而是双轨命名与直接 import implementation 的消费方式仍提高理解成本。因此，本项可从“规则已澄清但未核查”推进为“结构上基本符合、认知成本仍偏高”，但还不能据此推出“后续已无需继续治理”的强结论。
 
 ### 4.8 部署与仓库路径假设
 - 证据：`current-architecture-baseline.md` 已明确 `deploy/` 和 PM2 / deploy 脚本依赖现有顶层结构及固定路径假设。
@@ -122,6 +140,7 @@
 - root / `web/` / `src/` 三层规则入口已落位。
 - 前端首页 route file 抽样与 API 边界方向基本符合局部规则。
 - 后端 API 聚合入口与编排层分离方向基本符合局部规则。
+- `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义，已被当前目录内容与主要引用方式基本支撑。
 - 部署与运行链路仍依赖当前顶层结构，和“不立即迁移”的治理约束一致。
 
 ### 5.2 待确认
@@ -130,19 +149,16 @@
 
 ### 5.3 偏离但暂不迁移
 - `src/cli.py` 直接触达 orchestrator、registry 与 LLM client，入口层耦合偏重，适合作为后续独立治理切片。
-- `src/skills/` 与顶层 `skills/` 的双轨命名语义仍然增加理解成本；当前已通过规则澄清，但尚未通过结构收敛解决。
+- `src/skills/` 与顶层 `skills/` 的双轨命名语义虽已被现状支撑，但直接 import implementation 的消费方式仍增加理解成本；当前先不进入物理收敛。
 
 ## 6. 后续候选治理切片
-> 说明：以下候选切片延续自本文前序审计结果；其中仅“后端 CLI 入口收敛子任务”直接由本轮后端入口层依赖审计进一步强化。
+> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”已分别被前序轮次推进或在本轮完成最小核查，因此这里保留尚未完成的后续候选。
 
-1. **后端 CLI 入口收敛子任务**
-   - 目标：把 `src/cli.py` 的入口职责收敛到参数解析、模式选择与输出编排，减少对 orchestrator / registry / LLM client 的直接耦合。
-2. **前端 import 图审计子任务**
-   - 目标：系统确认 `web/components`、`web/lib`、`web/i18n` 是否存在对 `web/app/*` 的反向依赖。
-3. **Skill 双轨语义核查子任务**
-   - 目标：梳理 `src/skills/*` 与顶层 `skills/*` 的实际引用方式，确认最小风险的后续治理顺序。
-4. **跨目录依赖 DAG 审计子任务**
+1. **跨目录依赖 DAG 审计子任务**
    - 目标：把当前抽样检查升级为更系统的依赖图核查，识别真正需要后续拆分的高风险边界问题。
+2. **Skill 双轨消费方式收敛子任务（候选）**
+   - 目标：在不做物理迁移的前提下，进一步确认哪些调用路径应继续通过 framework registry 获取能力，哪些路径允许直接消费顶层 implementation，以降低双轨理解成本。
 
 ## 7. 本轮结论
-本轮补充审计只进一步收敛了后端入口层依赖边界这一子范围。基于当前对 `src/api/*` 的抽样与明显 import 模式扫描，尚未发现入口层直接触达 `src.llm` 或 `src.skills` framework 中心逻辑的明确证据；但这仍不替代全量 route 依赖图核查。相较之下，`src/cli.py` 直接触达 orchestrator、registry 与 LLM client 的证据更明确，因此可以作为后续独立治理切片候选；本轮不直接进入代码修复。
+本轮补充审计收敛的是 `src/skills/*` 与顶层 `skills/*` 的双轨语义核查。基于当前对规则锚点、目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 当前主要承载接口契约、发现/注册/加载与全局 registry 获取，顶层 `skills/*` 主要承载具体 Skill 实现与元数据，两者的 framework / implementation 语义已被现状基本支撑；但仓库中仍存在直接 import 顶层 implementation 的消费路径，说明后续若继续治理，更适合聚焦“消费方式收敛与认知成本降低”，而不是在当前阶段直接进入物理迁移。
+
