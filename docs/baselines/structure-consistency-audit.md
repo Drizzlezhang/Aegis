@@ -128,12 +128,36 @@
 - 说明：基于当前对目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 与顶层 `skills/*` 的 framework / implementation 双轨语义已被仓库真实结构与主要引用方式支撑；当前更突出的问题不是“语义未定义”，而是双轨命名与直接 import implementation 的消费方式仍提高理解成本。因此，本项可从“规则已澄清但未核查”推进为“结构上基本符合、认知成本仍偏高”，但还不能据此推出“后续已无需继续治理”的强结论。
 
 ### 4.8 部署与仓库路径假设
-- 证据：`current-architecture-baseline.md` 已明确 `deploy/` 和 PM2 / deploy 脚本依赖现有顶层结构及固定路径假设。
-  - `docs/baselines/current-architecture-baseline.md:108`
-  - `docs/baselines/current-architecture-baseline.md:115`
-  - `docs/baselines/current-architecture-baseline.md:127`
-- 结论：**符合**
-- 说明：本项结论复用既有 baseline 的部署基线，不构成本轮对 `deploy/` 文件的重新审计；它用于支持“当前阶段不应直接进入物理目录迁移”的判断。
+- 证据：`pyproject.toml` 继续把 Python 包稳定入口固定为 `src.cli:main`，说明当前打包与命令行分发仍依赖 `src` 作为仓库根下的稳定解析入口。
+  - `pyproject.toml:63`
+  - `pyproject.toml:64`
+  - `pyproject.toml:67`
+- 证据：`deploy/ecosystem.config.js` 继续把 analyzer 工作目录固定为 `/app`，通过 `python -m src.cli analyze --all` 启动；同时把 web 工作目录固定为 `/app/web`，并在 PM2 环境变量里写死 `PORT=3000` 与 `NEXT_PUBLIC_API_URL=http://localhost:8000`。
+  - `deploy/ecosystem.config.js:3`
+  - `deploy/ecosystem.config.js:5`
+  - `deploy/ecosystem.config.js:6`
+  - `deploy/ecosystem.config.js:29`
+  - `deploy/ecosystem.config.js:32`
+  - `deploy/ecosystem.config.js:39`
+  - `deploy/ecosystem.config.js:40`
+- 证据：`deploy/supervisord.conf` 继续把 backend 工作目录固定为 `/app`，通过 `uvicorn src.api.main:app --port 8001` 启动；frontend 工作目录固定为 `/app/web`，说明 supervisord 方案同样依赖当前顶层结构与入口路径。
+  - `deploy/supervisord.conf:7`
+  - `deploy/supervisord.conf:8`
+  - `deploy/supervisord.conf:10`
+  - `deploy/supervisord.conf:18`
+  - `deploy/supervisord.conf:20`
+- 证据：`deploy/deploy.sh` 继续把部署脚本默认目标目录写为 `/opt/aegis-trader`，默认分支写为 `master`，并通过 `docker compose build --no-cache` / `docker compose up -d` 完成部署。
+  - `deploy/deploy.sh:9`
+  - `deploy/deploy.sh:10`
+  - `deploy/deploy.sh:13`
+  - `deploy/deploy.sh:121`
+  - `deploy/deploy.sh:124`
+- 证据：`deploy/README.md` 继续把部署说明表述为 `systemd + supervisord`，健康检查示例指向 `http://localhost:8001/api/health`，并以 `git pull origin master` 表述默认拉取策略。
+  - `deploy/README.md:9`
+  - `deploy/README.md:60`
+  - `deploy/README.md:158`
+- 结论：**基本符合，但存在待确认项**
+- 说明：基于当前对 `deploy/**`、`pyproject.toml` 与 baseline 文档的静态回读，可以确认部署相关脚本、配置与文档已经把固定目录、固定入口、固定分支等约束编码为默认假设，因此这部分已不再只是抽象约束，而是后续结构迁移必须显式兼容的静态前提。同时，PM2 环境变量中的 `NEXT_PUBLIC_API_URL=http://localhost:8000` 若其意图是直连后端，则与 `supervisord.conf` / `deploy/README.md` 中的 `8001` 端口表述存在差异；此外，当前仓库内可以确认的是 PM2、supervisord、docker compose、systemd 等部署脚本与文档表述并存，而不是仅凭本地静态文件就断言生产环境实际并存多套进程模型。因此更稳妥的结论应是“部署路径假设已在配置与脚本层被明确编码，但端口约定与部署表述仍有待后续收敛”，而不是把现状误写成单一、完全一致的部署真相。
 
 ## 5. 审计摘要
 ### 5.1 已符合
@@ -141,24 +165,24 @@
 - 前端首页 route file 抽样与 API 边界方向基本符合局部规则。
 - 后端 API 聚合入口与编排层分离方向基本符合局部规则。
 - `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义，已被当前目录内容与主要引用方式基本支撑。
-- 部署与运行链路仍依赖当前顶层结构，和“不立即迁移”的治理约束一致。
 
 ### 5.2 待确认
 - 前端共享层是否存在更隐蔽的 route 反向依赖。
+- 部署链路中的端口约定与进程管理表述仍存在并存情况，尚不能仅凭本地静态文件收敛为单一运行真相。
 
 ### 5.3 偏离但暂不迁移
 - `src/cli.py` 直接触达 orchestrator、registry 与 LLM client，入口层耦合偏重，适合作为后续独立治理切片。
 - `src/skills/` 与顶层 `skills/` 的双轨命名语义虽已被现状支撑，但直接 import implementation 的消费方式仍增加理解成本；当前先不进入物理收敛。
-- `deploy/` 与 `pyproject.toml` 仍对当前顶层结构和稳定入口存在固定路径假设，因此后续若进入物理迁移，必须单独处理部署与打包链路影响。
+- `deploy/` 与 `pyproject.toml` 已把当前顶层结构、稳定入口与默认分支编码为配置与脚本层默认假设；后续若进入物理迁移，必须单独处理部署、打包与运行时配置影响。
 
 ## 6. 后续候选治理切片
-> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”已分别被前序轮次推进或在本轮完成最小核查，因此这里保留当前更适合继续推进的后续候选。
+> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”已分别被前序轮次推进或在本轮完成最小核查，因此这里保留当前更适合继续推进的后续候选。
 
 1. **Skill 双轨消费方式收敛子任务（候选）**
    - 目标：在不做物理迁移的前提下，进一步确认哪些调用路径应继续通过 framework registry 获取能力，哪些路径允许直接消费顶层 implementation，以降低双轨理解成本。
-2. **部署路径假设核查子任务（候选）**
-   - 目标：在不改部署脚本的前提下，系统梳理 `deploy/`、PM2 与 `pyproject.toml` 对当前仓库顶层结构和入口路径的固定假设，识别后续结构治理的高风险约束。
+2. **部署端口与进程模型表述收敛子任务（候选）**
+   - 目标：在不改真实部署方案的前提下，收敛 `deploy/**` 与部署文档中关于 backend 端口、web API 指向与 PM2 / supervisord / systemd / docker compose 角色分工的表述差异，降低后续结构治理时的运行假设歧义。
 
 ## 7. 本轮结论
-本轮补充审计收敛的是跨目录依赖 DAG 这一子范围。基于当前对 `web/**`、`src/**`、`tests/**`、`deploy/**` 与 `pyproject.toml` 的目录级静态搜索及关键样本回读，尚未发现生产路径上明确的 `web -> src` 反向依赖证据；前端侧主要表现为 route files 对 `components`、`lib`、`i18n` 的单向消费，后端侧主要表现为 `api` / `cli` 对 `agents`、`skills`、`llm` 的入口型依赖，整体方向与现有边界规则基本一致。相较之下，更明确的结构约束来自 `deploy/` 与 `pyproject.toml` 对当前顶层结构和稳定入口的固定路径假设，因此可以把“跨目录依赖图是否满足可审计 DAG”从单纯待确认推进为“基于当前静态证据基本符合、但部署路径假设仍构成后续迁移约束”的结论；本轮不直接进入代码修复或目录迁移。
+本轮补充审计收敛的是部署路径假设这一子范围。基于当前对 `deploy/**`、`pyproject.toml` 与 `current-architecture-baseline.md` 的静态搜索及关键样本回读，可以确认当前仓库已经在配置、脚本与文档层把 `/app`、`/app/web`、`/opt/aegis-trader`、`src.cli:main`、`python -m src.cli analyze --all`、`uvicorn src.api.main:app`、`master` 等路径与入口编码为默认假设，因此“部署路径假设仍构成后续迁移约束”可以从抽象判断推进为有证据支撑的审计结论。与此同时，PM2 环境变量里的 `8000` 与 supervisord / README 中的 `8001` 端口表述仍可能存在差异，且当前能确认的是多套部署脚本与文档表述并存，而非生产环境实际并存多套进程模型，所以本轮更准确的结论是：部署路径假设已在静态配置层被明确固化并成为结构迁移前提，但端口约定与部署表述仍有待后续独立治理；本轮不直接进入部署整改或目录迁移。
 
