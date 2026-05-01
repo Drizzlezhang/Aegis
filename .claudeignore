@@ -1,0 +1,8 @@
+# Keep project-scoped Claude config readable
+!.claude/settings.json
+!.claude/settings.local.json
+
+# Ignore local Claude working state
+.claude/worktrees/
+.gstack/
+.gstack-worktrees/
