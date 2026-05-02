@@ -117,17 +117,20 @@
   - `skills/data_sources/yfinance_skill/skill.py:18`
   - `skills/algorithms/gex_calculator/skill.py:12`
   - `skills/algorithms/gex_calculator/skill.py:23`
-- 证据：当前仓库对两条路径的消费方式仍呈双轨并存，但已出现最小运行时收敛：一部分调用方通过 `src.skills` 消费 framework 能力；此前存在于 `src/api/routes/symbols.py`、`src/backtest/engine.py` 的运行时 direct implementation import，本轮已分别收敛为通过 registry 获取 skill 实例；与此同时，测试层 direct implementation import 仍然存在。
+- 证据：当前仓库对两条路径的消费方式仍呈双轨并存，但已出现最小运行时收敛：一部分调用方通过 `src.skills` 消费 framework 能力；此前存在于 `src/api/routes/symbols.py`、`src/backtest/engine.py` 的运行时 direct implementation import，本轮已分别收敛为通过 registry 获取 skill 实例；与此同时，测试层 direct implementation import 仍然存在，但基于本轮对 `tests/test_volume_profile.py`、`tests/test_gex.py`、`tests/test_yfinance_skill.py`、`tests/test_futu_skill.py` 与 `tests/skills/test_futu_skill.py` 的补充回读，这些样本目前主要仍属于 implementation-level unit test，而不是已确认需要继续向 framework / registry seam 收敛的运行时消费路径。
   - `src/agents/data_harvester/agent.py:9`
   - `src/api/routes/market.py:7`
   - `src/api/routes/symbols.py:10`
   - `src/api/routes/symbols.py:19`
   - `src/backtest/engine.py:8`
   - `src/backtest/engine.py:18`
-  - `tests/test_alpha_vantage_skill.py:9`
+  - `tests/test_volume_profile.py:10`
   - `tests/test_gex.py:10`
-- 结论：**基本符合，但运行时收敛仅完成最小样本**
-- 说明：基于当前对目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 与顶层 `skills/*` 的 framework / implementation 双轨语义已被仓库真实结构与主要引用方式支撑；当前更突出的问题已不只是“双轨命名增加理解成本”，而是 tests-only 便利性与运行时依赖边界仍需继续区分。本轮已先把 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个已确认运行时样本收敛为 framework / registry 消费路径，说明这类收敛在当前代码结构中可行；但测试层 direct implementation import 仍然存在，且其余运行时调用点是否还需继续收敛，仍不宜在本轮写成“已全部解决”的强结论。
+  - `tests/test_yfinance_skill.py:13`
+  - `tests/test_futu_skill.py:8`
+  - `tests/skills/test_futu_skill.py:8`
+- 结论：**基本符合，但运行时收敛仅完成最小样本，测试层边界以保留为主**
+- 说明：基于当前对目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 与顶层 `skills/*` 的 framework / implementation 双轨语义已被仓库真实结构与主要引用方式支撑；当前更突出的问题已不只是“双轨命名增加理解成本”，而是 tests-only 便利性与运行时依赖边界仍需继续区分。本轮已先把 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个已确认运行时样本收敛为 framework / registry 消费路径，说明这类收敛在当前代码结构中可行；但补充回读后的测试样本显示，当前剩余 direct implementation import 主要集中在 implementation-level unit test：例如 `tests/test_volume_profile.py`、`tests/test_gex.py` 直接验证算法 skill 与 quick helper，`tests/test_futu_skill.py` 与 `tests/skills/test_futu_skill.py` 主要覆盖 provider skill 的 metadata、SDK 初始化、options / fundamentals 行为，`tests/test_yfinance_skill.py` 也仍以具体 skill 实现与实例方法 patch 为主。因此，本轮更准确的记录方式不是继续把“tests 仍存在 direct import”笼统视作待统一收敛的问题，而是先把“运行时路径已完成最小收敛、测试层当前以 implementation-level unit test 保留为主”写清；其中 `tests/test_yfinance_skill.py` 是否还存在可再细分的 seam-like 断言，仍可留作后续单独甄别，但本轮不直接进入测试代码替换。
 
 ### 4.8 部署与仓库路径假设
 - 证据：`pyproject.toml` 继续把 Python 包稳定入口固定为 `src.cli:main`，说明当前打包与命令行分发仍依赖 `src` 作为仓库根下的稳定解析入口。
@@ -175,22 +178,22 @@
 
 ### 5.2 待确认
 - 前端共享层是否存在更隐蔽的 route 反向依赖。
-- Skill 双轨消费方式中，测试层 direct implementation import 是否仍应保留为便利性路径，以及除 `src/api/routes/symbols.py`、`src/backtest/engine.py` 之外是否还有运行时调用点需要继续收敛，仍需继续区分。
+- `tests/test_yfinance_skill.py` 中是否仍存在可从具体 skill 实现断言中继续拆出的 seam-like 测试子样本，仍需继续区分。
 - 部署端口与进程模型表述中，哪些差异只是脚本默认值与文档叙述的口径不同，哪些已接近潜在配置口径冲突，仍需继续区分。
 
 ### 5.3 偏离但暂不迁移
 - `src/cli.py` 直接触达 orchestrator、registry 与 LLM client，入口层耦合偏重，适合作为后续独立治理切片。
-- `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义虽已被现状支撑，本轮也已先完成 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个最小运行时样本的收敛；但测试层 direct implementation import 仍然存在，当前不直接进入物理或代码级统一替换。
+- `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义虽已被现状支撑，本轮也已先完成 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个最小运行时样本的收敛；补充回读后的测试样本则显示，当前剩余 direct implementation import 主要集中在 implementation-level unit test，暂不直接进入统一替换或物理迁移。
 - `deploy/**` 内已同时存在 PM2、supervisord、docker compose 与 systemd 相关表述；当前先通过 docs/spec 收敛各自角色与证据层级，不直接进入部署整改或配置统一替换。
 
 ## 6. 后续候选治理切片
-> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”“部署端口与进程模型表述收敛子任务”已分别被前序轮次推进，且本轮已把部署表述问题进一步收敛为 docs/spec 范围内的待确认项与后续候选，因此这里保留当前更适合继续推进的后续候选。
+> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”“部署端口与进程模型表述收敛子任务”已分别被前序轮次推进，且本轮已把测试层样本进一步收敛为“实现级单元测试保留为主、仅 `tests/test_yfinance_skill.py` 仍可继续甄别是否存在 seam-like 子样本”的范围，因此这里保留当前更适合继续推进的后续候选。
 
-1. **Skill 测试层与剩余运行时消费边界收敛子任务（候选）**
-   - 目标：在已完成 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个最小运行时样本收敛的基础上，继续区分测试层 direct implementation import 是否保留，以及是否仍有其他运行时调用点需要逐步转向 framework / registry 消费。
+1. **YFinance 测试边界细分子任务（候选）**
+   - 目标：在已确认 `tests/test_volume_profile.py`、`tests/test_gex.py`、`tests/test_futu_skill.py` 与 `tests/skills/test_futu_skill.py` 主要属于 implementation-level unit test 的基础上，只继续甄别 `tests/test_yfinance_skill.py` 中是否仍存在值得转向 wrapper / registry / service seam 的局部测试样本。
 2. **部署配置角色分层子任务（候选）**
    - 目标：在不改部署配置的前提下，进一步梳理 PM2、supervisord、systemd、docker compose 在当前仓库中的角色边界，明确哪些属于配置默认值，哪些属于文档层说明，哪些需要后续单独治理。
 
 ## 7. 本轮结论
-本轮补充审计以部署端口与进程模型表述这一子范围为主。基于当前对 `deploy/**`、`docs/baselines/current-architecture-baseline.md` 与现有审计文档的静态文件回读与关键样本引用——包括 `deploy/ecosystem.config.js` 中 web 环境变量 `NEXT_PUBLIC_API_URL=http://localhost:8000`、`deploy/supervisord.conf` 中 backend `--port 8001`、`deploy/README.md` 中 `systemd + supervisord` 与 `http://localhost:8001/api/health` 的说明——本轮按三类归纳当前仓库中的部署相关静态表述：一类是 PM2 / supervisord / deploy 脚本里的配置或命令默认值，一类是 README 与 baseline 中的人类可读说明，另一类是 `8000` / `8001` 端口指向与多套进程管理角色之间尚未完全统一的待确认差异。因此，相比上一轮“部署路径假设已被编码为静态前提”的结论，本轮可以进一步把问题收敛为：当前更需要先区分证据层级与表述角色，而不是急于把多套脚本 / 文档叙述压成单一部署真相。基于本阶段“不做运维整改、不依赖真实环境核查”的约束，本轮更准确的记录方式是先把 docs/spec 层的表述边界、待确认项与后续治理优先级写清；本轮不直接进入 deploy 配置修改。
+本轮补充审计以 Skill 测试层 direct implementation import 的边界判断为主。基于当前对 `tests/test_volume_profile.py`、`tests/test_gex.py`、`tests/test_yfinance_skill.py`、`tests/test_futu_skill.py` 与 `tests/skills/test_futu_skill.py` 的静态回读与关键样本引用，可以进一步把上一轮笼统写作“测试层 direct implementation import 仍然存在”的结论收窄为：当前剩余 direct import 测试样本多数仍属于 implementation-level unit test，而不是已确认需要继续向 framework / registry seam 收敛的运行时消费路径。其中，`tests/test_volume_profile.py` 与 `tests/test_gex.py` 直接验证算法 skill 与 quick helper，`tests/test_futu_skill.py` 与 `tests/skills/test_futu_skill.py` 主要覆盖 provider skill 的 metadata、SDK 初始化、options / fundamentals 行为，均更适合按实现级单元测试保留；`tests/test_yfinance_skill.py` 虽也主要围绕具体 skill 实现与实例方法 patch 展开，但是否仍包含可单独拆出的 seam-like 局部样本，仍可留作后续单独甄别。因此，相比上一轮“测试层 direct import 仍待继续区分”的记录方式，本轮更准确的收敛方式，是先把“运行时路径已完成最小收敛、测试层当前以实现级单元测试保留为主、仅个别样本仍待细分”写清；本轮不直接进入测试代码替换。
 
