@@ -157,8 +157,8 @@
   - `deploy/README.md:9`
   - `deploy/README.md:60`
   - `deploy/README.md:158`
-- 结论：**基本符合，但存在待确认项**
-- 说明：基于当前对 `deploy/**`、`pyproject.toml` 与 baseline 文档的静态回读，可以确认部署相关脚本、配置与文档已经把固定目录、固定入口、固定分支等约束编码为默认假设，因此这部分已不再只是抽象约束，而是后续结构迁移必须显式兼容的静态前提。同时，PM2 环境变量中的 `NEXT_PUBLIC_API_URL=http://localhost:8000` 若其意图是直连后端，则与 `supervisord.conf` / `deploy/README.md` 中的 `8001` 端口表述存在差异；此外，当前仓库内可以确认的是 PM2、supervisord、docker compose、systemd 等部署脚本与文档表述并存，而不是仅凭本地静态文件就断言生产环境实际并存多套进程模型。因此更稳妥的结论应是“部署路径假设已在配置与脚本层被明确编码，但端口约定与部署表述仍有待后续收敛”，而不是把现状误写成单一、完全一致的部署真相。
+- 结论：**基本符合，但表述边界仍待收敛**
+- 说明：基于当前对 `deploy/**`、`pyproject.toml` 与 baseline 文档的静态回读，本轮可先按三类归纳当前部署相关表述：其一，`deploy/ecosystem.config.js`、`deploy/supervisord.conf` 与 `deploy/deploy.sh` 中的路径、端口与命令更接近配置 / 脚本层默认值；其二，`deploy/README.md` 与 `docs/baselines/current-architecture-baseline.md` 更接近面向人阅读的说明与基线摘要；其三，PM2 web 环境变量中的 `NEXT_PUBLIC_API_URL=http://localhost:8000`、supervisord / README 中的 backend `8001`，以及 PM2 / supervisord / systemd / docker compose 角色表述之间，仍存在无法仅靠本地静态文件完全统一的差异。因此，本轮更稳妥的推进方式不是把这些表述直接归并成单一部署真相，而是先在 docs/spec 层明确：哪些属于脚本默认值，哪些属于文档叙述，哪些仍只能标记为待确认或后续独立治理对象。
 
 ## 5. 审计摘要
 ### 5.1 已符合
@@ -171,21 +171,21 @@
 ### 5.2 待确认
 - 前端共享层是否存在更隐蔽的 route 反向依赖。
 - Skill 双轨消费方式中，哪些 direct implementation import 仅属测试便利性，哪些已构成运行时路径上的长期依赖，仍需继续区分。
-- 部署链路中的端口约定与进程管理表述仍存在并存情况，尚不能仅凭本地静态文件收敛为单一运行真相。
+- 部署端口与进程模型表述中，哪些差异只是脚本默认值与文档叙述的口径不同，哪些已接近潜在配置口径冲突，仍需继续区分。
 
 ### 5.3 偏离但暂不迁移
 - `src/cli.py` 直接触达 orchestrator、registry 与 LLM client，入口层耦合偏重，适合作为后续独立治理切片。
 - `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义虽已被现状支撑，但 direct implementation import 已同时出现在测试层与已确认的部分运行时路径；当前先通过 docs/spec 收敛消费边界，不直接进入物理或代码级统一替换。
-- `deploy/` 与 `pyproject.toml` 已把当前顶层结构、稳定入口与默认分支编码为配置与脚本层默认假设；后续若进入物理迁移，必须单独处理部署、打包与运行时配置影响。
+- `deploy/**` 内已同时存在 PM2、supervisord、docker compose 与 systemd 相关表述；当前先通过 docs/spec 收敛各自角色与证据层级，不直接进入部署整改或配置统一替换。
 
 ## 6. 后续候选治理切片
-> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”已分别被前序轮次推进或在本轮完成 docs/spec 收敛，因此这里保留当前更适合继续推进的后续候选。
+> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”“部署端口与进程模型表述收敛子任务”已分别被前序轮次推进或在本轮完成 docs/spec 收敛，因此这里保留当前更适合继续推进的后续候选。
 
 1. **Skill 运行时消费路径收敛子任务（候选）**
    - 目标：在不做物理迁移的前提下，优先核查并收敛 `src/**` 运行时路径里 direct import 顶层 implementation 的使用点，明确哪些路径应逐步转向 framework / registry 消费。
-2. **部署端口与进程模型表述收敛子任务（候选）**
-   - 目标：在不改真实部署方案的前提下，收敛 `deploy/**` 与部署文档中关于 backend 端口、web API 指向与 PM2 / supervisord / systemd / docker compose 角色分工的表述差异，降低后续结构治理时的运行假设歧义。
+2. **部署配置角色分层子任务（候选）**
+   - 目标：在不改部署配置的前提下，进一步梳理 PM2、supervisord、systemd、docker compose 在当前仓库中的角色边界，明确哪些属于配置默认值，哪些属于文档层说明，哪些需要后续单独治理。
 
 ## 7. 本轮结论
-本轮补充审计收敛的是 Skill 双轨消费方式这一子范围。基于当前对 `src/**`、`tests/**`、`src/skills/**` 与顶层 `skills/**` 的静态搜索及关键样本回读，可以确认仓库内 framework / registry 消费与 direct implementation import 仍然并存，而且后者并不只停留在测试层：`src/api/routes/symbols.py` 与 `src/backtest/engine.py` 这两个已确认的运行时路径也仍直接消费顶层 Skill 实现。因此，相比上一轮“只确认双轨语义成立”的结论，本轮可以进一步把问题收敛为：双轨目录语义已经清晰，但消费边界仍未完全写清，尤其需要区分测试便利性与运行时长期依赖。基于当前阶段“不做物理收敛、不直接改行为”的约束，本轮更准确的推进方式不是立即进入统一替换，而是先把 docs/spec 层的消费边界、保留条件与后续收敛优先级写清；本轮不直接进入 consumer 代码改造。
+本轮补充审计以部署端口与进程模型表述这一子范围为主。基于当前对 `deploy/**`、`docs/baselines/current-architecture-baseline.md` 与现有审计文档的静态搜索及关键样本回读，本轮按三类归纳当前仓库中的部署相关静态表述：一类是 PM2 / supervisord / deploy 脚本里的配置或命令默认值，一类是 README 与 baseline 中的人类可读说明，另一类是 `8000` / `8001` 端口指向与多套进程管理角色之间尚未完全统一的待确认差异。因此，相比上一轮“部署路径假设已被编码为静态前提”的结论，本轮可以进一步把问题收敛为：当前更需要先区分证据层级与表述角色，而不是急于把多套脚本 / 文档叙述压成单一部署真相。基于本阶段“不做运维整改、不依赖真实环境核查”的约束，本轮更准确的推进方式是先把 docs/spec 层的表述边界、待确认项与后续治理优先级写清；本轮不直接进入 deploy 配置修改。
 
