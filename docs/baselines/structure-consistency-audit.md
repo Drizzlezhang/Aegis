@@ -117,16 +117,17 @@
   - `skills/data_sources/yfinance_skill/skill.py:18`
   - `skills/algorithms/gex_calculator/skill.py:12`
   - `skills/algorithms/gex_calculator/skill.py:23`
-- 证据：当前仓库对两条路径的消费方式呈现双轨并存：一部分调用方通过 `src.skills` 消费 framework 能力，另一部分调用方直接 import 顶层 `skills/*` 的具体实现类。
+- 证据：当前仓库对两条路径的消费方式仍呈双轨并存，但已出现最小运行时收敛：一部分调用方通过 `src.skills` 消费 framework 能力；此前存在于 `src/api/routes/symbols.py`、`src/backtest/engine.py` 的运行时 direct implementation import，本轮已分别收敛为通过 registry 获取 skill 实例；与此同时，测试层 direct implementation import 仍然存在。
   - `src/agents/data_harvester/agent.py:9`
   - `src/api/routes/market.py:7`
   - `src/api/routes/symbols.py:10`
-  - `src/api/routes/symbols.py:12`
-  - `src/backtest/engine.py:156`
+  - `src/api/routes/symbols.py:19`
+  - `src/backtest/engine.py:8`
+  - `src/backtest/engine.py:18`
   - `tests/test_alpha_vantage_skill.py:9`
   - `tests/test_gex.py:10`
-- 结论：**基本符合，但消费边界仍待收敛**
-- 说明：基于当前对目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 与顶层 `skills/*` 的 framework / implementation 双轨语义已被仓库真实结构与主要引用方式支撑；当前更突出的问题已不只是“双轨命名增加理解成本”，而是 direct implementation import 已同时出现在测试层，以及 `src/api/routes/symbols.py`、`src/backtest/engine.py` 这类已确认的运行时路径，而 framework / registry 消费则主要集中在 agent、API 聚合入口与 CLI 服务等位置。因此，更稳妥的下一步不是直接做物理收敛或一轮代码替换，而是先在 docs/spec 层明确：哪些 consumer 场景当前仍可接受 direct implementation import，哪些已确认运行时路径更适合后续单独收敛为 framework / registry 消费，以避免在边界尚未写清前把 tests-only 便利性与运行时依赖混为一谈。
+- 结论：**基本符合，但运行时收敛仅完成最小样本**
+- 说明：基于当前对目录内容、明显 import 模式与关键样本的抽样回读，`src/skills/*` 与顶层 `skills/*` 的 framework / implementation 双轨语义已被仓库真实结构与主要引用方式支撑；当前更突出的问题已不只是“双轨命名增加理解成本”，而是 tests-only 便利性与运行时依赖边界仍需继续区分。本轮已先把 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个已确认运行时样本收敛为 framework / registry 消费路径，说明这类收敛在当前代码结构中可行；但测试层 direct implementation import 仍然存在，且其余运行时调用点是否还需继续收敛，仍不宜在本轮写成“已全部解决”的强结论。
 
 ### 4.8 部署与仓库路径假设
 - 证据：`pyproject.toml` 继续把 Python 包稳定入口固定为 `src.cli:main`，说明当前打包与命令行分发仍依赖 `src` 作为仓库根下的稳定解析入口。
@@ -170,19 +171,19 @@
 
 ### 5.2 待确认
 - 前端共享层是否存在更隐蔽的 route 反向依赖。
-- Skill 双轨消费方式中，哪些 direct implementation import 仅属测试便利性，哪些已构成运行时路径上的长期依赖，仍需继续区分。
+- Skill 双轨消费方式中，测试层 direct implementation import 是否仍应保留为便利性路径，以及除 `src/api/routes/symbols.py`、`src/backtest/engine.py` 之外是否还有运行时调用点需要继续收敛，仍需继续区分。
 - 部署端口与进程模型表述中，哪些差异只是脚本默认值与文档叙述的口径不同，哪些已接近潜在配置口径冲突，仍需继续区分。
 
 ### 5.3 偏离但暂不迁移
 - `src/cli.py` 直接触达 orchestrator、registry 与 LLM client，入口层耦合偏重，适合作为后续独立治理切片。
-- `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义虽已被现状支撑，但 direct implementation import 已同时出现在测试层与已确认的部分运行时路径；当前先通过 docs/spec 收敛消费边界，不直接进入物理或代码级统一替换。
+- `src/skills/` 与顶层 `skills/` 的 framework / implementation 双轨语义虽已被现状支撑，本轮也已先完成 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个最小运行时样本的收敛；但测试层 direct implementation import 仍然存在，当前不直接进入物理或代码级统一替换。
 - `deploy/**` 内已同时存在 PM2、supervisord、docker compose 与 systemd 相关表述；当前先通过 docs/spec 收敛各自角色与证据层级，不直接进入部署整改或配置统一替换。
 
 ## 6. 后续候选治理切片
 > 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”“部署端口与进程模型表述收敛子任务”已分别被前序轮次推进，且本轮已把部署表述问题进一步收敛为 docs/spec 范围内的待确认项与后续候选，因此这里保留当前更适合继续推进的后续候选。
 
-1. **Skill 运行时消费路径收敛子任务（候选）**
-   - 目标：在不做物理迁移的前提下，优先核查并收敛 `src/**` 运行时路径里 direct import 顶层 implementation 的使用点，明确哪些路径应逐步转向 framework / registry 消费。
+1. **Skill 测试层与剩余运行时消费边界收敛子任务（候选）**
+   - 目标：在已完成 `src/api/routes/symbols.py` 与 `src/backtest/engine.py` 两个最小运行时样本收敛的基础上，继续区分测试层 direct implementation import 是否保留，以及是否仍有其他运行时调用点需要逐步转向 framework / registry 消费。
 2. **部署配置角色分层子任务（候选）**
    - 目标：在不改部署配置的前提下，进一步梳理 PM2、supervisord、systemd、docker compose 在当前仓库中的角色边界，明确哪些属于配置默认值，哪些属于文档层说明，哪些需要后续单独治理。
 

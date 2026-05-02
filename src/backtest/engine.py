@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Any
 
 from src.models import OHLCV
-from src.skills import SkillRegistry
+from src.skills import get_global_registry
 
 from .strategies import (
     Signal,
@@ -13,6 +13,22 @@ from .strategies import (
     _generate_rsi_signals,
     _generate_sma_signals,
 )
+
+
+def _get_skill(name: str) -> Any | None:
+    """Get skill instance from global registry."""
+    registry = get_global_registry()
+    return registry.get_skill(name)
+
+
+def _get_yfinance_skill() -> Any | None:
+    """Get yfinance skill instance."""
+    return _get_skill("yfinance_ohlcv")
+
+
+def YFinanceSkill() -> Any | None:
+    """Get yfinance skill instance for backtest consumption."""
+    return _get_yfinance_skill()
 
 
 @dataclass
@@ -153,9 +169,10 @@ class BacktestEngine:
         end_date: date,
     ) -> list[OHLCV]:
         """Fetch OHLCV data via yfinance skill using date range."""
-        from skills.data_sources.yfinance_skill.skill import YFinanceSkill
-
         skill = YFinanceSkill()
+        if not skill:
+            raise ValueError("yfinance skill not available")
+
         await skill.initialize()
         # yfinance end date is exclusive, so add one day
         end_exclusive = end_date + __import__("datetime").timedelta(days=1)
