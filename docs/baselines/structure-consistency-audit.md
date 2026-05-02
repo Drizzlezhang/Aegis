@@ -158,7 +158,7 @@
   - `deploy/README.md:60`
   - `deploy/README.md:158`
 - 结论：**基本符合，但表述边界仍待收敛**
-- 说明：基于当前对 `deploy/**`、`pyproject.toml` 与 baseline 文档的静态回读，本轮可先按三类归纳当前部署相关表述：其一，`deploy/ecosystem.config.js`、`deploy/supervisord.conf` 与 `deploy/deploy.sh` 中的路径、端口与命令更接近配置 / 脚本层默认值；其二，`deploy/README.md` 与 `docs/baselines/current-architecture-baseline.md` 更接近面向人阅读的说明与基线摘要；其三，PM2 web 环境变量中的 `NEXT_PUBLIC_API_URL=http://localhost:8000`、supervisord / README 中的 backend `8001`，以及 PM2 / supervisord / systemd / docker compose 角色表述之间，仍存在无法仅靠本地静态文件完全统一的差异。因此，本轮更稳妥的推进方式不是把这些表述直接归并成单一部署真相，而是先在 docs/spec 层明确：哪些属于脚本默认值，哪些属于文档叙述，哪些仍只能标记为待确认或后续独立治理对象。
+- 说明：基于当前对 `deploy/**`、`pyproject.toml` 与 baseline 文档的静态回读，本轮可先按三类归纳当前部署相关表述：其一，`deploy/ecosystem.config.js`、`deploy/supervisord.conf` 与 `deploy/deploy.sh` 中的路径、端口与命令更接近配置 / 脚本层默认值；其二，`deploy/README.md` 与 `docs/baselines/current-architecture-baseline.md` 更接近面向人阅读的说明与基线摘要；其三，PM2 web 环境变量中的 `NEXT_PUBLIC_API_URL=http://localhost:8000`、supervisord / README 中的 backend `8001`，以及 PM2 / supervisord / systemd / docker compose 角色表述之间，仍存在仅凭本地静态文件不足以统一判定为单一运行真相的差异。因此，本轮在审计记录层面更保守的写法，不是把这些表述直接归并成单一部署真相，而是先把哪些属于脚本默认值、哪些属于文档叙述、哪些仍只能标记为待确认项或后续候选写清。
 
 ## 5. 审计摘要
 ### 5.1 已符合
@@ -179,7 +179,7 @@
 - `deploy/**` 内已同时存在 PM2、supervisord、docker compose 与 systemd 相关表述；当前先通过 docs/spec 收敛各自角色与证据层级，不直接进入部署整改或配置统一替换。
 
 ## 6. 后续候选治理切片
-> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”“部署端口与进程模型表述收敛子任务”已分别被前序轮次推进或在本轮完成 docs/spec 收敛，因此这里保留当前更适合继续推进的后续候选。
+> 说明：以下候选切片延续自本文前序审计结果；其中“后端 CLI 入口收敛子任务”“前端 import 图审计子任务”“Skill 双轨语义核查子任务”“跨目录依赖 DAG 审计子任务”“部署路径假设核查子任务”“Skill 双轨消费方式文档收敛子任务”“部署端口与进程模型表述收敛子任务”已分别被前序轮次推进，且本轮已把部署表述问题进一步收敛为 docs/spec 范围内的待确认项与后续候选，因此这里保留当前更适合继续推进的后续候选。
 
 1. **Skill 运行时消费路径收敛子任务（候选）**
    - 目标：在不做物理迁移的前提下，优先核查并收敛 `src/**` 运行时路径里 direct import 顶层 implementation 的使用点，明确哪些路径应逐步转向 framework / registry 消费。
@@ -187,5 +187,5 @@
    - 目标：在不改部署配置的前提下，进一步梳理 PM2、supervisord、systemd、docker compose 在当前仓库中的角色边界，明确哪些属于配置默认值，哪些属于文档层说明，哪些需要后续单独治理。
 
 ## 7. 本轮结论
-本轮补充审计以部署端口与进程模型表述这一子范围为主。基于当前对 `deploy/**`、`docs/baselines/current-architecture-baseline.md` 与现有审计文档的静态搜索及关键样本回读，本轮按三类归纳当前仓库中的部署相关静态表述：一类是 PM2 / supervisord / deploy 脚本里的配置或命令默认值，一类是 README 与 baseline 中的人类可读说明，另一类是 `8000` / `8001` 端口指向与多套进程管理角色之间尚未完全统一的待确认差异。因此，相比上一轮“部署路径假设已被编码为静态前提”的结论，本轮可以进一步把问题收敛为：当前更需要先区分证据层级与表述角色，而不是急于把多套脚本 / 文档叙述压成单一部署真相。基于本阶段“不做运维整改、不依赖真实环境核查”的约束，本轮更准确的推进方式是先把 docs/spec 层的表述边界、待确认项与后续治理优先级写清；本轮不直接进入 deploy 配置修改。
+本轮补充审计以部署端口与进程模型表述这一子范围为主。基于当前对 `deploy/**`、`docs/baselines/current-architecture-baseline.md` 与现有审计文档的静态文件回读与关键样本引用——包括 `deploy/ecosystem.config.js` 中 web 环境变量 `NEXT_PUBLIC_API_URL=http://localhost:8000`、`deploy/supervisord.conf` 中 backend `--port 8001`、`deploy/README.md` 中 `systemd + supervisord` 与 `http://localhost:8001/api/health` 的说明——本轮按三类归纳当前仓库中的部署相关静态表述：一类是 PM2 / supervisord / deploy 脚本里的配置或命令默认值，一类是 README 与 baseline 中的人类可读说明，另一类是 `8000` / `8001` 端口指向与多套进程管理角色之间尚未完全统一的待确认差异。因此，相比上一轮“部署路径假设已被编码为静态前提”的结论，本轮可以进一步把问题收敛为：当前更需要先区分证据层级与表述角色，而不是急于把多套脚本 / 文档叙述压成单一部署真相。基于本阶段“不做运维整改、不依赖真实环境核查”的约束，本轮更准确的记录方式是先把 docs/spec 层的表述边界、待确认项与后续治理优先级写清；本轮不直接进入 deploy 配置修改。
 
