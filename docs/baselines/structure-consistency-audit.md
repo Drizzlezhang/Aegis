@@ -158,8 +158,12 @@
   - `deploy/README.md:9`
   - `deploy/README.md:60`
   - `deploy/README.md:158`
+- 证据：`docs/baselines/current-architecture-baseline.md` 已把 deploy 现状拆分为 config / script defaults、human-readable deployment docs 与 baseline interpretation 三层，避免把静态表述直接压成单一运行真相。
+  - `docs/baselines/current-architecture-baseline.md:110`
+  - `docs/baselines/current-architecture-baseline.md:123`
+  - `docs/baselines/current-architecture-baseline.md:127`
 - 结论：**基本符合，但表述边界仍待收敛**
-- 说明：基于当前对 `deploy/**`、`pyproject.toml` 与 baseline 文档的静态回读，本轮可先按三类归纳当前部署相关表述：其一，`deploy/ecosystem.config.js`、`deploy/supervisord.conf` 与 `deploy/deploy.sh` 中的路径、端口与命令更接近配置 / 脚本层默认值；其二，`deploy/README.md` 与 `docs/baselines/current-architecture-baseline.md` 更接近面向人阅读的说明与基线摘要；其三，PM2 web 环境变量中的 `NEXT_PUBLIC_API_URL=http://localhost:8000`、supervisord / README 中的 backend `8001`，以及 PM2 / supervisord / systemd / docker compose 角色表述之间，仍存在仅凭本地静态文件不足以统一判定为单一运行真相的差异。因此，本轮在审计记录层面更保守的写法，不是把这些表述直接归并成单一部署真相，而是先把哪些属于脚本默认值、哪些属于文档叙述、哪些仍只能标记为待确认项或后续候选写清。
+- 说明：基于当前对 `deploy/**`、`pyproject.toml`、`deploy/README.md` 与 baseline 文档的静态回读，本轮可先按三类归纳当前部署相关表述：其一，`deploy/ecosystem.config.js`、`deploy/supervisord.conf` 与 `deploy/deploy.sh` 中的路径、端口与命令更接近配置 / 脚本层默认值；其二，`deploy/README.md` 更接近面向人阅读的部署说明；其三，baseline 文档当前则负责把这两类静态证据分层记录，并把 `8000` / `8001` 端口指向与多套进程管理角色之间的关系保留为待确认项。因此，本轮更准确的收敛方式，不是把 PM2、supervisord、systemd、docker compose 压成单一路径，而是先把每类表述各自属于什么证据层级写清；本轮不直接进入部署配置修改。
 
 ## 5. 审计摘要
 ### 5.1 已符合

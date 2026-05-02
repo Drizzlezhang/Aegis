@@ -107,17 +107,30 @@ Observed result:
 - `14 files / 29 tests passed`
 
 ## Deployment Baseline
-### PM2 config
+### Config / script defaults
 - `deploy/ecosystem.config.js`
-  - `aegis-trader-analyzer`：通过 `python -m src.cli analyze --all` 启动
+  - PM2 下定义了 `aegis-trader-analyzer` 与 `aegis-trader-web` 两个进程项
+  - `aegis-trader-analyzer`：通过 `python -m src.cli analyze --all` 启动，`cwd` 为 `/app`
   - `aegis-trader-web`：通过 `npm start` 启动，`cwd` 为 `/app/web`
-
-### Deploy script
+  - web 环境变量把 `PORT=3000` 与 `NEXT_PUBLIC_API_URL=http://localhost:8000` 作为 PM2 默认值写入配置
+- `deploy/supervisord.conf`
+  - `backend`：通过 `uvicorn src.api.main:app --port 8001` 启动，`directory` 为 `/app`
+  - `frontend`：通过 `npm start` 启动，`directory` 为 `/app/web`
 - `deploy/deploy.sh`
   - 目标路径：`/opt/aegis-trader`
   - 默认分支：`master`
   - 默认通过 `docker compose build --no-cache` 和 `docker compose up -d` 部署
   - 部署脚本依赖当前仓库顶层结构和固定路径假设
+
+### Human-readable deployment docs
+- `deploy/README.md`
+  - 以 `systemd + supervisord` 描述生产环境进程管理
+  - 健康检查示例指向 `http://localhost:8001/api/health`
+
+### Baseline interpretation
+- 当前仓库里同时存在 PM2、supervisord、systemd 与 docker compose 相关表述。
+- 仅基于静态文件，可先区分哪些属于配置 / 脚本默认值，哪些属于面向人阅读的说明；但不能把这些表述直接合并成单一部署真相。
+- `8000` 与 `8001` 的端口差异、以及多套进程管理角色之间的关系，当前仍属于待确认项。
 
 ## Constraints For Refactor
 - 不修改任何业务逻辑
