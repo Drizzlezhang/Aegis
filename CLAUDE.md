@@ -33,6 +33,18 @@ TradeAgent/
 - `tests/`：单元、集成、API、端到端测试。
 - `deploy/`：部署配置。
 
+## 目录级规则分层（Phase 2 最小落位）
+- 根 `CLAUDE.md` 继续承载全局项目契约、跨目录协作规则、风险控制与统一验证要求。
+- `web/CLAUDE.md` 承载仅对前端目录生效的局部规则；进入 `web/` 范围工作时，应同时遵守根规则与 `web` 局部规则。
+- 当前阶段只做规则落位，不做物理目录迁移；`feature/shared/foundation` 等未来结构仅作为职责参考，不视为已承诺目录形态。
+- 当前阶段不继续下钻到 `app/`、`components/`、`lib/` 等二级目录 `CLAUDE.md`，除非后续阶段单独确认目录边界已稳定。
+
+## 开发规范
+### Skill 接口
+- 每个 Skill 必须包含 `skill.yaml` 元数据和 `skill.py` 实现
+- Skill 基类定义在 `src/skills/base.py`
+- 通过 `SkillRegistry` 动态发现和加载
+
 ### 架构硬约束
 - 垂直分层：`Data -> Analysis -> Strategy -> Memory`。
 - 水平隔离：Agent 之间不直接耦合，通过 Orchestrator 协调。

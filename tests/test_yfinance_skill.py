@@ -102,26 +102,20 @@ async def test_get_ohlcv_success(yfinance_skill, mock_ohlcv_data):
 
 @pytest.mark.asyncio
 async def test_get_ohlcv_caching(yfinance_skill, mock_ohlcv_data):
-    """Test OHLCV data caching."""
+    """Test OHLCV retrieval remains stable across repeated calls."""
     symbol = "QQQ"
 
-    # Mock the actual yfinance call
-    with patch.object(yfinance_skill, '_get_ohlcv_data', return_value=mock_ohlcv_data) as mock_get_data:
-        # First call should call the API
-        _result1 = await yfinance_skill.get_ohlcv(symbol)
-        # Note: get_ohlcv calls _get_ohlcv_data internally with default parameters
-        # The mock is called with the actual parameters
-        assert mock_get_data.call_count >= 1
+    with patch.object(yfinance_skill, '_get_ohlcv_data', return_value=mock_ohlcv_data):
+        first_result = await yfinance_skill.get_ohlcv(symbol)
+        second_result = await yfinance_skill.get_ohlcv(symbol)
+        different_period_result = await yfinance_skill.get_ohlcv(symbol, period="30d")
 
-        # Second call with same parameters should use cache
-        _result2 = await yfinance_skill.get_ohlcv(symbol)
-        # The cache check happens in _get_ohlcv_data, not at the get_ohlcv level
-        # So mock_get_data.call_count may increase due to cache miss or other reasons
-        # We'll just verify the function works without checking exact call count
-
-        # Third call with different parameters should call API again
-        _result3 = await yfinance_skill.get_ohlcv(symbol, period="30d")
-        # The mock will be called again for different parameters
+    assert len(first_result) == 10
+    assert len(second_result) == 10
+    assert len(different_period_result) == 10
+    assert all(isinstance(item, OHLCV) for item in first_result)
+    assert [item.close for item in first_result] == [item.close for item in second_result]
+    assert [item.close for item in first_result] == [item.close for item in different_period_result]
 
 
 @pytest.mark.asyncio

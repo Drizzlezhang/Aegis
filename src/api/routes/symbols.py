@@ -7,16 +7,50 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from skills.algorithms.gex_calculator.skill import GEXCalculatorSkill
-from skills.algorithms.volume_profile.skill import VolumeProfileSkill
-from skills.data_sources.yfinance_skill.skill import YFinanceSkill
 from src.agents.quant_brain.core import create_support_resistance_levels
+from src.skills import get_global_registry
 
 router = APIRouter()
 
 _WATCHLIST_CACHE_TTL_SECONDS = 15
 _WATCHLIST_MAX_CONCURRENCY = 4
 _watchlist_cache: dict[str, Any] = {"expires_at": 0.0, "data": None}
+
+
+def _get_skill(name: str) -> Any | None:
+    """Get skill instance from global registry."""
+    registry = get_global_registry()
+    return registry.get_skill(name)
+
+
+def _get_volume_profile_skill() -> Any | None:
+    """Get volume profile skill instance."""
+    return _get_skill("volume_profile")
+
+
+def _get_gex_calculator_skill() -> Any | None:
+    """Get GEX calculator skill instance."""
+    return _get_skill("gex_calculator")
+
+
+def _get_yfinance_skill() -> Any | None:
+    """Get yfinance skill instance."""
+    return _get_skill("yfinance_ohlcv")
+
+
+def YFinanceSkill() -> Any | None:
+    """Get yfinance skill instance for route consumption."""
+    return _get_yfinance_skill()
+
+
+def VolumeProfileSkill() -> Any | None:
+    """Get volume profile skill instance for route consumption."""
+    return _get_volume_profile_skill()
+
+
+def GEXCalculatorSkill() -> Any | None:
+    """Get GEX calculator skill instance for route consumption."""
+    return _get_gex_calculator_skill()
 
 
 class SymbolInfo(BaseModel):
@@ -151,7 +185,11 @@ def _build_analysis_levels(price: float, ohlcv: list[Any] | None) -> tuple[list[
         return fallback_supports, fallback_resistances, fallback_volume_profile
 
     try:
-        volume_profile = VolumeProfileSkill().calculate_volume_profile(ohlcv)
+        volume_profile_skill = VolumeProfileSkill()
+        if not volume_profile_skill:
+            return fallback_supports, fallback_resistances, fallback_volume_profile
+
+        volume_profile = volume_profile_skill.calculate_volume_profile(ohlcv)
         support_levels, resistance_levels = create_support_resistance_levels(volume_profile, gex_walls=None)
 
         supports = [
@@ -205,7 +243,11 @@ def _build_gex_walls(price: float, options_chain: Any | None) -> list[GexWall]:
         return fallback
 
     try:
-        walls = GEXCalculatorSkill().calculate_gex_walls(options_chain)
+        gex_calculator_skill = GEXCalculatorSkill()
+        if not gex_calculator_skill:
+            return fallback
+
+        walls = gex_calculator_skill.calculate_gex_walls(options_chain)
         if not walls:
             return fallback
 
@@ -272,11 +314,13 @@ def _build_recommendations(
 
 async def _get_latest_snapshot(symbol: str) -> dict[str, Any] | None:
     """Get latest price and fundamentals snapshot for a symbol."""
-    skill = YFinanceSkill()
+    yfinance_skill = YFinanceSkill()
+    if not yfinance_skill:
+        return None
 
     try:
-        ohlcv = await skill.get_ohlcv(symbol, period="5d", interval="1d")
-        fundamentals = await skill.get_fundamentals(symbol)
+        ohlcv = await yfinance_skill.get_ohlcv(symbol, period="5d", interval="1d")
+        fundamentals = await yfinance_skill.get_fundamentals(symbol)
         if not ohlcv:
             return None
 
@@ -287,7 +331,7 @@ async def _get_latest_snapshot(symbol: str) -> dict[str, Any] | None:
 
         options_chain = None
         try:
-            options_chain = await skill.get_options_chain(symbol)
+            options_chain = await yfinance_skill.get_options_chain(symbol)
         except Exception:
             options_chain = None
 
@@ -312,12 +356,14 @@ async def _get_symbol_info(info: dict[str, Any], semaphore: asyncio.Semaphore) -
     change_percent = float(info["changePercent"])
     volume = int(info["volume"])
 
-    skill = YFinanceSkill()
+    yfinance_skill = YFinanceSkill()
+    if not yfinance_skill:
+        return SymbolInfo(**info)
 
     try:
         async with semaphore:
-            ohlcv = await skill.get_ohlcv(info["symbol"], period="5d", interval="1d")
-            fundamentals = await skill.get_fundamentals(info["symbol"])
+            ohlcv = await yfinance_skill.get_ohlcv(info["symbol"], period="5d", interval="1d")
+            fundamentals = await yfinance_skill.get_fundamentals(info["symbol"])
 
         if ohlcv:
             latest = ohlcv[-1]

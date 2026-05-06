@@ -1,7 +1,13 @@
 'use client';
 
 import { Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
-import type { SupportResistance as SR } from '@/lib/mock-data';
+
+interface SR {
+  level: number;
+  type: 'support' | 'resistance';
+  strength: 'weak' | 'moderate' | 'strong';
+  source: string;
+}
 
 interface SupportResistanceProps {
   supports: SR[];
