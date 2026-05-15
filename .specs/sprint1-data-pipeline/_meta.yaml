@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint1-data-pipeline"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-15T12:00:00+08:00"
+updated_at: "2026-05-15T14:00:00+08:00"
+retry_count: 0
+last_tldr: "5-VERIFY done. 14/14 ACs PASS. 379 tests all pass."
+last_next: "Enter 6-SHIP, create commit."
+last_risk: "None remaining."
+last_progress_note: "VERIFY pass. 14/14 ACs verified. Manager is now primary data path with SkillRegistry fallback. 379 pytest pass."
+last_context_mode: "full"
+last_verified_at: ""

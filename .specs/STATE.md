@@ -1,8 +1,8 @@
 # Active Change State
 
-- active_change_id: refactor-phase1-architecture
-- current_stage: 5-VERIFY
+- active_change_id: sprint1-data-pipeline
+- current_stage: 0-CHANGE
 - interrupted_reason: none
-- unfinished_tasks: ready for ship or commit/push hotfix
-- updated_at: 2026-05-15T10:05:00+08:00
-- recovery_mode: 恢复
+- unfinished_tasks: enter 1-SPEC
+- updated_at: 2026-05-15T12:00:00+08:00
+- recovery_mode: 新建
