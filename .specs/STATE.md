@@ -1,8 +1,8 @@
 # Active Change State
 
-- active_change_id: add-memory-position-engine
+- active_change_id: extend-memory-position-workflow
 - current_stage: 5-VERIFY
-- interrupted_reason: none
-- unfinished_tasks: optional ship/commit step only
-- updated_at: 2026-05-15T20:32:00+08:00
+- interrupted_reason: awaiting ship approval
+- unfinished_tasks: run pre-commit gate and create commit if approved
+- updated_at: 2026-05-15T21:35:00+08:00
 - recovery_mode: 新建

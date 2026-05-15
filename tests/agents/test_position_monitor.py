@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.position_monitor.monitor import AlertType, PositionMonitor
 from src.agents.position_monitor.position_manager import PositionManager
-from src.models import OptionContract, OptionType, Position, ProfitTarget, StopLoss, TradePlan, StrategyMode
+from src.models import OptionContract, OptionType, Position, ProfitTarget, RollTrigger, StopLoss, TradePlan, StrategyMode
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def monitor(manager):
     return PositionMonitor(manager)
 
 
-def make_position(days_to_expiry: int = 120):
+def make_position(days_to_expiry: int = 120, profit_targets: list[ProfitTarget] | None = None, roll_trigger: RollTrigger | None = None):
     return Position(
         id="pos-1",
         symbol="QQQ",
@@ -42,7 +42,8 @@ def make_position(days_to_expiry: int = 120):
         trade_plan=TradePlan(
             strategy_mode=StrategyMode.LEFT_SIDE,
             stop_loss=StopLoss(type="percentage", value=50.0),
-            profit_targets=[ProfitTarget(level=1, percentage=100.0, action="trim", description="Take profit")],
+            profit_targets=profit_targets or [ProfitTarget(level=1, percentage=100.0, action="trim", description="Take profit")],
+            roll_trigger=roll_trigger,
         ),
     )
 
@@ -80,10 +81,48 @@ async def test_dte_warning_triggers_warning_alert(manager, monitor):
     assert alerts[0].severity == "warning"
 
 
+
+
 @pytest.mark.asyncio
-async def test_healthy_position_returns_no_alerts(manager, monitor):
-    await manager.open_position(make_position(days_to_expiry=120))
+async def test_multi_profit_targets_emit_multiple_alerts(manager, monitor):
+    await manager.open_position(
+        make_position(
+            profit_targets=[
+                ProfitTarget(level=1, percentage=50.0, action="trim", description="L1"),
+                ProfitTarget(level=2, percentage=100.0, action="trim", description="L2"),
+            ]
+        )
+    )
 
-    alerts = await monitor.scan({"QQQ": 8.0})
+    alerts = await monitor.scan({"QQQ": 16.0})
 
-    assert alerts == []
+    profit_alerts = [alert for alert in alerts if alert.alert_type == AlertType.PROFIT_TARGET]
+    assert len(profit_alerts) == 2
+
+
+@pytest.mark.asyncio
+async def test_roll_trigger_emits_price_alert_only_when_all_conditions_match(manager, monitor):
+    await manager.open_position(
+        make_position(
+            days_to_expiry=30,
+            roll_trigger=RollTrigger(min_dte_remaining=60, min_profit_pct=50.0),
+        )
+    )
+
+    alerts = await monitor.scan({"QQQ": 16.0})
+
+    assert any(alert.alert_type == AlertType.PRICE_ALERT for alert in alerts)
+
+
+@pytest.mark.asyncio
+async def test_roll_trigger_skips_when_profit_condition_not_met(manager, monitor):
+    await manager.open_position(
+        make_position(
+            days_to_expiry=30,
+            roll_trigger=RollTrigger(min_dte_remaining=60, min_profit_pct=50.0),
+        )
+    )
+
+    alerts = await monitor.scan({"QQQ": 10.0})
+
+    assert all(alert.alert_type != AlertType.PRICE_ALERT for alert in alerts)

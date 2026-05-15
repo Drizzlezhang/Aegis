@@ -382,8 +382,9 @@ class TestAegisMemoryAgent:
         assert decisions[0].outcome == DecisionOutcome.PENDING
 
     @pytest.mark.asyncio
-    async def test_run_records_open_decision_with_recommendation(self, agent, sample_agent_state):
+    async def test_run_records_open_decision_with_context_and_bridge(self, agent, sample_agent_state):
         await agent.initialize()
+        sample_agent_state.analysis_report = "technical_score: 7.5\nmacro_regime: risk_on"
 
         await agent.run(sample_agent_state)
 
@@ -392,6 +393,13 @@ class TestAegisMemoryAgent:
         assert decisions[0].decision_type.value == "open"
         assert decisions[0].contract_symbol == "QQQ240621C00150000"
         assert decisions[0].strategy_name == sample_agent_state.recommended_options[0].recommendation_type
+        assert decisions[0].technical_score == 7.5
+        assert decisions[0].macro_regime == "risk_on"
+
+        await agent._position_manager.load()
+        positions = await agent._position_manager.get_positions_by_symbol("QQQ")
+        assert len(positions) == 1
+        assert positions[0].contract.contract_symbol == "QQQ240621C00150000"
 
     @pytest.mark.asyncio
     async def test_add_trading_action_via_agent(self, agent):

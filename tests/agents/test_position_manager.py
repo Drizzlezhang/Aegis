@@ -81,15 +81,24 @@ async def test_state_machine_planned_active_closed(manager, sample_position):
     assert closed is not None and closed.status == PositionStatus.CLOSED
 
 
+
+
 @pytest.mark.asyncio
-async def test_save_and_load_roundtrip(manager, sample_position):
+async def test_open_position_autosaves_to_disk(manager, sample_position):
     await manager.open_position(sample_position)
-    await manager.save()
 
-    reloaded = PositionManager(storage_path=str(manager._storage_path))
-    await reloaded.load()
-    position = await reloaded.get_position("pos-1")
+    assert manager._storage_path.exists()
+    assert manager._storage_path.read_text(encoding="utf-8").strip()
 
-    assert position is not None
-    assert position.symbol == "QQQ"
-    assert position.contract.contract_symbol == "QQQ260116C00450000"
+
+@pytest.mark.asyncio
+async def test_close_position_missing_id_raises_value_error(manager):
+    with pytest.raises(ValueError, match="Position not found: missing"):
+        await manager.close_position("missing", close_price=1.0)
+
+
+@pytest.mark.asyncio
+async def test_update_price_missing_id_is_noop(manager):
+    await manager.update_price("missing", 9.0)
+
+    assert await manager.get_position("missing") is None

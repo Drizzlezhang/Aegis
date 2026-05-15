@@ -58,16 +58,28 @@ class PositionMonitor:
                 )
             )
 
-        profit_target_price = self._resolve_profit_target_price(position)
-        if profit_target_price is not None and current_price >= profit_target_price:
+        for level, profit_target_price in self._resolve_profit_target_prices(position):
+            if current_price >= profit_target_price:
+                alerts.append(
+                    MonitorAlert(
+                        alert_type=AlertType.PROFIT_TARGET,
+                        position_id=position.id,
+                        symbol=position.symbol,
+                        message=f"{position.symbol} reached profit target L{level} at {current_price}",
+                        severity="info",
+                        suggested_action="Review profit taking",
+                    )
+                )
+
+        if self._should_emit_roll_alert(position, current_price):
             alerts.append(
                 MonitorAlert(
-                    alert_type=AlertType.PROFIT_TARGET,
+                    alert_type=AlertType.PRICE_ALERT,
                     position_id=position.id,
                     symbol=position.symbol,
-                    message=f"{position.symbol} reached profit target at {current_price}",
-                    severity="info",
-                    suggested_action="Review profit taking",
+                    message=f"{position.symbol} met roll trigger at {current_price}",
+                    severity="warning",
+                    suggested_action="Review roll plan",
                 )
             )
 
@@ -96,9 +108,21 @@ class PositionMonitor:
             return position.entry_price * (1 - stop_loss.value / 100)
         return None
 
-    def _resolve_profit_target_price(self, position: Position) -> float | None:
+    def _resolve_profit_target_prices(self, position: Position) -> list[tuple[int, float]]:
         trade_plan = position.trade_plan
         if trade_plan is None or not trade_plan.profit_targets:
-            return None
-        target = trade_plan.profit_targets[0]
-        return position.entry_price * (1 + target.percentage / 100)
+            return []
+        return [
+            (target.level, position.entry_price * (1 + target.percentage / 100))
+            for target in trade_plan.profit_targets
+        ]
+
+    def _should_emit_roll_alert(self, position: Position, current_price: float) -> bool:
+        trade_plan = position.trade_plan
+        if trade_plan is None or trade_plan.roll_trigger is None:
+            return False
+        roll_trigger = trade_plan.roll_trigger
+        pnl_pct = 0.0
+        if position.entry_price > 0:
+            pnl_pct = ((current_price - position.entry_price) / position.entry_price) * 100
+        return position.dte_remaining <= roll_trigger.min_dte_remaining and pnl_pct >= roll_trigger.min_profit_pct

@@ -6,12 +6,12 @@
 ## Current
 - **change_id**: add-memory-position-engine
 - **size**: M
-- **current_stage**: 5-VERIFY
+- **current_stage**: 6-SHIP
 - **status**: completed
-- **updated_at**: 2026-05-15T20:32:00+08:00
+- **updated_at**: 2026-05-15T20:40:00+08:00
 
 ## Next Action
-Enter 6-SHIP if user wants commit preparation; otherwise hold with verified implementation complete.
+Start Sprint 2 Session 3 as a new change if more memory-position work is needed.
 
 ## Open Questions
 - [x] 是否接受 AC-8 仅由集成回归覆盖、未单独补 memory-agent 决策日志断言测试？
@@ -27,6 +27,7 @@ Enter 6-SHIP if user wants commit preparation; otherwise hold with verified impl
 - [2026-05-15T20:12:00+08:00] 3-PLAN → created tasks.md with waves, dependencies, and verify commands
 - [2026-05-15T20:25:00+08:00] 4-BUILD → completed implementation, targeted tests, import checks, and full pytest pass
 - [2026-05-15T20:32:00+08:00] 5-VERIFY → closed prompt-alignment gaps and re-passed strict/full verification
+- [2026-05-15T20:40:00+08:00] 6-SHIP → committed 150d71b and pushed branch to origin/aegis-memory
 
 ## Notes
 外部需求来源：`/Users/bytedance/Downloads/sprint1-session3-memory-position.md`。

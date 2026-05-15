@@ -20,10 +20,13 @@ class PositionManager:
             PositionAction(action_type="open", date=opened.entry_date, price=opened.entry_price, quantity=opened.quantity)
         )
         self._positions[opened.id] = opened
+        await self.save()
         return opened.id
 
     async def close_position(self, position_id: str, close_price: float, reason: str = "") -> PositionAction:
-        position = self._positions[position_id]
+        position = self._positions.get(position_id)
+        if position is None:
+            raise ValueError(f"Position not found: {position_id}")
         position.status = PositionStatus.CLOSED
         position.close_date = date.today()
         position.current_price = close_price
@@ -35,10 +38,14 @@ class PositionManager:
             notes=reason,
         )
         position.actions.append(action)
+        await self.save()
         return action
 
     async def update_price(self, position_id: str, current_price: float) -> None:
-        self._positions[position_id].current_price = current_price
+        position = self._positions.get(position_id)
+        if position is None:
+            return
+        position.current_price = current_price
 
     async def get_position(self, position_id: str) -> Position | None:
         position = self._positions.get(position_id)

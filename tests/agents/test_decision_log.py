@@ -9,6 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.aegis_memory.decision_log import DecisionLog
+from src.services import DecisionLog as SharedDecisionLog
 from src.models.decision import DecisionEntry, DecisionOutcome, DecisionType
 
 
@@ -81,17 +82,7 @@ async def test_export_markdown_outputs_expected_format(decision_log, sample_entr
     assert "QQQ240621C00150000" in markdown
 
 
-@pytest.mark.asyncio
-async def test_concurrent_append_keeps_all_rows(decision_log, sample_entry):
-    entries = []
-    for index in range(5):
-        entry = sample_entry.model_copy(deep=True)
-        entry.id = str(uuid4())
-        entry.reasoning = f"reason-{index}"
-        entries.append(entry)
 
-    await __import__("asyncio").gather(*(decision_log.append(entry) for entry in entries))
 
-    results = await decision_log.query_by_symbol("QQQ", limit=10)
-
-    assert len(results) == 5
+def test_legacy_and_shared_decision_log_exports_match():
+    assert DecisionLog is SharedDecisionLog

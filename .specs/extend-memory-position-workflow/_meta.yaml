@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "extend-memory-position-workflow"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-15T20:45:00+08:00"
+updated_at: "2026-05-15T21:35:00+08:00"
+retry_count: 0
+last_tldr: "Completed Sprint 2 build, targeted tests, and full regression for shared DecisionLog, bridge/reflection, PositionManager semantics, and monitor upgrades."
+last_next: "Run pre-commit ship gate, then prepare 6-SHIP commit if user approves."
+last_risk: "Only remaining risk is non-blocking Pyright import-index noise; runtime, compile, and pytest verification all pass."
+last_progress_note: "5-VERIFY captured AC-1..AC-12 evidence in verification.md with 39 targeted tests and 381 full-suite passes."
+last_context_mode: "full"
+last_verified_at: "2026-05-15T21:35:00+08:00"

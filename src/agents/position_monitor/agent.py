@@ -1,14 +1,17 @@
 """Position Monitor Agent implementation."""
 
+import logging
 from uuid import uuid4
 
 from src.agents.base import BaseAgent
 from src.models import AgentState, DecisionEntry, DecisionType
-
-from src.agents.aegis_memory.decision_log import DecisionLog
+from src.services import DecisionLog
 
 from .monitor import AlertType, PositionMonitor
 from .position_manager import PositionManager
+from .reflection import ReflectionEngine
+
+logger = logging.getLogger(__name__)
 
 
 class PositionMonitorAgent(BaseAgent):
@@ -23,6 +26,11 @@ class PositionMonitorAgent(BaseAgent):
         self._manager = PositionManager(storage_path=storage_path)
         self._monitor = PositionMonitor(self._manager)
         self._decision_log = DecisionLog(storage_path=decision_path)
+        self._reflection_engine = ReflectionEngine(
+            self._decision_log,
+            self._manager,
+            reflection_delay_hours=self.config.get("reflection_delay_hours", 24),
+        )
 
     async def initialize(self) -> None:
         await self._manager.load()
@@ -31,6 +39,7 @@ class PositionMonitorAgent(BaseAgent):
         state.add_agent_step(self.name)
         market_prices = self._extract_market_prices(state)
         alerts = await self._monitor.scan(market_prices)
+        await self._manager.save()
         state.metadata["position_monitor_alerts"] = [alert.__dict__ for alert in alerts]
         for alert in alerts:
             if alert.alert_type == AlertType.STOP_LOSS and alert.severity == "critical":
@@ -44,6 +53,13 @@ class PositionMonitorAgent(BaseAgent):
                         reasoning=alert.message,
                     )
                 )
+
+        reflections_processed = 0
+        try:
+            reflections_processed = await self._reflection_engine.scan_for_reflections(market_prices)
+        except Exception as exc:
+            logger.warning("Reflection engine failed: %s", exc)
+        state.metadata["reflections_processed"] = reflections_processed
         return state
 
     def _extract_market_prices(self, state: AgentState) -> dict[str, float]:
