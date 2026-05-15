@@ -7,13 +7,9 @@ from src.agents.base import BaseAgent
 from src.config import get_config
 from src.models import AgentState
 
-from .market_context import analyze_strategy_market_context, format_strategy_market_summary
+from .market_context import analyze_strategy_market_context
 from .report import create_action_report
-from .strategies import (
-    generate_bull_spread_strategy,
-    generate_covered_call_strategy,
-    generate_leaps_call_strategy,
-)
+from .strategies import discover_strategies
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +24,7 @@ class StrategyExecAgent(BaseAgent):
             config=config or {}
         )
         self._config = get_config()
+        self._strategies = discover_strategies()
 
     async def initialize(self) -> None:
         """Initialize strategy execution resources."""
@@ -41,6 +38,7 @@ class StrategyExecAgent(BaseAgent):
         if not state.options_chain:
             logger.error(f"No options chain available for {symbol}")
             state.action_report = f"Strategy-Execution Error: No options chain available for {symbol}"
+            state.strategy_result = state.snapshot_strategy()
             state.add_agent_step(self.name)
             return state
 
@@ -49,7 +47,6 @@ class StrategyExecAgent(BaseAgent):
         valuation_range = state.valuation_range
         current_price = state.options_chain.spot_price
 
-        # Analyze market context for strategy decisions
         market_context = analyze_strategy_market_context(state.market_indices)
         if market_context.vix_level is not None:
             logger.info(
@@ -58,30 +55,19 @@ class StrategyExecAgent(BaseAgent):
                 f"sizing={market_context.position_size_factor:.0%}"
             )
 
-        entry_support = None
-        if support_levels:
-            entry_support = max(support_levels, key=lambda x: x.confidence)
-
         recommendations = []
-
-        leaps_rec = generate_leaps_call_strategy(
-            symbol, state.options_chain, entry_support, valuation_range, current_price, market_context
-        )
-        if leaps_rec:
-            recommendations.append(leaps_rec)
-
-        if entry_support:
-            bull_spread_rec = generate_bull_spread_strategy(
-                symbol, state.options_chain, entry_support, current_price, market_context
+        for strategy in self._strategies:
+            recommendation = strategy.generate(
+                symbol=symbol,
+                options_chain=state.options_chain,
+                support_levels=support_levels,
+                resistance_levels=resistance_levels,
+                valuation_range=valuation_range,
+                current_price=current_price,
+                market_context=market_context,
             )
-            if bull_spread_rec:
-                recommendations.append(bull_spread_rec)
-
-        covered_call_rec = generate_covered_call_strategy(
-            symbol, state.options_chain, resistance_levels, current_price, market_context
-        )
-        if covered_call_rec:
-            recommendations.append(covered_call_rec)
+            if recommendation:
+                recommendations.append(recommendation)
 
         state.recommended_options = recommendations
         state.action_report = create_action_report(
@@ -92,6 +78,7 @@ class StrategyExecAgent(BaseAgent):
             valuation_range=valuation_range,
             market_context=market_context,
         )
+        state.strategy_result = state.snapshot_strategy()
 
         state.add_agent_step(self.name)
         logger.info(f"Strategy-Execution completed for {symbol}, generated {len(recommendations)} recommendations")

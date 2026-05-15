@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
-import { runAnalysis, type AnalysisResult, type AnalysisRecommendation } from '@/lib/api';
+import { runAnalysis, runAnalysisStream, type AnalysisResult, type AnalysisRecommendation } from '@/lib/api';
 
 const SYMBOLS = ['QQQ', 'SPY', 'NVDA', 'MSFT', 'AAPL', 'PLTR', 'NFLX', 'INTC', 'TSM', 'TSLA', 'KO'];
 
@@ -60,21 +60,38 @@ export default function AnalyzeForm() {
     setCurrentStep('Initiating analysis...');
 
     try {
-      const data = await runAnalysis(selected);
-
-      for (let i = 0; i <= 100; i += 10) {
-        setProgress(i);
-        setCurrentStep(`Processing... ${i}%`);
-        await new Promise((r) => setTimeout(r, 150));
+      await runAnalysisStream(selected, {
+        onStart: () => {
+          setProgress(0);
+          setCurrentStep('Initiating analysis...');
+        },
+        onProgress: (payload) => {
+          setProgress(payload.progress);
+          setCurrentStep(`${payload.symbol}: ${payload.stage} (${payload.step}/${payload.totalSteps})`);
+        },
+        onResult: (payload) => {
+          setProgress(payload.progress);
+          setResults((prev) => [...prev, payload.result]);
+          setCurrentStep(`${payload.result.symbol}: completed`);
+        },
+        onDone: () => {
+          setProgress(100);
+          setCurrentStep('Analysis completed');
+        },
+      });
+    } catch (streamErr) {
+      try {
+        setCurrentStep('Streaming unavailable, falling back...');
+        const data = await runAnalysis(selected);
+        setProgress(100);
+        setResults(data.results);
+        setCurrentStep('Analysis completed');
+      } catch (err) {
+        const finalError = err instanceof Error ? err.message : streamErr instanceof Error ? streamErr.message : 'Analysis failed';
+        setError(finalError);
       }
-
-      setResults(data.results);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setRunning(false);
-      setProgress(0);
-      setCurrentStep('');
     }
   };
 
@@ -130,7 +147,7 @@ export default function AnalyzeForm() {
         </Paper>
       )}
 
-      {running && (
+      {(running || progress > 0) && (
         <Paper elevation={0} className="card">
           <div className="flex items-center justify-between text-sm">
             <span className="text-[var(--foreground)]">{currentStep}</span>

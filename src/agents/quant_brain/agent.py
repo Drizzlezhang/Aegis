@@ -127,7 +127,7 @@ class QuantBrainAgent(BaseAgent):
             logger.warning(f"LLM report generation failed: {e}, using basic report")
             # Keep existing basic report
 
-        # Add agent step
+        state.quant_result = state.snapshot_quant()
         state.add_agent_step(self.name)
 
         logger.info(f"Quant-Brain completed analysis for symbol: {symbol}")

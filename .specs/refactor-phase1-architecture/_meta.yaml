@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "refactor-phase1-architecture"
+size: "L"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "5-VERIFY"
+status: "in_progress"
+created_at: "2026-05-14T21:20:00+08:00"
+updated_at: "2026-05-15T00:55:00+08:00"
+retry_count: 0
+last_tldr: "Wave 4 and T11 verification complete; prompt-specified verbose pytest passed."
+last_next: "Prepare 6-SHIP handoff or commit/PR packaging."
+last_risk: "Frontend manual verification still blocked until web dependencies are installed; static type diagnostics remain in src/api/main.py."
+last_progress_note: "T07-T11 done. API, orchestrator, and full verbose pytest suites all passing."
+last_context_mode: "full"
+last_verified_at: "2026-05-15T00:55:00+08:00"

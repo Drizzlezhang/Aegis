@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Any
 
@@ -82,7 +83,9 @@ class YFinanceSkill(BaseSkill):
                 if attempt == self.max_retries - 1:
                     raise
                 logger.warning(f"Attempt {attempt + 1} failed for {symbol}: {e}")
-                asyncio.sleep(self.retry_delay)
+                time.sleep(self.retry_delay)
+
+        raise RuntimeError(f"Failed to get OHLCV for {symbol}")
 
     async def get_ohlcv(
         self,

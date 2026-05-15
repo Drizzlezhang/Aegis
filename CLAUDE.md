@@ -235,3 +235,28 @@ TradeAgent/
 - 任务开始前检查 `git status`。
 - 大改前创建临时分支。
 - 修改后给明确回退命令。
+
+<!-- devkit-managed:start version=1 generated_at=2026-05-14T12:56:48.090Z -->
+## DevKit Configuration
+
+This section is managed by `devkit-init`. Do not edit manually.
+
+### Installed Skills
+- devkit-init: project bootstrap, audit, adopt
+- devkit-go: 7-stage development workflow
+
+### Enabled Plugins
+- superpowers
+- gstack
+
+### Project Meta
+- language: [python, shell, typescript]
+- framework: [fastapi, nextjs]
+- scale: L
+- internal: false
+
+### Workflow Conventions
+- 触发 devkit-go 进入 7 阶段流程
+- _meta.yaml schema_version: 2
+- STATE.md 字段顺序锁定(详见 templates/STATE.md)
+<!-- devkit-managed:end -->

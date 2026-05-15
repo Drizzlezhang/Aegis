@@ -13,8 +13,10 @@ from src.skills import get_global_registry
 router = APIRouter()
 
 _WATCHLIST_CACHE_TTL_SECONDS = 15
+_SNAPSHOT_CACHE_TTL_SECONDS = 15
 _WATCHLIST_MAX_CONCURRENCY = 4
 _watchlist_cache: dict[str, Any] = {"expires_at": 0.0, "data": None}
+_snapshot_cache: dict[str, tuple[float, int | None, dict[str, Any] | None]] = {}
 
 
 def _get_skill(name: str) -> Any | None:
@@ -314,14 +316,21 @@ def _build_recommendations(
 
 async def _get_latest_snapshot(symbol: str) -> dict[str, Any] | None:
     """Get latest price and fundamentals snapshot for a symbol."""
+    now = time.time()
     yfinance_skill = YFinanceSkill()
     if not yfinance_skill:
         return None
+
+    skill_instance_id = id(yfinance_skill)
+    cached = _snapshot_cache.get(symbol)
+    if cached and cached[0] > now and cached[1] == skill_instance_id:
+        return cached[2]
 
     try:
         ohlcv = await yfinance_skill.get_ohlcv(symbol, period="5d", interval="1d")
         fundamentals = await yfinance_skill.get_fundamentals(symbol)
         if not ohlcv:
+            _snapshot_cache[symbol] = (now + _SNAPSHOT_CACHE_TTL_SECONDS, skill_instance_id, None)
             return None
 
         latest = ohlcv[-1]
@@ -335,7 +344,7 @@ async def _get_latest_snapshot(symbol: str) -> dict[str, Any] | None:
         except Exception:
             options_chain = None
 
-        return {
+        snapshot = {
             "price": round(float(latest.close), 2),
             "change": round(change, 2),
             "changePercent": round(change_percent, 2),
@@ -346,7 +355,10 @@ async def _get_latest_snapshot(symbol: str) -> dict[str, Any] | None:
             "ohlcv": ohlcv,
             "optionsChain": options_chain,
         }
+        _snapshot_cache[symbol] = (now + _SNAPSHOT_CACHE_TTL_SECONDS, skill_instance_id, snapshot)
+        return snapshot
     except Exception:
+        _snapshot_cache[symbol] = (now + _SNAPSHOT_CACHE_TTL_SECONDS, skill_instance_id, None)
         return None
 
 
