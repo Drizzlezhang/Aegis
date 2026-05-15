@@ -81,6 +81,19 @@ export type InteractionMessages = {
   price: string;
   return: string;
   showingTrades: string;
+  progress_title: string;
+  step_data_harvester: string;
+  step_quant_brain: string;
+  step_strategy: string;
+  step_memory: string;
+  status_pending: string;
+  status_running: string;
+  status_done: string;
+  status_error: string;
+  retry_button: string;
+  elapsed_time: string;
+  result_summary: string;
+  auto_retrying: string;
 };
 
 export type MessageTree = {

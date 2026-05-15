@@ -137,4 +137,11 @@ async def run_analysis_stream(request: AnalyzeStreamRequest) -> StreamingRespons
         finally:
             await producer_task
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )

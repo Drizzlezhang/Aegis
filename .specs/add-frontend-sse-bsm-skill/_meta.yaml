@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "add-frontend-sse-bsm-skill"
+size: "L"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "active"
+created_at: "2026-05-15T19:39:32+08:00"
+updated_at: "2026-05-15T20:39:11+08:00"
+retry_count: 0
+last_tldr: "6-SHIP 已就绪：pre-ship 通过，commit message 已生成，等待 pre-commit 与提交确认。"
+last_next: "执行 pre-commit gate：确认提交粒度、验证状态、剩余风险后再 git commit。"
+last_risk: "lint 仍为交互式初始化阻塞项，提交说明需显式保留该已知限制。"
+last_progress_note: "Entered ship stage; prepared conventional commit draft for frontend-sse+bsm scope."
+last_context_mode: "full"
+last_verified_at: "2026-05-15T20:35:13+08:00"

@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
-import { runAnalysis, runAnalysisStream, type AnalysisResult, type AnalysisRecommendation } from '@/lib/api';
+import { Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import type { AnalysisRecommendation, AnalysisResult } from '@/lib/api';
+import AnalysisProgress, { type AnalysisProgressCompletePayload } from './AnalysisProgress';
 
 const SYMBOLS = ['QQQ', 'SPY', 'NVDA', 'MSFT', 'AAPL', 'PLTR', 'NFLX', 'INTC', 'TSM', 'TSLA', 'KO'];
+
+type ViewMode = 'idle' | 'progress' | 'results';
 
 function RecommendationCard({ rec }: { rec: AnalysisRecommendation }) {
   return (
@@ -38,11 +41,12 @@ function RecommendationCard({ rec }: { rec: AnalysisRecommendation }) {
 
 export default function AnalyzeForm() {
   const [selected, setSelected] = useState<string[]>([]);
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('');
+  const [analyzingSymbols, setAnalyzingSymbols] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('idle');
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [error, setError] = useState('');
+
+  const running = viewMode === 'progress';
 
   const toggleSymbol = (sym: string) => {
     setSelected((prev) =>
@@ -50,49 +54,23 @@ export default function AnalyzeForm() {
     );
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = () => {
     if (selected.length === 0) return;
 
-    setRunning(true);
-    setProgress(0);
+    setAnalyzingSymbols(selected);
+    setViewMode('progress');
     setResults([]);
     setError('');
-    setCurrentStep('Initiating analysis...');
+  };
 
-    try {
-      await runAnalysisStream(selected, {
-        onStart: () => {
-          setProgress(0);
-          setCurrentStep('Initiating analysis...');
-        },
-        onProgress: (payload) => {
-          setProgress(payload.progress);
-          setCurrentStep(`${payload.symbol}: ${payload.stage} (${payload.step}/${payload.totalSteps})`);
-        },
-        onResult: (payload) => {
-          setProgress(payload.progress);
-          setResults((prev) => [...prev, payload.result]);
-          setCurrentStep(`${payload.result.symbol}: completed`);
-        },
-        onDone: () => {
-          setProgress(100);
-          setCurrentStep('Analysis completed');
-        },
-      });
-    } catch (streamErr) {
-      try {
-        setCurrentStep('Streaming unavailable, falling back...');
-        const data = await runAnalysis(selected);
-        setProgress(100);
-        setResults(data.results);
-        setCurrentStep('Analysis completed');
-      } catch (err) {
-        const finalError = err instanceof Error ? err.message : streamErr instanceof Error ? streamErr.message : 'Analysis failed';
-        setError(finalError);
-      }
-    } finally {
-      setRunning(false);
-    }
+  const handleComplete = (payload: AnalysisProgressCompletePayload) => {
+    setResults(payload.results);
+    setError('');
+    setViewMode('results');
+  };
+
+  const handleError = (message: string) => {
+    setError(message);
   };
 
   return (
@@ -141,31 +119,18 @@ export default function AnalyzeForm() {
         {running ? 'Running Analysis...' : `Analyze ${selected.length > 0 ? selected.length + ' Symbol' + (selected.length > 1 ? 's' : '') : ''}`}
       </Button>
 
+      {viewMode === 'progress' && analyzingSymbols.length > 0 && (
+        <AnalysisProgress
+          symbols={analyzingSymbols}
+          onComplete={handleComplete}
+          onError={handleError}
+          autoStart
+        />
+      )}
+
       {error && (
         <Paper elevation={0} className="card">
           <Typography variant="body2" sx={{ color: 'error.main' }}>Error: {error}</Typography>
-        </Paper>
-      )}
-
-      {(running || progress > 0) && (
-        <Paper elevation={0} className="card">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-[var(--foreground)]">{currentStep}</span>
-            <span className="text-slate-500">{Math.round(progress)}%</span>
-          </div>
-          <LinearProgress
-            variant="determinate"
-            value={progress}
-            sx={{
-              mt: 2,
-              height: 10,
-              borderRadius: 999,
-              bgcolor: 'action.hover',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 999,
-              },
-            }}
-          />
         </Paper>
       )}
 

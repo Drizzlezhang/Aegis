@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readStoredThemeMode, resolveInitialThemeMode, writeStoredThemeMode } from '@/lib/theme/theme-storage';
 
 describe('theme storage helpers', () => {
