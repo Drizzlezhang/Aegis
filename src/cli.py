@@ -131,8 +131,7 @@ async def reload_config_cmd() -> None:
     print(f"配置已重新加载，环境: {config.environment}")
 
 
-def parse_args() -> argparse.Namespace:
-    """解析命令行参数."""
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Aegis-Trader - Multi-Agent quant trading system",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -219,7 +218,12 @@ def parse_args() -> argparse.Namespace:
         help="开发模式自动重载"
     )
 
-    return parser.parse_args()
+    return parser
+
+
+def parse_args() -> argparse.Namespace:
+    """解析命令行参数."""
+    return build_parser().parse_args()
 
 
 def get_symbols_from_args(args: argparse.Namespace) -> list[str]:
@@ -248,11 +252,11 @@ def get_symbols_from_args(args: argparse.Namespace) -> list[str]:
 
 async def main_async() -> None:
     """异步主函数."""
-    args = parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
 
     if not args.command:
-        # 如果没有命令，显示帮助
-        parse_args().parser.print_help()
+        parser.print_help()
         return
 
     if args.command == "analyze":

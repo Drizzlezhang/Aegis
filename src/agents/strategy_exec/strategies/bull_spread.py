@@ -40,7 +40,6 @@ class BullSpreadStrategy(StrategyGenerator):
             for call in leaps_calls:
                 if call.strike <= current_price * 1.02:
                     lower_strike = call
-                    break
             if not lower_strike:
                 lower_strike = leaps_calls[0]
 

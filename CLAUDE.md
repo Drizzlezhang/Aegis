@@ -260,3 +260,40 @@ This section is managed by `devkit-init`. Do not edit manually.
 - _meta.yaml schema_version: 2
 - STATE.md 字段顺序锁定(详见 templates/STATE.md)
 <!-- devkit-managed:end -->
+
+## 13. 4-Clone 并行开发治理规则
+
+### 13.1 Territory Principle（领地原则）
+
+每个 feature 分支只能修改其领地内的文件，禁止跨领地修改：
+
+| Clone 目录 | 分支 | 领地 |
+|---|---|---|
+| `aegis-data/` | `feature/data-pipeline` | `src/agents/data_harvester/`, `skills/`, `src/config.py`, `tests/agents/test_data*`, `tests/skills/` |
+| `aegis-brain/` | `feature/analysis-brain` | `src/agents/quant_brain/`, `src/agents/strategy_exec/`, `src/agents/debate/`, `tests/agents/test_quant*`, `tests/agents/test_strategy*` |
+| `aegis-memory/` | `feature/memory-position` | `src/agents/aegis_memory/`, `src/agents/position_monitor/`, `tests/agents/test_memory*`, `tests/agents/test_position*` |
+| `aegis-ui/` | `feature/frontend-skills` | `web/`, `src/api/`, `tests/api/`, `tests/e2e/` |
+
+### 13.2 Shared File Rules（共享文件规则）
+
+以下文件被多个领地共享，必须遵守修改协议：
+
+| 共享文件/目录 | 规则 |
+|---|---|
+| `src/models/*.py` | **只允许新增文件**，不修改已有文件 |
+| `src/models/__init__.py` | **只允许在末尾追加** `from .xxx import ...` |
+| `src/agents/orchestrator.py` | **只通过 `register_agent()` 接入**，不修改 Orchestrator 内部逻辑 |
+| `src/agents/__init__.py` | **只允许在末尾追加** import 语句 |
+| `CLAUDE.md` | **禁止修改**，只有 main 分支管理员可更新 |
+
+### 13.3 Merge Order（合并顺序）
+
+分支合并到 main 的顺序严格遵循依赖链：
+
+```text
+feature/data-pipeline → feature/analysis-brain → feature/memory-position → feature/frontend-skills
+```
+
+- 上游未 merge，下游不得开始 rebase。
+- 每次只允许一个分支先 merge，其他分支必须在最新 main 上同步后再继续开发。
+- 若共享文件协议被破坏，必须停止并由 main 分支管理员统一协调。

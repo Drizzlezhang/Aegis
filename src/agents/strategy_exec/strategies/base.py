@@ -32,6 +32,9 @@ class StrategyGenerator(ABC):
         pass
 
 
+BaseStrategy = StrategyGenerator
+
+
 def discover_strategies() -> list[StrategyGenerator]:
     """Discover strategy generators from sibling modules."""
     package_name = __name__.rsplit(".", 1)[0]

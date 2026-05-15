@@ -3,6 +3,6 @@
 - active_change_id: refactor-phase1-architecture
 - current_stage: 5-VERIFY
 - interrupted_reason: none
-- unfinished_tasks: verify remaining external prompt scope, then ship or continue build
-- updated_at: 2026-05-14T21:54:00+08:00
-- recovery_mode: 新建
+- unfinished_tasks: ready for ship or commit/push hotfix
+- updated_at: 2026-05-15T10:05:00+08:00
+- recovery_mode: 恢复

@@ -1,5 +1,8 @@
 """Tests for Strategy-Execution market context integration."""
 
+from datetime import date, datetime
+from types import SimpleNamespace
+
 import pytest
 
 from src.agents.strategy_exec.market_context import (
@@ -8,7 +11,11 @@ from src.agents.strategy_exec.market_context import (
     format_strategy_market_summary,
     should_skip_leaps_for_tech,
 )
-from src.models import MarketIndex
+from src.agents.strategy_exec.strategies import BaseStrategy, LeapsCallStrategy, discover_strategies
+from src.agents.strategy_exec.strategies.base import StrategyGenerator
+from src.agents.strategy_exec.strategies.bull_spread import BullSpreadStrategy
+from src.models import MarketIndex, SupportResistanceLevel
+from src.models.options import OptionContract, OptionType
 
 
 def make_index(symbol: str, price: float, change_pct: float) -> MarketIndex:
@@ -18,7 +25,21 @@ def make_index(symbol: str, price: float, change_pct: float) -> MarketIndex:
         price=price,
         change=price * change_pct / 100,
         change_percent=change_pct,
-        timestamp="2024-01-01T00:00:00",
+        timestamp=datetime(2024, 1, 1),
+    )
+
+
+def make_call(strike: float, last_price: float) -> OptionContract:
+    return OptionContract(
+        symbol=f"QQQ-{strike}",
+        underlying="QQQ",
+        contract_symbol=f"QQQ260101C{int(strike * 1000):08d}",
+        strike=strike,
+        expiry=date(2028, 1, 21),
+        option_type=OptionType.CALL,
+        last_price=last_price,
+        bid=last_price,
+        ask=last_price,
     )
 
 
@@ -115,6 +136,59 @@ class TestShouldSkipLeapsForTech:
         ctx = StrategyMarketContext(tech_caution=True)
         assert should_skip_leaps_for_tech("nvda", ctx) is True
         assert should_skip_leaps_for_tech("NvDa", ctx) is True
+
+
+class TestStrategyExports:
+    def test_discover_strategies_returns_three_plugins(self):
+        strategies = discover_strategies()
+
+        assert len(strategies) == 3
+        assert {strategy.name for strategy in strategies} == {
+            "leaps_call",
+            "bull_spread",
+            "covered_call",
+        }
+
+    def test_base_strategy_alias_matches_strategy_generator(self):
+        assert BaseStrategy is StrategyGenerator
+
+    def test_lazy_compat_export_keeps_legacy_class_import(self):
+        assert LeapsCallStrategy.__name__ == "LeapsCallStrategy"
+
+
+class TestBullSpreadStrategy:
+    def test_bull_spread_selects_highest_strike_within_threshold(self):
+        strategy = BullSpreadStrategy()
+        options_chain = SimpleNamespace(
+            calls=[
+                make_call(90.0, 14.0),
+                make_call(95.0, 10.5),
+                make_call(100.0, 7.5),
+                make_call(105.0, 5.0),
+                make_call(110.0, 3.0),
+            ]
+        )
+        support_levels = [
+            SupportResistanceLevel(
+                price=98.0,
+                level_type="support",
+                source="volume_profile",
+                confidence=0.9,
+            )
+        ]
+
+        recommendation = strategy.generate(
+            symbol="QQQ",
+            options_chain=options_chain,
+            support_levels=support_levels,
+            resistance_levels=[],
+            valuation_range=None,
+            current_price=100.0,
+        )
+
+        assert recommendation is not None
+        assert recommendation.contract.strike == 100.0
+        assert recommendation.entry_price == 4.5
 
 
 class TestFormatStrategyMarketSummary:

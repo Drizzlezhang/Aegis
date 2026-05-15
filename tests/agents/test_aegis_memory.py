@@ -3,7 +3,7 @@
 import os
 import sys
 import tempfile
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -126,6 +126,30 @@ def sample_agent_state():
     state.add_agent_step("Quant-Brain")
 
     return state
+
+
+class TestAgentStateSnapshots:
+    def test_timestamp_defaults_to_utc(self):
+        state = AgentState(symbol="QQQ", trade_date=date(2024, 1, 2))
+
+        assert state.timestamp.tzinfo == timezone.utc
+
+    def test_snapshot_quant_deep_copies_models(self, sample_agent_state):
+        snapshot = sample_agent_state.snapshot_quant()
+        sample_agent_state.support_levels[0].price = 88.0
+        sample_agent_state.valuation_range.fair_estimate = 999.0
+
+        assert snapshot.support_levels[0].price == 100.0
+        assert snapshot.valuation_range is not None
+        assert snapshot.valuation_range.fair_estimate == 110.0
+
+    def test_snapshot_strategy_deep_copies_recommendations(self, sample_agent_state):
+        snapshot = sample_agent_state.snapshot_strategy()
+        sample_agent_state.recommended_options[0].entry_price = 42.0
+        sample_agent_state.recommended_options[0].contract.strike = 999.0
+
+        assert snapshot.recommended_options[0].entry_price == 5.0
+        assert snapshot.recommended_options[0].contract.strike == 150.0
 
 
 class TestAnalysisStorage:

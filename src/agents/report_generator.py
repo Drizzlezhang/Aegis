@@ -1,5 +1,6 @@
 """Report generation for Orchestrator."""
 
+from datetime import datetime, timezone
 
 from src.models import AgentState
 
@@ -13,7 +14,7 @@ AEGIS-TRADER ANALYSIS REPORT
 {'=' * 70}
 Symbol: {symbol}
 Trade Date: {state.trade_date}
-Analysis Time: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Analysis Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')}
 Pipeline: {' -> '.join(state.agent_sequence)}
 
 {'=' * 70}

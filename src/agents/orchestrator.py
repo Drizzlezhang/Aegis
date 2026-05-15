@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from importlib import import_module
 from typing import Any, Callable
 
@@ -57,12 +57,10 @@ class Orchestrator:
         self._agents[agent_name] = agent
         if agent_name not in self._pipeline_order:
             self._pipeline_order.append(agent_name)
-        self._sync_legacy_agent_refs()
 
     def unregister_agent(self, agent_name: str) -> None:
         self._agents.pop(agent_name, None)
         self._pipeline_order = [name for name in self._pipeline_order if name != agent_name]
-        self._sync_legacy_agent_refs()
 
     def add_listener(self, event_name: str, listener: Callable[..., Any]) -> None:
         self._listeners.setdefault(event_name, []).append(listener)
@@ -77,11 +75,8 @@ class Orchestrator:
             if asyncio.iscoroutine(result):
                 await result
 
-    def _sync_legacy_agent_refs(self) -> None:
-        self._data_harvester = self._agents.get("Data-Harvester")
-        self._quant_brain = self._agents.get("Quant-Brain")
-        self._strategy_exec = self._agents.get("Strategy-Execution")
-        self._aegis_memory = self._agents.get("Aegis-Memory")
+    def get_agent(self, agent_name: str) -> BaseAgent | None:
+        return self._agents.get(agent_name)
 
     def _build_pipeline_steps(self) -> list[PipelineStep]:
         total = len(self._pipeline_order)
@@ -124,7 +119,7 @@ class Orchestrator:
         execution_time = time.time() - start_time
         self._execution_history.append({
             "symbol": symbol,
-            "timestamp": datetime.now(),
+            "timestamp": datetime.now(timezone.utc),
             "execution_time": execution_time,
             "agent_sequence": state.agent_sequence.copy(),
             "recommendations_count": len(state.recommended_options),
@@ -216,7 +211,7 @@ AEGIS-TRADER ANALYSIS REPORT
 {'=' * 70}
 Symbol: {symbol}
 Trade Date: {state.trade_date}
-Analysis Time: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Analysis Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')}
 Pipeline: {' -> '.join(state.agent_sequence)}
 
 {'=' * 70}

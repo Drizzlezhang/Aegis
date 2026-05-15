@@ -7,18 +7,18 @@
 - **change_id**: refactor-phase1-architecture
 - **size**: L
 - **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-05-14T21:54:00+08:00
+- **status**: completed
+- **updated_at**: 2026-05-15T10:05:00+08:00
 
 ## Next Action
-Review `verification.md` against full external Phase 1 prompt and decide whether current scope is complete enough to enter 6-SHIP.
+- Review working tree and create/push hotfix commit if user wants to ship now.
 
 ## Open Questions
-- [ ] 外部 prompt 在当前已实现项之后，是否还有必须继续落地的 Phase 1 步骤？
+- [x] `src/agents/report_generator.py` 是否存在并仍使用 `__import__('datetime')`？
 
 ## Risks
-- 若外部 prompt 仍有后续强制步骤，当前进入 SHIP 会过早。
-- `trade.py` 兼容 re-export 静态检查告警还在，但运行测试已通过。
+- 热修已通过回归，但工作区仍有 `.claude/skills/`、`.devkit/` 与 `src/agents/strategy_exec/strategies.py` 删除态，提交前需明确是否纳入。
+- `CLAUDE.md` 新并行治理规则与本轮对共享文件的修复属于管理员热修，后续并行开发需严格遵守新增协议。
 
 ## Recent Changes
 - [2026-05-14T21:20:00+08:00] 0-CHANGE → created proposal.md and initialized L-sized change
@@ -27,6 +27,9 @@ Review `verification.md` against full external Phase 1 prompt and decide whether
 - [2026-05-14T21:24:00+08:00] 3-PLAN → created tasks.md with waves, dependencies, and verify commands
 - [2026-05-14T21:42:00+08:00] 4-BUILD → completed T01/T02/T03 and passed pytest after AgentState migration
 - [2026-05-14T21:54:00+08:00] 5-VERIFY → completed T04/T05/T06 and passed full pytest suite
+- [2026-05-15T01:20:00+08:00] 1-SPEC → expanded scope for Sprint 0 hotfix follow-up
+- [2026-05-15T10:05:00+08:00] 5-VERIFY → completed H01~H08 hotfix and passed full pytest suite
 
 ## Notes
 外部需求来源：`/Users/bytedance/Downloads/aegis-phase1-prompt (2).md`。
+Hotfix 来源：`/Users/bytedance/Downloads/aegis-sprint0-hotfix-prompt.md`。

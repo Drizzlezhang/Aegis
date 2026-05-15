@@ -139,7 +139,7 @@ async def test_pipeline_no_options_data(orchestrator):
         return result
 
     # Need to patch the skill's execute method
-    with patch.object(orchestrator._data_harvester._yfinance_skill, 'execute',
+    with patch.object(orchestrator.get_agent("Data-Harvester")._yfinance_skill, 'execute',
                       side_effect=no_options_execute):
         state = await orchestrator.analyze_symbol("QQQ")
 
@@ -154,7 +154,7 @@ async def test_pipeline_error_handling(orchestrator):
     """Test pipeline handles errors gracefully."""
     await orchestrator.initialize()
     # Mock Data-Harvester to raise exception
-    with patch.object(orchestrator._data_harvester, 'run',
+    with patch.object(orchestrator.get_agent("Data-Harvester"), 'run',
                       side_effect=Exception("Network error")):
         state = await orchestrator.analyze_symbol("QQQ")
 

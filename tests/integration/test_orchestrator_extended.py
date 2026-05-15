@@ -301,7 +301,7 @@ class TestEdgeCases:
                 result.data = None
             return result
 
-        with patch.object(orchestrator._data_harvester._yfinance_skill, 'execute',
+        with patch.object(orchestrator.get_agent("Data-Harvester")._yfinance_skill, 'execute',
                           side_effect=empty_ohlcv_execute):
             state = await orchestrator.analyze_symbol("QQQ")
 
@@ -316,7 +316,7 @@ class TestEdgeCases:
         """Test pipeline when quant brain produces no support levels."""
         await orchestrator.initialize()
 
-        with patch.object(orchestrator._quant_brain, 'run', new_callable=AsyncMock) as mock_quant:
+        with patch.object(orchestrator.get_agent("Quant-Brain"), 'run', new_callable=AsyncMock) as mock_quant:
             from src.models import AgentState
             from datetime import date
 
@@ -358,7 +358,7 @@ class TestEdgeCases:
                 result.data = []
             return result
 
-        with patch.object(orchestrator._data_harvester._yfinance_skill, 'execute',
+        with patch.object(orchestrator.get_agent("Data-Harvester")._yfinance_skill, 'execute',
                           side_effect=failing_execute):
             states = await orchestrator.analyze_symbols(["QQQ", "SPY", "AAPL"])
 
@@ -373,7 +373,7 @@ class TestEdgeCases:
         """Verify execution history tracks failed analyses."""
         await orchestrator.initialize()
 
-        with patch.object(orchestrator._data_harvester, 'run',
+        with patch.object(orchestrator.get_agent("Data-Harvester"), 'run',
                           side_effect=Exception("Network error")):
             state = await orchestrator.analyze_symbol("QQQ")
             assert "Pipeline Error" in state.action_report

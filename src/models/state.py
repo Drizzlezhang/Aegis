@@ -1,6 +1,6 @@
 """Agent state and sub-models for pipeline composition."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -60,7 +60,7 @@ class AgentState(BaseModel):
     quant_result: QuantResult = Field(default_factory=QuantResult)
     strategy_result: StrategyResult = Field(default_factory=StrategyResult)
 
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     agent_sequence: list[str] = Field(default_factory=list)
 
     def add_agent_step(self, agent_name: str) -> None:
@@ -68,17 +68,17 @@ class AgentState(BaseModel):
 
     def snapshot_quant(self) -> QuantResult:
         return QuantResult(
-            valuation_range=self.valuation_range,
-            support_levels=self.support_levels.copy(),
-            resistance_levels=self.resistance_levels.copy(),
-            volume_profile=self.volume_profile,
-            gex_walls=self.gex_walls.copy(),
+            valuation_range=self.valuation_range.model_copy(deep=True) if self.valuation_range else None,
+            support_levels=[level.model_copy(deep=True) for level in self.support_levels],
+            resistance_levels=[level.model_copy(deep=True) for level in self.resistance_levels],
+            volume_profile=self.volume_profile.model_copy(deep=True) if self.volume_profile else None,
+            gex_walls=[wall.model_copy(deep=True) for wall in self.gex_walls],
             analysis_report=self.analysis_report,
         )
 
     def snapshot_strategy(self) -> StrategyResult:
         return StrategyResult(
-            recommended_options=self.recommended_options.copy(),
+            recommended_options=[option.model_copy(deep=True) for option in self.recommended_options],
             action_report=self.action_report,
         )
 

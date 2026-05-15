@@ -86,9 +86,9 @@ class OrderFlow(BaseModel):
         return bullish - bearish
 
     @property
-    def put_call_ratio(self) -> float:
+    def put_call_ratio(self) -> float | None:
         if self.call_volume == 0:
-            return float("inf")
+            return None
         return self.put_volume / self.call_volume
 
 

@@ -1,0 +1,33 @@
+schema_version: 1
+scanned_at: 2026-05-14T12:56:48.084Z
+ttl_seconds: 604800
+fingerprint:
+  package_json_hash: sha256:d01cb3706d877258d854c19aaec643a56a70fac8e97103d190bc4f07f51e416d
+  lockfile_hash: sha256:2cad058b9ac4b7e860f11de4b6bdfef742f4cf87647812477b1c121afed50979
+  go_mod_hash: ""
+  pyproject_hash: sha256:a5170618e597b5b3778eec63e11bd5602fd170634b2fbad87bf01c3131126a3a
+  git_remote: https://github.com/Drizzlezhang/Aegis.git
+project:
+  name: aegis-trader
+  language: [python, shell, typescript]
+  framework: [fastapi, nextjs]
+  scale: L
+  loc: 22364
+  module_count: 6
+  is_monorepo: false
+byted_signals:
+  strong: []
+  weak: []
+  is_internal: false
+ai_configs:
+  has_claude_md: true
+  has_cursor_rules: false
+  installed_skills: [devkit-go, devkit-init]
+  enabled_plugins: [superpowers, gstack]
+  mcp_servers: []
+  managed_by: devkit
+context_budget:
+  xs: 3000
+  s: 5000
+  m: 30000
+  l: 80000
