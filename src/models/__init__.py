@@ -25,6 +25,7 @@ from .plan import (
     TradePlan,
 )
 from .position import Position, PositionAction, PositionStatus
+from .scoring import MacroRegime, TechnicalScoreBreakdown
 from .state import AgentState, QuantResult, StrategyResult
 from .technical import (
     MomentumIndicators,
@@ -73,4 +74,6 @@ __all__ = [
     "TrendIndicators",
     "VolumeIndicators",
     "RecommendedOption",
+    "MacroRegime",
+    "TechnicalScoreBreakdown",
 ]

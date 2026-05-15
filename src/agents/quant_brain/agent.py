@@ -15,6 +15,7 @@ from .core import (
     create_support_resistance_levels,
 )
 from .llm_integration import generate_llm_enhanced_report
+from .macro_regime import MacroRegimeAnalyzer
 from .market_context import analyze_market_context
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,12 @@ class QuantBrainAgent(BaseAgent):
             if valuation_range:
                 state.valuation_range = valuation_range
 
+        # Run technical scoring step
+        await self._run_technical_score(state)
+
+        # Run macro regime step
+        await self._run_macro_regime(state)
+
         # Generate enhanced LLM report with market context
         try:
             enhanced_report = await generate_llm_enhanced_report(
@@ -132,3 +139,95 @@ class QuantBrainAgent(BaseAgent):
 
         logger.info(f"Quant-Brain completed analysis for symbol: {symbol}")
         return state
+
+    async def _run_technical_score(self, state: AgentState) -> None:
+        """Calculate 100-point technical score and append to analysis report."""
+        try:
+            scorer = self._skill_registry.get_skill("technical_scorer")
+            if scorer is None:
+                logger.warning("Technical scorer skill not found, skipping scoring step")
+                return
+
+            current_price = state.options_chain.spot_price if state.options_chain else None
+            if current_price is None and state.ohlcv_data:
+                current_price = state.ohlcv_data[-1].close
+
+            if current_price is None:
+                logger.warning("No current price available, skipping scoring step")
+                return
+
+            result = await scorer.execute({
+                "ohlcv_data": state.ohlcv_data or [],
+                "technical_indicators": self._build_technical_indicators(state),
+                "support_levels": [s.price for s in state.support_levels],
+                "current_price": current_price,
+            })
+
+            if result.success:
+                score = result.data
+                state.add_agent_step("technical_score")
+                breakdown_str = (
+                    f"Trend: {score.trend_score:.0f}/30 | "
+                    f"Deviation: {score.deviation_score:.0f}/20 | "
+                    f"Volume: {score.volume_score:.0f}/15 | "
+                    f"Support: {score.support_score:.0f}/10 | "
+                    f"MACD: {score.macd_score:.0f}/15 | "
+                    f"RSI: {score.rsi_score:.0f}/10"
+                )
+                state.analysis_report = (
+                    state.analysis_report
+                    + f"\n## Technical Score\n"
+                    f"Grade: {score.grade}, Total: {score.total:.1f}/100\n"
+                    f"{breakdown_str}\n"
+                )
+                logger.info(f"Technical score: Grade={score.grade}, Total={score.total:.1f}")
+            else:
+                logger.warning(f"Technical scorer failed: {result.error}")
+        except Exception as e:
+            logger.warning(f"Technical scoring step failed: {e}")
+
+    async def _run_macro_regime(self, state: AgentState) -> None:
+        """Analyze macro regime and append to analysis report."""
+        try:
+            analyzer = MacroRegimeAnalyzer()
+            market_data = self._build_market_data(state)
+            regime = await analyzer.analyze(market_data)
+
+            state.add_agent_step("macro_regime")
+            state.analysis_report = (
+                state.analysis_report
+                + f"\n## Macro Regime\n"
+                f"Regime: {regime.regime} (confidence: {regime.confidence:.2f})\n"
+                f"VIX: {regime.vix_signal} | Trend: {regime.market_trend} | "
+                f"Sector: {regime.sector_rotation} | "
+                f"Safe Haven Pressure: {regime.safe_haven_pressure:.2f} | "
+                f"Credit: {regime.credit_spread}\n"
+                f"Factors: {regime.factors}\n"
+            )
+            logger.info(f"Macro regime: {regime.regime} (confidence: {regime.confidence:.2f})")
+        except Exception as e:
+            logger.warning(f"Macro regime analysis failed: {e}")
+
+    def _build_technical_indicators(self, state: AgentState) -> dict:
+        """Extract technical indicators from state for scoring."""
+        indicators: dict[str, Any] = {}
+        return indicators
+
+    def _build_market_data(self, state: AgentState) -> dict[str, Any]:
+        """Extract market data from state for regime analysis."""
+        market_data: dict[str, Any] = {}
+
+        for idx in state.market_indices:
+            symbol = idx.symbol.upper()
+            if symbol in ("^VIX", "VIX"):
+                market_data["VIX"] = idx.price
+            elif symbol in ("SPY", "^GSPC", "SPX"):
+                market_data["SPY_trend"] = (
+                    "bullish" if idx.change_percent > 0 else "bearish" if idx.change_percent < 0 else "neutral"
+                )
+            elif symbol in ("QQQ", "^IXIC", "NDX"):
+                market_data["QQQ_trend"] = (
+                    "bullish" if idx.change_percent > 0 else "bearish" if idx.change_percent < 0 else "neutral"
+                )
+
+        return market_data
