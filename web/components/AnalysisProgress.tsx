@@ -165,7 +165,7 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
     });
   }, []);
 
-  const runStream = useCallback(async () => {
+  const runStream = useCallback(async (signal?: AbortSignal) => {
     setRunning(true);
     setError('');
 
@@ -199,14 +199,20 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
           setRunning(false);
           onComplete({ results: resultsRef.current, totalTime: payload.totalTime, progress: payload.progress });
         },
-      });
+      }, signal);
     } catch (streamError) {
+      if (signal?.aborted) {
+        setRunning(false);
+        return;
+      }
       const message = streamError instanceof Error ? streamError.message : 'Analysis stream failed';
       if (!retriedRef.current) {
         retriedRef.current = true;
         setCurrentMessage(getMessage(locale, 'interaction.auto_retrying'));
         setTimeout(() => {
-          void runStream();
+          if (!signal?.aborted) {
+            void runStream(signal);
+          }
         }, 250);
         return;
       }
@@ -226,7 +232,9 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
   useEffect(() => {
     if (!autoStart || symbols.length === 0 || startedRef.current) return;
     startedRef.current = true;
-    void runStream();
+    const controller = new AbortController();
+    void runStream(controller.signal);
+    return () => controller.abort();
   }, [autoStart, symbols, runStream]);
 
   const handleRetry = async () => {
