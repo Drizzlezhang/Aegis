@@ -4,7 +4,8 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Literal
+from enum import StrEnum
+from typing import Any
 
 import cachetools
 
@@ -14,15 +15,21 @@ from src.config import DataSourceConfig
 logger = logging.getLogger(__name__)
 
 CIRCUIT_FAILURE_THRESHOLD = 3
-CIRCUIT_OPEN_SECONDS = 30.0
+CIRCUIT_OPEN_SECONDS = 60.0
 BACKOFF_INITIAL = 1.0
 BACKOFF_MULTIPLIER = 2.0
 BACKOFF_MAX = 30.0
 
 
+class CircuitStatus(StrEnum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+
 @dataclass
 class CircuitState:
-    status: Literal["closed", "open", "half_open"] = "closed"
+    status: CircuitStatus = CircuitStatus.CLOSED
     failure_count: int = 0
     last_failure_at: float = 0.0
     open_until: float = 0.0
@@ -39,7 +46,7 @@ class DataFetcherManager:
             f.name: CircuitState() for f in self._fetchers
         }
         self._cache: cachetools.TTLCache[str, Any] = cachetools.TTLCache(
-            maxsize=100, ttl=config.cache_ttl_seconds
+            maxsize=128, ttl=config.cache_ttl_seconds
         )
 
     def _cache_key(self, prefix: str, symbol: str, **kwargs: Any) -> str:
@@ -58,11 +65,11 @@ class DataFetcherManager:
         now = time.monotonic()
 
         # 熔断器检查
-        if circuit.status == "open":
+        if circuit.status == CircuitStatus.OPEN:
             if now < circuit.open_until:
                 return None, False
             # 半开
-            circuit.status = "half_open"
+            circuit.status = CircuitStatus.HALF_OPEN
 
         # 退避等待
         if circuit.backoff_wait > BACKOFF_INITIAL:
@@ -75,7 +82,7 @@ class DataFetcherManager:
             elapsed = (time.monotonic() - start) * 1000
 
             # 成功：重置熔断器和退避
-            circuit.status = "closed"
+            circuit.status = CircuitStatus.CLOSED
             circuit.failure_count = 0
             circuit.backoff_wait = BACKOFF_INITIAL
             fetcher._health.latency_ms = elapsed
@@ -100,7 +107,7 @@ class DataFetcherManager:
 
             # 熔断器：连续失败达阈值 → 打开
             if circuit.failure_count >= CIRCUIT_FAILURE_THRESHOLD:
-                circuit.status = "open"
+                circuit.status = CircuitStatus.OPEN
                 circuit.open_until = now + CIRCUIT_OPEN_SECONDS
                 fetcher._health.status = FetcherStatus.DOWN
                 circuit.backoff_wait = BACKOFF_INITIAL  # 重置退避，等半开后重新开始
@@ -132,10 +139,6 @@ class DataFetcherManager:
             return self._cache[cache_key]
 
         for fetcher in self._fetchers:
-            circuit = self._circuits[fetcher.name]
-            if circuit.status == "open" and time.monotonic() < circuit.open_until:
-                continue
-
             result, success = await self._try_fetcher(
                 fetcher, "fetch_options_chain", symbol
             )
@@ -168,18 +171,12 @@ class DataFetcherManager:
         for fetcher in self._fetchers:
             if not hasattr(fetcher, "fetch_fundamentals"):
                 continue
-            circuit = self._circuits[fetcher.name]
-            if circuit.status == "open" and time.monotonic() < circuit.open_until:
-                continue
-
-            try:
-                result = await fetcher.fetch_fundamentals(symbol)
-                if result is not None:
-                    self._cache[cache_key] = result
-                    return result
-            except Exception as e:
-                logger.warning(f"{fetcher.name}.fetch_fundamentals failed: {e}")
-                continue
+            result, success = await self._try_fetcher(
+                fetcher, "fetch_fundamentals", symbol
+            )
+            if success and result is not None:
+                self._cache[cache_key] = result
+                return result
 
         return {}
 

@@ -11,8 +11,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.data_harvester.base_fetcher import BaseFetcher, FetcherHealth, FetcherStatus
 from src.agents.data_harvester.fetcher_manager import (
+    BACKOFF_INITIAL,
     CIRCUIT_FAILURE_THRESHOLD,
-    CIRCUIT_OPEN_SECONDS,
+    CircuitStatus,
     DataFetcherManager,
 )
 from src.config import DataSourceConfig
@@ -125,7 +126,7 @@ async def test_circuit_breaker_opens(config):
         await manager.fetch_ohlcv("QQQ")
 
     circuit = manager._circuits["flaky"]
-    assert circuit.status == "open"
+    assert circuit.status == CircuitStatus.OPEN
     assert fetcher._health.status == FetcherStatus.DOWN
 
 
@@ -160,7 +161,7 @@ async def test_circuit_breaker_half_open(config):
         await manager.fetch_ohlcv("QQQ")
 
     circuit = manager._circuits["flaky"]
-    assert circuit.status == "open"
+    assert circuit.status == CircuitStatus.OPEN
 
     # 模拟时间流逝
     circuit.open_until = time.monotonic() - 1  # 已过半开时间
@@ -168,7 +169,7 @@ async def test_circuit_breaker_half_open(config):
     # 半开状态下会尝试调用
     result = await manager.fetch_ohlcv("QQQ")
     # 仍然失败，重新打开
-    assert circuit.status == "open"
+    assert circuit.status == CircuitStatus.OPEN
 
 
 # --- 缓存 ---
@@ -238,3 +239,34 @@ async def test_backoff_resets_on_success(config):
     await manager.fetch_ohlcv("QQQ")
 
     assert circuit.backoff_wait == 1.0  # 重置为初始值
+
+
+@pytest.mark.asyncio
+async def test_backoff_progression(config, failing_fetcher):
+    """Verify backoff doubles on each failure: 1 → 2 → 4."""
+    manager = DataFetcherManager([failing_fetcher], config)
+    circuit = manager._circuits[failing_fetcher.name]
+
+    await manager.fetch_ohlcv("FAIL")
+    assert circuit.backoff_wait == 2.0  # 1.0 * 2
+
+    await manager.fetch_ohlcv("FAIL")
+    assert circuit.backoff_wait == 4.0  # 2.0 * 2
+
+    # After circuit opens (3rd failure), backoff resets to INITIAL
+    await manager.fetch_ohlcv("FAIL")
+    assert circuit.backoff_wait == BACKOFF_INITIAL
+
+
+@pytest.mark.asyncio
+async def test_cache_ttl_expiry(config, healthy_fetcher):
+    """Verify cache entries expire after TTL."""
+    manager = DataFetcherManager([healthy_fetcher], config)
+
+    result1 = await manager.fetch_ohlcv("AAPL")
+    assert healthy_fetcher.ohlcv_calls == 1
+
+    manager._cache.clear()
+
+    result2 = await manager.fetch_ohlcv("AAPL")
+    assert healthy_fetcher.ohlcv_calls == 2

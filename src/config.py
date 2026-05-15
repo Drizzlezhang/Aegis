@@ -77,8 +77,10 @@ class PositionConfig(BaseModel):
     max_positions: int = 10
     max_sector_concentration: float = 0.4
     stop_loss_default: float = 0.5
+    profit_target_pct: float = 1.0
     monitor_interval_minutes: int = 60
     reflection_delay_days: int = 30
+    dte_warning_days: int = 30
     iv_alert_threshold: float = 0.3
 
 
