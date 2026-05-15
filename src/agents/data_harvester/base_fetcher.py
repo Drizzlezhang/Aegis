@@ -68,6 +68,10 @@ class BaseFetcher(ABC):
     async def health_check(self) -> FetcherHealth:
         """健康检查。"""
 
+    async def fetch_fundamentals(self, symbol: str) -> dict[str, Any] | None:
+        """获取基本面数据。默认返回 None，子类可选覆盖。"""
+        return None
+
     def standardize_columns(self, raw_data: dict) -> dict:
         """将原始数据列名标准化为 STANDARD_COLUMNS。"""
         if not isinstance(raw_data, dict):

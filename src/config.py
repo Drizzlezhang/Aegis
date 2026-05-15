@@ -18,6 +18,13 @@ class DataSourceConfig(BaseModel):
     cache_ttl_seconds: int = 300  # 5 minutes
 
 
+class ProviderCredential(BaseModel):
+    """单个 LLM Provider 的凭证。"""
+    api_key: str | None = None
+    api_base_url: str | None = None
+    enabled: bool = True
+
+
 class LLMConfig(BaseModel):
     """LLM configuration."""
     provider: str = "deepseek"
@@ -27,6 +34,9 @@ class LLMConfig(BaseModel):
     code_model: str = "glm5.1"
     api_base_url: str | None = None
     api_key: str | None = None
+    providers: dict[str, ProviderCredential] = Field(default_factory=dict)
+    max_retries: int = 3
+    retry_base_delay: float = 1.0
 
 
 class AlgorithmConfig(BaseModel):

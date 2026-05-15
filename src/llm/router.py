@@ -118,60 +118,63 @@ class LLMRouter:
         )
     }
 
-    # Task type to default model mapping - 统一使用 deepseek-v3.2
-    DEFAULT_ROUTING: dict[TaskType, str] = {
-        # 所有任务类型都使用 deepseek-v3.2
-        TaskType.ARCHITECTURE: "deepseek-v3.2",
-        TaskType.PLAN: "deepseek-v3.2",
-        TaskType.CODE: "deepseek-v3.2",
-        TaskType.DEBUG: "deepseek-v3.2",
-        TaskType.REFACTOR: "deepseek-v3.2",
-        TaskType.REVIEW: "deepseek-v3.2",
-        TaskType.TEST: "deepseek-v3.2",
-        TaskType.VALIDATION: "deepseek-v3.2",
-        TaskType.REASONING: "deepseek-v3.2",
-        TaskType.ANALYSIS: "deepseek-v3.2",
-        TaskType.STRATEGY: "deepseek-v3.2",
-        TaskType.DOCUMENTATION: "deepseek-v3.2",
-        TaskType.REPORT: "deepseek-v3.2",
-        TaskType.LOG_ANALYSIS: "deepseek-v3.2",
-        TaskType.QUERY: "deepseek-v3.2",
-        TaskType.CONFIG: "deepseek-v3.2",
-        TaskType.STATUS: "deepseek-v3.2",
-
-        # Debate routing: quick → quick_model, deep/synthesis → reasoning_model
-        TaskType.DEBATE_QUICK: "minimax-2.7",
-        TaskType.DEBATE_DEEP: "deepseek-v3.2",
-        TaskType.DEBATE_SYNTHESIS: "deepseek-v3.2",
-
-        # Position routing: monitor → quick_model, reflect → reasoning_model
-        TaskType.POSITION_MONITOR: "minimax-2.7",
-        TaskType.POSITION_REFLECT: "deepseek-v3.2",
-    }
-
     def __init__(self, config: dict[str, Any] | None = None):
         """Initialize router with configuration."""
         self.config = config or {}
         self._user_overrides = self.config.get("model_overrides", {})
+        self._routing = self._build_default_routing()
+        self._default_model = get_config().llm.reasoning_model
+
+    @staticmethod
+    def _build_default_routing() -> dict[TaskType, str]:
+        """基于 LLMConfig 构建默认路由表。"""
+        llm_config = get_config().llm
+        reasoning = llm_config.reasoning_model
+        quick = llm_config.quick_model
+        long_ctx = llm_config.long_context_model
+        code = llm_config.code_model
+
+        return {
+            # Architecture & Planning
+            TaskType.ARCHITECTURE: reasoning,
+            TaskType.PLAN: reasoning,
+            # Code Implementation
+            TaskType.CODE: code,
+            TaskType.DEBUG: code,
+            TaskType.REFACTOR: code,
+            # Review & Testing
+            TaskType.REVIEW: reasoning,
+            TaskType.TEST: code,
+            TaskType.VALIDATION: reasoning,
+            # Analysis & Reasoning
+            TaskType.REASONING: reasoning,
+            TaskType.ANALYSIS: reasoning,
+            TaskType.STRATEGY: reasoning,
+            # Long Context
+            TaskType.DOCUMENTATION: long_ctx,
+            TaskType.REPORT: long_ctx,
+            TaskType.LOG_ANALYSIS: long_ctx,
+            # Quick Interactions
+            TaskType.QUERY: quick,
+            TaskType.CONFIG: quick,
+            TaskType.STATUS: quick,
+            # Debate
+            TaskType.DEBATE_QUICK: quick,
+            TaskType.DEBATE_DEEP: reasoning,
+            TaskType.DEBATE_SYNTHESIS: reasoning,
+            # Position
+            TaskType.POSITION_MONITOR: quick,
+            TaskType.POSITION_REFLECT: reasoning,
+        }
 
     def get_model_for_task(self, task_type: TaskType | str,
                           context_length: int | None = None) -> ModelRouting:
-        """
-        Get appropriate model for a given task type.
-
-        Args:
-            task_type: Task type enum or string
-            context_length: Optional context length to consider for model selection
-
-        Returns:
-            ModelRouting configuration
-        """
+        """Get appropriate model for a given task type."""
         # Convert string to enum if needed
         if isinstance(task_type, str):
             try:
                 task_type = TaskType(task_type)
             except ValueError:
-                # Fallback to default if unknown task type
                 task_type = TaskType.REASONING
                 logger.warning(f"Unknown task type: {task_type}, falling back to {task_type}")
 
@@ -183,16 +186,17 @@ class LLMRouter:
             else:
                 logger.warning(f"Unknown override model: {model_name}, using default")
 
-        # Use default routing
-        model_name = self.DEFAULT_ROUTING[task_type]
+        # Use config-driven routing
+        model_name = self._routing.get(task_type, self._default_model)
 
-        # Handle long context cases
+        # Long context auto-switch
         if context_length and context_length > 32000:
-            # 对于长上下文，仍然使用 deepseek-v3.2（支持 32k tokens）
-            logger.info(f"Context length {context_length} > 32k, deepseek-v3.2 可以处理")
-            # 保持使用 deepseek-v3.2，因为项目契约要求统一使用该模型
+            long_ctx_model = get_config().llm.long_context_model
+            if long_ctx_model in self.MODEL_REGISTRY:
+                logger.info(f"Switching to long-context model {long_ctx_model} for {task_type} (ctx={context_length})")
+                model_name = long_ctx_model
 
-        return self.MODEL_REGISTRY[model_name]
+        return self.MODEL_REGISTRY.get(model_name, self.MODEL_REGISTRY[self._default_model])
 
     def get_model_by_name(self, model_name: str) -> ModelRouting | None:
         """Get model configuration by name."""

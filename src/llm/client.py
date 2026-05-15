@@ -1,5 +1,6 @@
 """Unified LLM client for multi-provider support."""
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -93,22 +94,37 @@ class LLMClient:
             self._session = None
 
     def _load_provider_configs(self) -> dict[LLMProvider, dict[str, Any]]:
-        """Load provider configurations."""
+        """Load provider configurations with per-provider credential support."""
         config = get_config()
+        llm_config = config.llm
         base_config = {
-            "api_key": config.llm.api_key,
-            "api_base_url": config.llm.api_base_url,
+            "api_key": llm_config.api_key,
+            "api_base_url": llm_config.api_base_url,
             "timeout": 30,
-            "max_retries": 3
+            "max_retries": llm_config.max_retries,
+            "retry_base_delay": llm_config.retry_base_delay,
         }
 
-        return {
-            LLMProvider.DEEPSEEK: {**base_config},
-            LLMProvider.GLM: {**base_config},
-            LLMProvider.KIMI: {**base_config},
-            LLMProvider.GEMINI: {**base_config},
-            LLMProvider.MINIMAX: {**base_config}
+        provider_map = {
+            "deepseek": LLMProvider.DEEPSEEK,
+            "glm": LLMProvider.GLM,
+            "kimi": LLMProvider.KIMI,
+            "gemini": LLMProvider.GEMINI,
+            "minimax": LLMProvider.MINIMAX,
         }
+
+        configs: dict[LLMProvider, dict[str, Any]] = {}
+        for provider_name, provider_enum in provider_map.items():
+            provider_conf = {**base_config}
+            cred = llm_config.providers.get(provider_name)
+            if cred:
+                if cred.api_key:
+                    provider_conf["api_key"] = cred.api_key
+                if cred.api_base_url:
+                    provider_conf["api_base_url"] = cred.api_base_url
+            configs[provider_enum] = provider_conf
+
+        return configs
 
     async def generate(self, request: LLMRequest,
                       task_type: TaskType | str | None = None,
@@ -186,35 +202,55 @@ class LLMClient:
 
     async def _generate_completion(self, payload: dict[str, Any],
                                   model_config: ModelRouting) -> LLMResponse:
-        """Generate completion (non-streaming)."""
+        """Generate completion (non-streaming) with retry logic."""
         provider = LLMProvider(model_config.provider)
         endpoint = self._get_endpoint(provider)
-
         headers = self._get_headers(provider)
+        provider_conf = self._provider_configs[provider]
+        max_retries = provider_conf.get("max_retries", 3)
+        base_delay = provider_conf.get("retry_base_delay", 1.0)
 
-        # 确保 session 已初始化
         if self._session is None:
             await self.initialize()
         assert self._session is not None  # noqa: S101
 
-        async with self._session.post(endpoint, json=payload, headers=headers) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise LLMError(f"API error {response.status}: {error_text}")
+        last_error: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                async with self._session.post(endpoint, json=payload, headers=headers) as response:
+                    if response.status == 429:
+                        retry_after = float(response.headers.get("Retry-After", base_delay * (2 ** attempt)))
+                        logger.warning(f"Rate limited, retry after {retry_after}s (attempt {attempt+1}/{max_retries})")
+                        await asyncio.sleep(retry_after)
+                        continue
+                    if response.status >= 500:
+                        delay = base_delay * (2 ** attempt)
+                        logger.warning(f"Server error {response.status}, retry after {delay}s (attempt {attempt+1}/{max_retries})")
+                        await asyncio.sleep(delay)
+                        continue
+                    if response.status >= 400:
+                        error_text = await response.text()
+                        raise LLMError(f"API error {response.status}: {error_text}")
 
-            data = await response.json()
+                    data = await response.json()
+                    choice = data["choices"][0]
+                    message = choice["message"]
 
-            # Extract response
-            choice = data["choices"][0]
-            message = choice["message"]
+                    return LLMResponse(
+                        content=message.get("content", ""),
+                        model=data["model"],
+                        usage=data.get("usage", {}),
+                        finish_reason=choice.get("finish_reason"),
+                        tool_calls=message.get("tool_calls")
+                    )
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Request failed: {e}, retry after {delay}s (attempt {attempt+1}/{max_retries})")
+                    await asyncio.sleep(delay)
 
-            return LLMResponse(
-                content=message.get("content", ""),
-                model=data["model"],
-                usage=data.get("usage", {}),
-                finish_reason=choice.get("finish_reason"),
-                tool_calls=message.get("tool_calls")
-            )
+        raise LLMError(f"All {max_retries} retries exhausted" + (f": {last_error}" if last_error else ""))
 
     async def _generate_stream(self, payload: dict[str, Any],
                               model_config: ModelRouting) -> AsyncGenerator[str, None]:

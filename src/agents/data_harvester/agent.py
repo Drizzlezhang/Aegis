@@ -5,6 +5,7 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.agents.data_harvester.base_fetcher import FetcherStatus
+from src.agents.data_harvester.data_normalizer import DataNormalizer
 from src.agents.data_harvester.fetcher_manager import DataFetcherManager
 from src.agents.data_harvester.fetchers.yfinance_fetcher import YFinanceFetcher
 from src.config import get_config
@@ -187,21 +188,17 @@ class DataHarvesterAgent(BaseAgent):
         # Primary path: use DataFetcherManager
         if self._fetcher_manager is not None:
             try:
-                data = await self._fetcher_manager.fetch_all(symbol)
+                raw_data = await self._fetcher_manager.fetch_all(symbol)
 
-                # OHLCV: Manager returns {"symbol": ..., "data": [OHLCV objects]}
-                ohlcv_data = data.get("ohlcv")
-                if ohlcv_data and isinstance(ohlcv_data, dict):
-                    ohlcv_list = ohlcv_data.get("data")
-                    if ohlcv_list and isinstance(ohlcv_list, list):
-                        state.ohlcv_data = ohlcv_list
+                # Normalize OHLCV
+                ohlcv = DataNormalizer.normalize_ohlcv(raw_data.get("ohlcv", {}), symbol)
+                if ohlcv:
+                    state.ohlcv_data = ohlcv
 
-                # Options chain: Manager returns {"symbol": ..., "chain": OptionChain}
-                options_data = data.get("options_chain")
-                if options_data is not None:
-                    chain = options_data.get("chain") if isinstance(options_data, dict) else options_data
-                    if chain is not None:
-                        state.options_chain = chain
+                # Normalize options chain
+                options = DataNormalizer.normalize_options_chain(raw_data.get("options_chain"), symbol)
+                if options:
+                    state.options_chain = options
 
                 # Market indices via skill (not in manager)
                 market_indices = await self._get_market_indices()
@@ -240,51 +237,6 @@ class DataHarvesterAgent(BaseAgent):
         state.add_agent_step(self.name)
         logger.info(f"Data-Harvester completed for symbol: {symbol} (via SkillRegistry fallback)")
         return state
-
-    def _create_analysis_report(self, symbol: str, data: dict[str, Any]) -> str:
-        """Create a brief analysis report of the collected data."""
-        report = f"Data-Harvester Report for {symbol}\n"
-        report += "=" * 40 + "\n"
-
-        # OHLCV summary
-        if data.get("ohlcv"):
-            ohlcv_list = data["ohlcv"]
-            if ohlcv_list:
-                latest = ohlcv_list[-1]
-                report += f"OHLCV: {latest.timestamp.date()} Close={latest.close:.2f}, Volume={latest.volume:,}\n"
-            else:
-                report += "OHLCV: No data available\n"
-        else:
-            report += "OHLCV: Failed to retrieve\n"
-
-        # Options summary
-        if data.get("options"):
-            options = data["options"]
-            report += f"Options: {len(options.calls)} calls, {len(options.puts)} puts\n"
-            report += f"Spot Price: {options.spot_price:.2f}\n"
-            if options.expiry_dates:
-                nearest = options.get_nearest_expiry()
-                if nearest:
-                    report += f"Nearest Expiry: {nearest}\n"
-        else:
-            report += "Options: Failed to retrieve\n"
-
-        # Fundamentals summary
-        if data.get("fundamentals"):
-            fundamentals = data["fundamentals"]
-            if fundamentals.get("pe_ratio"):
-                report += f"P/E Ratio: {fundamentals['pe_ratio']:.2f}\n"
-            if fundamentals.get("market_cap"):
-                market_cap = fundamentals['market_cap']
-                if market_cap >= 1e9:
-                    report += f"Market Cap: ${market_cap/1e9:.2f}B\n"
-                else:
-                    report += f"Market Cap: ${market_cap/1e6:.2f}M\n"
-        else:
-            report += "Fundamentals: Not available\n"
-
-        report += "=" * 40
-        return report
 
     async def health_check(self) -> bool:
         """Check if at least one data source is healthy."""

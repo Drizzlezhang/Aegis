@@ -169,8 +169,6 @@ class DataFetcherManager:
             return self._cache[cache_key]
 
         for fetcher in self._fetchers:
-            if not hasattr(fetcher, "fetch_fundamentals"):
-                continue
             result, success = await self._try_fetcher(
                 fetcher, "fetch_fundamentals", symbol
             )
