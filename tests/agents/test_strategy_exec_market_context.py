@@ -139,14 +139,16 @@ class TestShouldSkipLeapsForTech:
 
 
 class TestStrategyExports:
-    def test_discover_strategies_returns_three_plugins(self):
+    def test_discover_strategies_returns_five_plugins(self):
         strategies = discover_strategies()
 
-        assert len(strategies) == 3
+        assert len(strategies) == 5
         assert {strategy.name for strategy in strategies} == {
             "leaps_call",
             "bull_spread",
             "covered_call",
+            "left_side_leaps",
+            "right_side_leaps",
         }
 
     def test_base_strategy_alias_matches_strategy_generator(self):

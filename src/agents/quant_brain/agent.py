@@ -209,9 +209,86 @@ class QuantBrainAgent(BaseAgent):
             logger.warning(f"Macro regime analysis failed: {e}")
 
     def _build_technical_indicators(self, state: AgentState) -> dict:
-        """Extract technical indicators from state for scoring."""
-        indicators: dict[str, Any] = {}
+        """从 OHLCV 数据中计算基础技术指标。"""
+        if not state.ohlcv_data or len(state.ohlcv_data) < 20:
+            return {}
+
+        closes = [bar.close for bar in state.ohlcv_data]
+        volumes = [bar.volume for bar in state.ohlcv_data]
+
+        indicators: dict[str, Any] = {
+            "close": closes[-1],
+        }
+
+        if len(closes) >= 50:
+            indicators["sma50"] = sum(closes[-50:]) / 50
+        if len(closes) >= 200:
+            indicators["sma200"] = sum(closes[-200:]) / 200
+
+        if len(closes) >= 15:
+            indicators["rsi"] = self._calculate_rsi(closes, period=14)
+
+        if len(closes) >= 35:
+            macd, signal, histogram = self._calculate_macd(closes)
+            indicators["macd"] = macd
+            indicators["macd_signal"] = signal
+            if len(closes) >= 5:
+                indicators["macd_histogram_expanding"] = closes[-1] > closes[-2] > closes[-3]
+
+        if len(volumes) >= 20:
+            avg_vol = sum(volumes[-20:]) / 20
+            indicators["relative_volume"] = volumes[-1] / avg_vol if avg_vol > 0 else 0
+
+        if len(closes) >= 20:
+            indicators["adx"] = self._estimate_adx(closes, period=14)
+
+        if len(closes) >= 10 and len(volumes) >= 10:
+            price_up = closes[-1] > closes[-5]
+            vol_up = sum(volumes[-5:]) > sum(volumes[-10:-5])
+            indicators["obv_aligned"] = (price_up and vol_up) or (not price_up and not vol_up)
+
         return indicators
+
+    @staticmethod
+    def _calculate_rsi(closes: list[float], period: int = 14) -> float:
+        deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+        recent = deltas[-period:]
+        gains = [d for d in recent if d > 0]
+        losses = [-d for d in recent if d < 0]
+        avg_gain = sum(gains) / period if gains else 0
+        avg_loss = sum(losses) / period if losses else 0
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return 100 - (100 / (1 + rs))
+
+    @staticmethod
+    def _calculate_macd(closes: list[float]) -> tuple[float, float, float]:
+        def ema_recent(data: list[float], period: int) -> float:
+            multiplier = 2 / (period + 1)
+            result = data[0]
+            for price in data[1:]:
+                result = (price - result) * multiplier + result
+            return result
+
+        ema12 = ema_recent(closes[-26:], 12)
+        ema26 = ema_recent(closes[-26:], 26)
+        macd_line = ema12 - ema26
+        signal = macd_line
+        histogram = macd_line - signal
+        return macd_line, signal, histogram
+
+    @staticmethod
+    def _estimate_adx(closes: list[float], period: int = 14) -> float:
+        if len(closes) < period + 1:
+            return 0.0
+        recent = closes[-period:]
+        price_range = max(recent) - min(recent)
+        avg_price = sum(recent) / len(recent)
+        if avg_price == 0:
+            return 0.0
+        volatility_pct = (price_range / avg_price) * 100
+        return min(volatility_pct * 3, 50)
 
     def _build_market_data(self, state: AgentState) -> dict[str, Any]:
         """Extract market data from state for regime analysis."""
