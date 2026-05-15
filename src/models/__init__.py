@@ -12,6 +12,7 @@ from .analytics import (
     UnusualContract,
     WallType,
 )
+from .decision import DecisionEntry, DecisionOutcome, DecisionType
 from .market import AssetType, MarketIndex, OHLCV
 from .options import OptionChain, OptionContract, OptionType
 from .plan import (

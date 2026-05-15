@@ -4,12 +4,14 @@ import logging
 import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from src.agents.base import BaseAgent
 from src.config import get_config
-from src.models import AgentState
+from src.models import AgentState, DecisionEntry, DecisionType
 
 from . import queries
+from .decision_log import DecisionLog
 from .storage import AnalysisStorage
 
 if TYPE_CHECKING:
@@ -31,6 +33,7 @@ class AegisMemoryAgent(BaseAgent):
         self._db_path = Path(self._config.memory.sqlite_path).expanduser()
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._storage = AnalysisStorage(self._db_path)
+        self._decision_log = DecisionLog(db_path=self._db_path)
         self._vector_store: VectorStore | None = None
 
     async def initialize(self) -> None:
@@ -63,8 +66,48 @@ class AegisMemoryAgent(BaseAgent):
         if self._vector_store:
             await self._add_analysis_to_vector_store(state)
 
+        await self.log_decision(state)
+
         logger.info(f"Aegis-Memory completed recording for symbol: {symbol}")
         return state
+
+    async def log_decision(self, state: AgentState) -> None:
+        current_price = 0.0
+        if state.options_chain:
+            current_price = state.options_chain.spot_price
+        elif state.ohlcv_data:
+            current_price = state.ohlcv_data[-1].close
+
+        if not state.recommended_options:
+            await self._decision_log.append(
+                DecisionEntry(
+                    id=str(uuid4()),
+                    symbol=state.symbol,
+                    decision_type=DecisionType.SKIP,
+                    current_price=current_price,
+                    confidence=0.0,
+                    reasoning="No recommendation from analysis pipeline",
+                )
+            )
+            return
+
+        for option in state.recommended_options:
+            await self._decision_log.append(
+                DecisionEntry(
+                    id=str(uuid4()),
+                    symbol=state.symbol,
+                    decision_type=DecisionType.OPEN,
+                    current_price=current_price,
+                    strategy_name=option.recommendation_type,
+                    confidence=option.confidence,
+                    reasoning=option.reasoning,
+                    contract_symbol=option.contract.contract_symbol,
+                    entry_price=option.entry_price,
+                    stop_loss=option.stop_loss,
+                    profit_target=option.target_price,
+                    quantity=1,
+                )
+            )
 
     async def _add_analysis_to_vector_store(self, state: AgentState) -> None:
         """Add analysis to vector store for semantic search."""

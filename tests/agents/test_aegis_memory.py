@@ -15,6 +15,7 @@ from src.agents.aegis_memory import queries
 from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.agents.aegis_memory.storage import AnalysisStorage
 from src.models import (
+    DecisionOutcome,
     OHLCV,
     AgentState,
     OptionChain,
@@ -367,6 +368,30 @@ class TestAegisMemoryAgent:
         records = await agent.recall_recent_analysis("QQQ")
         assert len(records) == 1
         assert records[0]["symbol"] == "QQQ"
+
+    @pytest.mark.asyncio
+    async def test_run_records_skip_decision_without_recommendation(self, agent, sample_agent_state):
+        await agent.initialize()
+        sample_agent_state.recommended_options = []
+
+        await agent.run(sample_agent_state)
+
+        decisions = await agent._decision_log.query_by_symbol("QQQ")
+        assert len(decisions) == 1
+        assert decisions[0].decision_type.value == "skip"
+        assert decisions[0].outcome == DecisionOutcome.PENDING
+
+    @pytest.mark.asyncio
+    async def test_run_records_open_decision_with_recommendation(self, agent, sample_agent_state):
+        await agent.initialize()
+
+        await agent.run(sample_agent_state)
+
+        decisions = await agent._decision_log.query_by_symbol("QQQ")
+        assert len(decisions) == 1
+        assert decisions[0].decision_type.value == "open"
+        assert decisions[0].contract_symbol == "QQQ240621C00150000"
+        assert decisions[0].strategy_name == sample_agent_state.recommended_options[0].recommendation_type
 
     @pytest.mark.asyncio
     async def test_add_trading_action_via_agent(self, agent):
