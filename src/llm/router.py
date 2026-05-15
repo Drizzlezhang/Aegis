@@ -41,6 +41,15 @@ class TaskType(StrEnum):
     CONFIG = "config"  # Configuration changes
     STATUS = "status"  # Status checks, health
 
+    # Debate Tasks
+    DEBATE_QUICK = "debate_quick"  # Bull/Bear single-side argument, fast response
+    DEBATE_DEEP = "debate_deep"  # Debate arbitration/final decision, deep reasoning
+    DEBATE_SYNTHESIS = "debate_synthesis"  # Debate synthesis summary
+
+    # Position Tasks
+    POSITION_MONITOR = "position_monitor"  # Position monitoring, quick check
+    POSITION_REFLECT = "position_reflect"  # Delayed reflection, reasoning
+
 
 @dataclass
 class ModelRouting:
@@ -128,7 +137,16 @@ class LLMRouter:
         TaskType.LOG_ANALYSIS: "deepseek-v3.2",
         TaskType.QUERY: "deepseek-v3.2",
         TaskType.CONFIG: "deepseek-v3.2",
-        TaskType.STATUS: "deepseek-v3.2"
+        TaskType.STATUS: "deepseek-v3.2",
+
+        # Debate routing: quick → quick_model, deep/synthesis → reasoning_model
+        TaskType.DEBATE_QUICK: "minimax-2.7",
+        TaskType.DEBATE_DEEP: "deepseek-v3.2",
+        TaskType.DEBATE_SYNTHESIS: "deepseek-v3.2",
+
+        # Position routing: monitor → quick_model, reflect → reasoning_model
+        TaskType.POSITION_MONITOR: "minimax-2.7",
+        TaskType.POSITION_REFLECT: "deepseek-v3.2",
     }
 
     def __init__(self, config: dict[str, Any] | None = None):
