@@ -66,19 +66,19 @@ class LeftSideLeapsStrategy(StrategyGenerator):
                     conditions_met += 1
 
             # 条件 4: 技术评分 Grade >= C（从 market_context 推断）
-            grade_ok = True
+            grade_ok = False
             if market_context and hasattr(market_context, "technical_grade"):
                 grade = market_context.technical_grade
-                if grade in ("D", "F"):
-                    grade_ok = False
+                if grade and grade not in ("D", "F"):
+                    grade_ok = True
             if grade_ok:
                 conditions_met += 1
 
             # 条件 5: 宏观 Regime 不是 risk_off
-            regime_ok = True
+            regime_ok = False
             if market_context and hasattr(market_context, "macro_regime"):
-                if market_context.macro_regime == "risk_off":
-                    regime_ok = False
+                if market_context.macro_regime and market_context.macro_regime != "risk_off":
+                    regime_ok = True
             if regime_ok:
                 conditions_met += 1
 

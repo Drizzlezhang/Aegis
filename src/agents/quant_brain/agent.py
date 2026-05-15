@@ -232,8 +232,7 @@ class QuantBrainAgent(BaseAgent):
             macd, signal, histogram = self._calculate_macd(closes)
             indicators["macd"] = macd
             indicators["macd_signal"] = signal
-            if len(closes) >= 5:
-                indicators["macd_histogram_expanding"] = closes[-1] > closes[-2] > closes[-3]
+            indicators["macd_histogram_expanding"] = histogram > 0
 
         if len(volumes) >= 20:
             avg_vol = sum(volumes[-20:]) / 20
@@ -264,17 +263,29 @@ class QuantBrainAgent(BaseAgent):
 
     @staticmethod
     def _calculate_macd(closes: list[float]) -> tuple[float, float, float]:
-        def ema_recent(data: list[float], period: int) -> float:
+        """计算 MACD (12, 26, 9)。"""
+        def ema_series(data: list[float], period: int) -> list[float]:
             multiplier = 2 / (period + 1)
-            result = data[0]
+            result = [data[0]]
             for price in data[1:]:
-                result = (price - result) * multiplier + result
+                result.append((price - result[-1]) * multiplier + result[-1])
             return result
 
-        ema12 = ema_recent(closes[-26:], 12)
-        ema26 = ema_recent(closes[-26:], 26)
-        macd_line = ema12 - ema26
-        signal = macd_line
+        if len(closes) < 26:
+            return 0.0, 0.0, 0.0
+
+        ema12_series = ema_series(closes, 12)
+        ema26_series = ema_series(closes, 26)
+        macd_series = [e12 - e26 for e12, e26 in zip(ema12_series, ema26_series)]
+
+        macd_line = macd_series[-1]
+
+        if len(macd_series) >= 9:
+            signal_series = ema_series(macd_series, 9)
+            signal = signal_series[-1]
+        else:
+            signal = macd_line
+
         histogram = macd_line - signal
         return macd_line, signal, histogram
 
