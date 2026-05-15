@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint2-session4-frontend-skills"
+size: "L"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-15T21:27:12+08:00"
+updated_at: "2026-05-15T22:06:12+08:00"
+retry_count: 0
+last_tldr: "完成 5-VERIFY：AC-1~AC-9 全部通过，验证证据已写入 verification.md。"
+last_next: "执行 pre-ship gate；通过后进入 6-SHIP 提交并 push（不创建 PR）。"
+last_risk: "Lint 仍受 next lint 交互初始化限制；组件测试采用源码断言降级策略，后续可恢复渲染级测试。"
+last_progress_note: "Completed full verification with passing test/build matrix."
+last_context_mode: "full"
+last_verified_at: "2026-05-15T22:06:12+08:00"

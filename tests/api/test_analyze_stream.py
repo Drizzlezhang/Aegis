@@ -1,5 +1,7 @@
 """Tests for analyze stream API endpoint."""
 
+import asyncio
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -48,6 +50,7 @@ class FakeOrchestrator:
                 for listener in self.listeners.get("step_started", []):
                     await listener(step=step, state=state)
 
+                await asyncio.sleep(0.002)
                 state.current_step = idx
                 state.agent_sequence.append(step_name)
                 for listener in self.listeners.get("step_completed", []):
@@ -61,20 +64,20 @@ class FakeOrchestrator:
         return states
 
 
-def _parse_sse_events(body: str) -> list[tuple[str, str]]:
-    events: list[tuple[str, str]] = []
+def _parse_sse_events(body: str) -> list[tuple[str, dict]]:
+    events: list[tuple[str, dict]] = []
     for chunk in body.strip().split("\n\n"):
         if not chunk.strip():
             continue
         lines = chunk.split("\n")
         event_name = "message"
-        data = ""
+        data = "{}"
         for line in lines:
             if line.startswith("event:"):
                 event_name = line.split(":", 1)[1].strip()
             if line.startswith("data:"):
                 data = line.split(":", 1)[1].strip()
-        events.append((event_name, data))
+        events.append((event_name, json.loads(data)))
     return events
 
 
@@ -108,6 +111,9 @@ class TestAnalyzeStream:
         assert names.index("progress") < names.index("step")
         assert names.index("step") < names.index("result")
         assert names.index("result") < names.index("done")
+
+        result_payload = next(payload for name, payload in events if name == "result")
+        assert result_payload["result"]["executionTime"] > 0
 
     def test_invalid_symbol_emits_error_event(self) -> None:
         fake_orchestrator = FakeOrchestrator()

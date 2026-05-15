@@ -1,8 +1,8 @@
 # Active Change State
 
-- active_change_id: add-frontend-sse-bsm-skill
-- current_stage: 6-SHIP
-- interrupted_reason: pre-commit gate pending user confirmation
-- unfinished_tasks: confirm commit scope/risk -> commit -> optional push/PR
-- updated_at: 2026-05-15T20:39:11+08:00
-- recovery_mode: 新建
+- active_change_id: sprint2-session4-frontend-skills
+- current_stage: 5-VERIFY
+- interrupted_reason: none
+- unfinished_tasks: ship
+- updated_at: 2026-05-15T22:06:12+08:00
+- recovery_mode: 恢复

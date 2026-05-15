@@ -165,3 +165,85 @@ async def test_invalid_option_type() -> None:
 
     assert result.success is False
     assert result.error == "option_type must be 'call' or 'put'"
+
+
+@pytest.mark.asyncio
+async def test_implied_volatility_atm_call_round_trip() -> None:
+    """ATM call price should recover original volatility with IV solver."""
+    skill = BSMPricerSkill()
+
+    forward = await skill.execute({
+        "spot": 100,
+        "strike": 100,
+        "time_to_expiry": 1.0,
+        "risk_free_rate": 0.05,
+        "volatility": 0.25,
+        "option_type": "call",
+    })
+    assert forward.success is True
+    assert forward.data is not None
+
+    iv = await skill.execute({
+        "mode": "implied_volatility",
+        "spot": 100,
+        "strike": 100,
+        "time_to_expiry": 1.0,
+        "risk_free_rate": 0.05,
+        "market_price": forward.data["price"],
+        "option_type": "call",
+    })
+
+    assert iv.success is True
+    assert iv.data is not None
+    assert abs(iv.data["implied_volatility"] - 0.25) < 0.001
+    assert iv.data["converged"] is True
+
+
+@pytest.mark.asyncio
+async def test_implied_volatility_deep_otm_put() -> None:
+    """Deep OTM put IV solving should return bounded result."""
+    skill = BSMPricerSkill()
+
+    forward = await skill.execute({
+        "spot": 200,
+        "strike": 100,
+        "time_to_expiry": 0.5,
+        "risk_free_rate": 0.03,
+        "volatility": 0.35,
+        "option_type": "put",
+    })
+    assert forward.success is True
+    assert forward.data is not None
+
+    iv = await skill.execute({
+        "mode": "implied_volatility",
+        "spot": 200,
+        "strike": 100,
+        "time_to_expiry": 0.5,
+        "risk_free_rate": 0.03,
+        "market_price": forward.data["price"],
+        "option_type": "put",
+    })
+
+    assert iv.success is True
+    assert iv.data is not None
+    assert 0.001 <= iv.data["implied_volatility"] <= 5.0
+    assert abs(iv.data["implied_volatility"] - 0.35) < 0.01
+
+
+@pytest.mark.asyncio
+async def test_implied_volatility_invalid_market_price() -> None:
+    """Invalid market price should return error."""
+    skill = BSMPricerSkill()
+    result = await skill.execute({
+        "mode": "implied_volatility",
+        "spot": 100,
+        "strike": 100,
+        "time_to_expiry": 1.0,
+        "risk_free_rate": 0.05,
+        "market_price": 0,
+        "option_type": "call",
+    })
+
+    assert result.success is False
+    assert result.error == "market_price is required for IV solving"

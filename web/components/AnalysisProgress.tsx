@@ -237,10 +237,10 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
     return () => controller.abort();
   }, [autoStart, symbols, runStream]);
 
-  const handleRetry = async () => {
+  const handleRetry = () => {
     retriedRef.current = false;
     resetState();
-    await runStream();
+    void runStream();
   };
 
   return (

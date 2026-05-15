@@ -94,6 +94,25 @@ export type InteractionMessages = {
   elapsed_time: string;
   result_summary: string;
   auto_retrying: string;
+  symbol_search_placeholder: string;
+  symbol_search_add: string;
+  symbol_search_popular: string;
+  symbol_search_max_reached: string;
+  symbol_search_clear_all: string;
+  analyze_button: string;
+  analyze_no_selection: string;
+  results_title: string;
+  results_no_recommendations: string;
+  results_confidence: string;
+  results_risk_reward: string;
+  results_view_detail: string;
+  debate_title: string;
+  debate_bull: string;
+  debate_bear: string;
+  debate_verdict: string;
+  debate_confidence: string;
+  debate_winning_side: string;
+  position_alerts_title: string;
 };
 
 export type MessageTree = {
