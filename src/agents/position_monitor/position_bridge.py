@@ -1,5 +1,6 @@
 """Bridge OPEN decisions into tracked positions."""
 
+import re
 from datetime import date
 
 from src.models import (
@@ -18,6 +19,8 @@ from src.models import (
 
 from .position_manager import PositionManager
 
+_OCC_SYMBOL_RE = re.compile(r"^([A-Z]+)(\d{6})([CP])(\d{8})$")
+
 
 class PositionBridge:
     def __init__(self, position_manager: PositionManager):
@@ -33,16 +36,7 @@ class PositionBridge:
             if position.status == PositionStatus.ACTIVE and position.contract.contract_symbol == entry.contract_symbol:
                 return None
 
-        option_type = OptionType.PUT if "P" in entry.contract_symbol else OptionType.CALL
-        contract = OptionContract(
-            symbol=entry.symbol.upper(),
-            underlying=entry.symbol.upper(),
-            contract_symbol=entry.contract_symbol,
-            strike=0.0,
-            expiry=date.today(),
-            option_type=option_type,
-            last_price=entry.entry_price,
-        )
+        contract = self._build_contract(entry)
         trade_plan = self._build_trade_plan(entry)
         position = Position(
             id=entry.id,
@@ -58,6 +52,39 @@ class PositionBridge:
         )
         await self._manager.open_position(position)
         return await self._manager.get_position(position.id)
+
+    def _build_contract(self, entry: DecisionEntry) -> OptionContract:
+        underlying, expiry, option_type, strike = self._parse_occ_contract(entry)
+        contract_symbol = entry.contract_symbol or ""
+        return OptionContract(
+            symbol=underlying,
+            underlying=underlying,
+            contract_symbol=contract_symbol,
+            strike=strike,
+            expiry=expiry,
+            option_type=option_type,
+            last_price=entry.entry_price,
+        )
+
+    def _parse_occ_contract(self, entry: DecisionEntry) -> tuple[str, date, OptionType, float]:
+        contract_symbol = (entry.contract_symbol or "").upper()
+        match = _OCC_SYMBOL_RE.match(contract_symbol)
+        if match is None:
+            return self._fallback_contract(entry)
+
+        underlying, expiry_raw, option_code, strike_raw = match.groups()
+        try:
+            expiry = date(2000 + int(expiry_raw[:2]), int(expiry_raw[2:4]), int(expiry_raw[4:6]))
+            option_type = OptionType.PUT if option_code == "P" else OptionType.CALL
+            strike = int(strike_raw) / 1000
+        except ValueError:
+            return self._fallback_contract(entry)
+        return underlying, expiry, option_type, strike
+
+    def _fallback_contract(self, entry: DecisionEntry) -> tuple[str, date, OptionType, float]:
+        contract_symbol = (entry.contract_symbol or "").upper()
+        option_type = OptionType.PUT if "P" in contract_symbol else OptionType.CALL
+        return entry.symbol.upper(), date.today(), option_type, 0.0
 
     def _build_trade_plan(self, entry: DecisionEntry) -> TradePlan | None:
         if entry.stop_loss is None and entry.profit_target is None:

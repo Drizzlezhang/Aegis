@@ -29,7 +29,7 @@ class PositionMonitorAgent(BaseAgent):
         self._reflection_engine = ReflectionEngine(
             self._decision_log,
             self._manager,
-            reflection_delay_hours=self.config.get("reflection_delay_hours", 24),
+            reflection_delay_hours=self.config.get("reflection_delay_hours", 720),
         )
 
     async def initialize(self) -> None:

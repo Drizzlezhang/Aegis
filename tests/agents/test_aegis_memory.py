@@ -322,13 +322,13 @@ class TestAegisMemoryAgent:
     """Tests for AegisMemoryAgent integration."""
 
     @pytest.fixture
-    def agent(self, temp_db_path):
+    def agent(self, temp_db_path, tmp_path):
         """Create agent with temp database."""
         with patch('src.agents.aegis_memory.agent.get_config') as mock_get_config:
             mock_config = MagicMock()
             mock_config.memory.sqlite_path = temp_db_path
             mock_get_config.return_value = mock_config
-            agent = AegisMemoryAgent()
+            agent = AegisMemoryAgent(config={"position_storage_path": str(tmp_path / "positions.json")})
             return agent
 
     @pytest.mark.asyncio

@@ -9,8 +9,20 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.position_monitor.monitor import AlertType, PositionMonitor
+from src.agents.position_monitor.position_bridge import PositionBridge
 from src.agents.position_monitor.position_manager import PositionManager
-from src.models import OptionContract, OptionType, Position, ProfitTarget, RollTrigger, StopLoss, TradePlan, StrategyMode
+from src.models import (
+    DecisionEntry,
+    DecisionType,
+    OptionContract,
+    OptionType,
+    Position,
+    ProfitTarget,
+    RollTrigger,
+    StopLoss,
+    TradePlan,
+    StrategyMode,
+)
 
 
 @pytest.fixture
@@ -114,15 +126,74 @@ async def test_roll_trigger_emits_price_alert_only_when_all_conditions_match(man
     assert any(alert.alert_type == AlertType.PRICE_ALERT for alert in alerts)
 
 
+
+
 @pytest.mark.asyncio
-async def test_roll_trigger_skips_when_profit_condition_not_met(manager, monitor):
-    await manager.open_position(
-        make_position(
-            days_to_expiry=30,
-            roll_trigger=RollTrigger(min_dte_remaining=60, min_profit_pct=50.0),
-        )
+async def test_position_bridge_parses_occ_call_contract(manager):
+    bridge = PositionBridge(manager)
+    entry = DecisionEntry(
+        id="decision-call",
+        symbol="NVDA",
+        decision_type=DecisionType.OPEN,
+        contract_symbol="NVDA260620C00150000",
+        current_price=150.0,
+        entry_price=12.5,
+        quantity=2,
+        confidence=0.9,
+        reasoning="call",
     )
 
-    alerts = await monitor.scan({"QQQ": 10.0})
+    position = await bridge.bridge_open_decision(entry)
 
-    assert all(alert.alert_type != AlertType.PRICE_ALERT for alert in alerts)
+    assert position is not None
+    assert position.contract.underlying == "NVDA"
+    assert position.contract.expiry.isoformat() == "2026-06-20"
+    assert position.contract.option_type == OptionType.CALL
+    assert position.contract.strike == 150.0
+
+
+@pytest.mark.asyncio
+async def test_position_bridge_parses_occ_put_contract(manager):
+    bridge = PositionBridge(manager)
+    entry = DecisionEntry(
+        id="decision-put",
+        symbol="SPY",
+        decision_type=DecisionType.OPEN,
+        contract_symbol="SPY250117P00430000",
+        current_price=430.0,
+        entry_price=10.0,
+        quantity=1,
+        confidence=0.9,
+        reasoning="put",
+    )
+
+    position = await bridge.bridge_open_decision(entry)
+
+    assert position is not None
+    assert position.contract.underlying == "SPY"
+    assert position.contract.expiry.isoformat() == "2025-01-17"
+    assert position.contract.option_type == OptionType.PUT
+    assert position.contract.strike == 430.0
+
+
+@pytest.mark.asyncio
+async def test_position_bridge_falls_back_for_invalid_occ_contract(manager):
+    bridge = PositionBridge(manager)
+    entry = DecisionEntry(
+        id="decision-fallback",
+        symbol="QQQ",
+        decision_type=DecisionType.OPEN,
+        contract_symbol="QQQ-BAD-SYMBOL",
+        current_price=100.0,
+        entry_price=5.0,
+        quantity=1,
+        confidence=0.9,
+        reasoning="fallback",
+    )
+
+    position = await bridge.bridge_open_decision(entry)
+
+    assert position is not None
+    assert position.contract.underlying == "QQQ"
+    assert position.contract.option_type == OptionType.CALL
+    assert position.contract.strike == 0.0

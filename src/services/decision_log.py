@@ -44,41 +44,16 @@ class DecisionLog:
 
     async def append(self, entry: DecisionEntry) -> str:
         async with self._write_lock:
-            with sqlite3.connect(str(self._db_path)) as conn:
-                conn.execute(
-                    """
-                    INSERT INTO decisions (id, timestamp, symbol, decision_type, data_json, outcome, actual_pnl, reflection)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        entry.id,
-                        entry.timestamp.isoformat(),
-                        entry.symbol.upper(),
-                        entry.decision_type.value,
-                        entry.model_dump_json(),
-                        entry.outcome.value,
-                        entry.actual_pnl,
-                        entry.reflection,
-                    ),
-                )
-                conn.commit()
+            await asyncio.to_thread(self._append_sqlite, entry)
             self._append_markdown(entry)
         return entry.id
 
     async def query_by_symbol(self, symbol: str, limit: int = 10) -> list[DecisionEntry]:
-        with sqlite3.connect(str(self._db_path)) as conn:
-            rows = conn.execute(
-                "SELECT data_json FROM decisions WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?",
-                (symbol.upper(), limit),
-            ).fetchall()
+        rows = await asyncio.to_thread(self._query_by_symbol_rows, symbol, limit)
         return [DecisionEntry.model_validate_json(row[0]) for row in rows]
 
     async def query_pending(self) -> list[DecisionEntry]:
-        with sqlite3.connect(str(self._db_path)) as conn:
-            rows = conn.execute(
-                "SELECT data_json FROM decisions WHERE outcome = ? ORDER BY timestamp ASC",
-                (DecisionOutcome.PENDING.value,),
-            ).fetchall()
+        rows = await asyncio.to_thread(self._query_pending_rows)
         return [DecisionEntry.model_validate_json(row[0]) for row in rows]
 
     async def update_outcome(
@@ -87,6 +62,57 @@ class DecisionLog:
         outcome: DecisionOutcome,
         actual_pnl: float | None = None,
         reflection: str | None = None,
+    ) -> None:
+        await asyncio.to_thread(self._update_outcome_sqlite, entry_id, outcome, actual_pnl, reflection)
+
+    async def export_markdown(self, symbol: str | None = None) -> str:
+        if symbol:
+            return await asyncio.to_thread(self._read_markdown_file, self._markdown_path(symbol))
+
+        paths = sorted(self._storage_path.glob("*.md"))
+        contents = await asyncio.to_thread(self._read_markdown_files, paths)
+        return "\n\n".join(content for content in contents if content)
+
+    def _append_sqlite(self, entry: DecisionEntry) -> None:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            conn.execute(
+                """
+                INSERT INTO decisions (id, timestamp, symbol, decision_type, data_json, outcome, actual_pnl, reflection)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry.id,
+                    entry.timestamp.isoformat(),
+                    entry.symbol.upper(),
+                    entry.decision_type.value,
+                    entry.model_dump_json(),
+                    entry.outcome.value,
+                    entry.actual_pnl,
+                    entry.reflection,
+                ),
+            )
+            conn.commit()
+
+    def _query_by_symbol_rows(self, symbol: str, limit: int) -> list[tuple[str]]:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            return conn.execute(
+                "SELECT data_json FROM decisions WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?",
+                (symbol.upper(), limit),
+            ).fetchall()
+
+    def _query_pending_rows(self) -> list[tuple[str]]:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            return conn.execute(
+                "SELECT data_json FROM decisions WHERE outcome = ? ORDER BY timestamp ASC",
+                (DecisionOutcome.PENDING.value,),
+            ).fetchall()
+
+    def _update_outcome_sqlite(
+        self,
+        entry_id: str,
+        outcome: DecisionOutcome,
+        actual_pnl: float | None,
+        reflection: str | None,
     ) -> None:
         with sqlite3.connect(str(self._db_path)) as conn:
             row = conn.execute(
@@ -118,20 +144,16 @@ class DecisionLog:
             )
             conn.commit()
 
-    async def export_markdown(self, symbol: str | None = None) -> str:
-        if symbol:
-            path = self._markdown_path(symbol)
-            return path.read_text() if path.exists() else ""
-
-        contents: list[str] = []
-        for path in sorted(self._storage_path.glob("*.md")):
-            contents.append(path.read_text())
-        return "\n\n".join(content for content in contents if content)
-
     def _append_markdown(self, entry: DecisionEntry) -> None:
         path = self._markdown_path(entry.symbol)
         with path.open("a", encoding="utf-8") as handle:
             handle.write(self._render_markdown_entry(entry))
+
+    def _read_markdown_file(self, path: Path) -> str:
+        return path.read_text() if path.exists() else ""
+
+    def _read_markdown_files(self, paths: list[Path]) -> list[str]:
+        return [path.read_text() for path in paths]
 
     def _markdown_path(self, symbol: str) -> Path:
         return self._storage_path / f"{symbol.upper()}.md"

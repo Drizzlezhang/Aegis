@@ -13,7 +13,7 @@ class ReflectionEngine:
         self,
         decision_log: DecisionLog,
         position_manager: PositionManager,
-        reflection_delay_hours: int = 24,
+        reflection_delay_hours: int = 720,
     ):
         self._decision_log = decision_log
         self._manager = position_manager
@@ -92,7 +92,7 @@ class ReflectionEngine:
             return DecisionOutcome.LOSS
         if entry.profit_target is not None and current_price >= entry.profit_target:
             return DecisionOutcome.PROFITABLE
-        if position is not None and position.dte_remaining <= 0:
+        if position is not None and self._has_valid_expiry(entry, position) and position.dte_remaining <= 0:
             pnl = self._calculate_pnl(entry, position, current_price)
             if pnl is None:
                 return DecisionOutcome.EXPIRED
@@ -101,6 +101,10 @@ class ReflectionEngine:
             return DecisionOutcome.EXPIRED if pnl < 0 else DecisionOutcome.PROFITABLE
 
         return None
+
+    def _has_valid_expiry(self, entry: DecisionEntry, position) -> bool:
+        expiry = position.contract.expiry
+        return expiry > entry.timestamp.date()
 
     def _calculate_pnl(self, entry: DecisionEntry, position, current_price: float | None) -> float | None:
         quantity = 1
