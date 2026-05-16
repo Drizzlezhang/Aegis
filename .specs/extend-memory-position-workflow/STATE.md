@@ -6,12 +6,12 @@
 ## Current
 - **change_id**: extend-memory-position-workflow
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-05-15T21:35:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-15T21:50:00+08:00
 
 ## Next Action
-Run pre-commit ship gate, then prepare commit message for 6-SHIP if user approves commit creation.
+Start a new change if more memory-position work is needed.
 
 ## Open Questions
 - [x] ReflectionEngine 的保守判定阈值是否需要在 BUILD 时根据现有 `Position`/`TradePlan` 结构再收紧？
@@ -27,6 +27,7 @@ Run pre-commit ship gate, then prepare commit message for 6-SHIP if user approve
 - [2026-05-15T21:05:00+08:00] 2-DESIGN → drafted design.md for shared DecisionLog service, position bridge/reflection flow, and monitor rule upgrades
 - [2026-05-15T21:10:00+08:00] 3-PLAN → drafted tasks.md with Wave 1-3 build tasks, dependencies, and verify commands
 - [2026-05-15T21:35:00+08:00] 4-BUILD/5-VERIFY → completed Sprint 2 implementation, targeted tests, full regression, and verification.md
+- [2026-05-15T21:50:00+08:00] 6-SHIP → committed 9b5562f and pushed branch to origin/aegis-memory
 
 ## Notes
 外部需求来源：`/Users/bytedance/Downloads/sprint2-session3-memory-position.md`。
