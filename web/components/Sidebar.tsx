@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/', key: 'common.dashboard' as const },
   { href: '/market', key: 'common.market' as const },
   { href: '/analyze', key: 'common.analyze' as const },
+  { href: '/positions', key: 'common.positions' as const },
   { href: '/backtest', key: 'common.backtest' as const },
   { href: '/history', key: 'common.history' as const },
   { href: '/memory', key: 'common.memory' as const },

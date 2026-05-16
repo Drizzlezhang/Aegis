@@ -112,11 +112,26 @@ export interface HealthStatus {
   vector_store: boolean;
 }
 
+export interface LlmMetrics {
+  requests: number;
+  tokens: number;
+  errors: number;
+}
+
+export interface PipelineMetrics {
+  agents: string[];
+  total_runs: number;
+  last_run_time: string | null;
+  avg_duration_seconds: number;
+  llm: LlmMetrics;
+}
+
 export interface StatusData {
   agents: AgentStatus[];
   skills: SkillStatus[];
   system: SystemInfo;
   health: HealthStatus;
+  pipeline: PipelineMetrics;
 }
 
 export interface MarketIndexData {
@@ -194,6 +209,18 @@ export async function getAnalysisDetail(id: number): Promise<AnalysisDetail> {
 
 export async function getStatus(): Promise<StatusData> {
   return fetchApi<StatusData>('/api/status');
+}
+
+export async function getPositionSummary(): Promise<PositionSummaryData> {
+  return fetchApi<PositionSummaryData>('/api/positions/summary');
+}
+
+export async function getPositionAlerts(): Promise<PositionAlertsResponse> {
+  return fetchApi<PositionAlertsResponse>('/api/positions/alerts');
+}
+
+export async function getPositionChain(positionId: string): Promise<PositionChainItem[]> {
+  return fetchApi<PositionChainItem[]>(`/api/positions/${encodeURIComponent(positionId)}/chain`);
 }
 
 export async function getMarketIndices(): Promise<MarketIndicesResponse> {
@@ -304,6 +331,62 @@ export interface AnalysisStreamStepEvent {
   agentSequence: string[];
   currentStep: number;
   totalSteps: number;
+}
+
+export interface PositionData {
+  id: string;
+  symbol: string;
+  status: 'planned' | 'active' | 'rolled' | 'closed' | 'expired';
+  strike: number;
+  expiry: string;
+  dte: number;
+  entry_price: number;
+  current_price: number | null;
+  pnl: number | null;
+  pnl_pct: number | null;
+  quantity: number;
+}
+
+export interface PositionSummaryData {
+  total_positions: number;
+  active_count: number;
+  closed_count: number;
+  total_realized_pnl: number;
+  total_unrealized_pnl: number;
+  positions: PositionData[];
+}
+
+export interface PositionChainAction {
+  action_type: string;
+  date: string;
+  price: number;
+  quantity: number;
+  notes: string;
+}
+
+export interface PositionChainItem {
+  id: string;
+  symbol: string;
+  status: 'planned' | 'active' | 'rolled' | 'closed' | 'expired';
+  entry_date: string;
+  close_date: string | null;
+  entry_price: number;
+  current_price: number | null;
+  actions: PositionChainAction[];
+}
+
+export interface PositionAlertData {
+  type: string;
+  position_id: string;
+  symbol: string;
+  message: string;
+  severity: 'critical' | 'warning' | 'info';
+  suggested_action: string;
+}
+
+export interface PositionAlertsResponse {
+  alerts: PositionAlertData[];
+  scanned_at: string;
 }
 
 export async function loadSymbolPageData(

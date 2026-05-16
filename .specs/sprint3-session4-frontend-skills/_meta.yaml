@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint3-session4-frontend-skills"
+size: "L"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-16T12:13:31+08:00"
+updated_at: "2026-05-16T13:29:00+08:00"
+retry_count: 0
+last_tldr: "6-SHIP: sprint3 positions + pipeline frontend/backend changes committed and pushed."
+last_next: "none"
+last_risk: "未执行浏览器人工路径，仅完成构建与自动化测试。"
+last_progress_note: "Ship completed after full verification pass."
+last_context_mode: "full"
+last_verified_at: "2026-05-16T13:27:00+08:00"

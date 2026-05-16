@@ -6,12 +6,12 @@
 ## Current
 - **change_id**: sprint2-session4-frontend-skills
 - **size**: L
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-05-15T22:06:12+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-16T12:13:31+08:00
 
 ## Next Action
-执行 pre-ship gate；通过后进入 6-SHIP，整理提交并 push（不创建 PR）。
+无；该 change 已完成并完成提交推送。
 
 ## Open Questions
 - [ ] 无
@@ -30,6 +30,7 @@
 - [2026-05-15T21:38:56+08:00] 4-BUILD → started Wave1 implementation (SymbolSearch + i18n foundation)
 - [2026-05-15T22:06:12+08:00] 5-VERIFY → completed full verification, AC-1~AC-9 all pass
 - [2026-05-15T22:06:12+08:00] pre-ship gate → pass, ready for 6-SHIP
+- [2026-05-16T12:13:31+08:00] 6-SHIP → committed and pushed as shipped change
 
 ## Notes
 Sprint 1 hotfix（AbortController + dead import）已在提交 `529ce8a` 合入当前分支，Task 1 默认按“已执行”处理。
