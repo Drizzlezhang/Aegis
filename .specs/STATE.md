@@ -1,8 +1,8 @@
 # Active Change State
 
-- active_change_id: fix-memory-position-s2-review
-- current_stage: 6-SHIP
+- active_change_id: sprint2-session4-frontend-skills
+- current_stage: 5-VERIFY
 - interrupted_reason: none
-- unfinished_tasks: none
-- updated_at: 2026-05-16T10:10:00+08:00
-- recovery_mode: 已完成
+- unfinished_tasks: ship
+- updated_at: 2026-05-15T22:06:12+08:00
+- recovery_mode: 恢复

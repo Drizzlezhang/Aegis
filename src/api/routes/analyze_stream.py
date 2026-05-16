@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .analyze import AnalyzeResult, RecommendationItem, _orchestrator
+from .analyze import AnalyzeResult, RecommendationItem
 
 router = APIRouter()
 
@@ -29,7 +29,7 @@ class AnalyzeStreamRequest(BaseModel):
     symbols: list[str]
 
 
-def _serialize_result(state: Any) -> dict[str, Any]:
+def _serialize_result(state: Any, execution_time: float) -> dict[str, Any]:
     recommendations = [
         RecommendationItem(
             type=rec.recommendation_type,
@@ -51,7 +51,7 @@ def _serialize_result(state: Any) -> dict[str, Any]:
         status="success" if success else "error",
         agentSequence=state.agent_sequence,
         recommendationsCount=len(state.recommended_options),
-        executionTime=0.0,
+        executionTime=round(execution_time, 2),
         report=state.action_report or "",
         recommendations=recommendations,
     ).model_dump()
@@ -77,10 +77,13 @@ async def run_analysis_stream(request: AnalyzeStreamRequest) -> StreamingRespons
         queue: asyncio.Queue[str | None] = asyncio.Queue()
         total_symbols = len(symbols)
         completed_symbols = 0
+        symbol_start_times: dict[str, float] = {}
 
         async def emit_started(**payload: Any) -> None:
             step = payload["step"]
             state = payload["state"]
+            if state.symbol not in symbol_start_times:
+                symbol_start_times[state.symbol] = time.time()
             progress = int(((completed_symbols + ((step.index - 1) / max(step.total, 1))) / total_symbols) * 100)
             await queue.put(_sse("progress", {
                 "symbol": state.symbol,
@@ -103,8 +106,10 @@ async def run_analysis_stream(request: AnalyzeStreamRequest) -> StreamingRespons
             nonlocal completed_symbols
             state = payload["state"]
             completed_symbols += 1
+            started_at = symbol_start_times.get(state.symbol, time.time())
+            execution_time = max(time.time() - started_at, 0.0)
             await queue.put(_sse("result", {
-                "result": _serialize_result(state),
+                "result": _serialize_result(state, execution_time),
                 "progress": int((completed_symbols / total_symbols) * 100),
             }))
 
@@ -137,4 +142,11 @@ async def run_analysis_stream(request: AnalyzeStreamRequest) -> StreamingRespons
         finally:
             await producer_task
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )

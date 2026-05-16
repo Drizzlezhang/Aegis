@@ -358,71 +358,80 @@ export async function runAnalysisStream(
     onStep?: (payload: AnalysisStreamStepEvent) => void;
     onResult?: (payload: AnalysisStreamResultEvent) => void;
     onDone?: (payload: { totalTime: number; progress: number }) => void;
-  }
+  },
+  signal?: AbortSignal
 ): Promise<void> {
-  const response = await fetch(buildApiUrl('/api/analyze/stream'), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ symbols }),
-  });
+  try {
+    const response = await fetch(buildApiUrl('/api/analyze/stream'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ symbols }),
+      signal,
+    });
 
-  if (!response.ok || !response.body) {
-    throw new Error(`API error for /api/analyze/stream: ${response.status} ${response.statusText}`);
-  }
+    if (!response.ok || !response.body) {
+      throw new Error(`API error for /api/analyze/stream: ${response.status} ${response.statusText}`);
+    }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-  const dispatchEvent = (chunk: string) => {
-    const lines = chunk.split('\n');
-    let eventName = 'message';
-    const dataLines: string[] = [];
+    const dispatchEvent = (chunk: string) => {
+      const lines = chunk.split('\n');
+      let eventName = 'message';
+      const dataLines: string[] = [];
 
-    for (const line of lines) {
-      if (line.startsWith('event:')) {
-        eventName = line.slice(6).trim();
-      } else if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trim());
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+
+      if (dataLines.length === 0) {
+        return;
+      }
+
+      const payload = JSON.parse(dataLines.join('\n'));
+      if (eventName === 'start') handlers.onStart?.(payload);
+      if (eventName === 'progress') handlers.onProgress?.(payload);
+      if (eventName === 'step') handlers.onStep?.(payload);
+      if (eventName === 'result') handlers.onResult?.(payload);
+      if (eventName === 'done') handlers.onDone?.(payload);
+      if (eventName === 'error') {
+        throw new Error(payload.message || 'Analysis stream failed');
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() ?? '';
+
+      for (const eventChunk of events) {
+        if (eventChunk.trim()) {
+          dispatchEvent(eventChunk);
+        }
       }
     }
 
-    if (dataLines.length === 0) {
+    if (buffer.trim()) {
+      dispatchEvent(buffer);
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
       return;
     }
-
-    const payload = JSON.parse(dataLines.join('\n'));
-    if (eventName === 'start') handlers.onStart?.(payload);
-    if (eventName === 'progress') handlers.onProgress?.(payload);
-    if (eventName === 'step') handlers.onStep?.(payload);
-    if (eventName === 'result') handlers.onResult?.(payload);
-    if (eventName === 'done') handlers.onDone?.(payload);
-    if (eventName === 'error') {
-      throw new Error(payload.message || 'Analysis stream failed');
-    }
-  };
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split('\n\n');
-    buffer = events.pop() ?? '';
-
-    for (const eventChunk of events) {
-      if (eventChunk.trim()) {
-        dispatchEvent(eventChunk);
-      }
-    }
-  }
-
-  if (buffer.trim()) {
-    dispatchEvent(buffer);
+    throw err;
   }
 }
 

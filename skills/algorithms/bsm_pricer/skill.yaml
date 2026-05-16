@@ -1,0 +1,9 @@
+name: bsm_pricer
+version: "1.0.0"
+description: "Black-Scholes-Merton option pricing with full Greeks"
+type: algorithm
+skill_type: algorithm
+entry_point: skill.BSMPricerSkill
+dependencies: []
+config:
+  requires_env: []
