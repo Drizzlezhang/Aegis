@@ -67,7 +67,7 @@ Sprint 3 Session 4 采用“后端 route 契约先行 + 前端页面组合渲染
 
 ### i18n key 分组
 - positions：title/active/closed/rolled/expired/symbol/strike/expiry/dte/entry/current/pnl/qty/summary/no_positions/roll_history
-- alerts：stop_loss/profit_target/dte_warning/roll_trigger/no_alerts/severity_* 
+- alerts：stop_loss/profit_target/dte_warning/roll_trigger/no_alerts/severity_*
 - pipeline：title/last_run/total_time/agent_healthy/agent_degraded/agent_error
 
 ## 风险与缓解
