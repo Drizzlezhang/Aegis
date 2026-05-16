@@ -75,6 +75,11 @@ class AegisMemoryAgent(BaseAgent):
 
         await self.log_decision(state)
 
+        # 新增：查找相似决策
+        similar = await self.find_similar_decisions(state)
+        if similar:
+            state.metadata["similar_decisions"] = similar
+
         reflection_feedback = state.metadata.get("reflection_feedback", [])
         for feedback in reflection_feedback:
             await self._store_reflection(feedback)
@@ -390,3 +395,30 @@ class AegisMemoryAgent(BaseAgent):
             return {"error": "Vector store not available"}
 
         return self._vector_store.get_stats()
+
+    async def find_similar_decisions(self, state: AgentState) -> list[dict]:
+        """查找与当前分析情境相似的历史决策。
+        
+        相似性维度:
+        1. 相同 symbol
+        2. 类似技术 grade
+        3. 类似宏观 regime
+        4. 类似 debate verdict
+        
+        返回最相关的 5 条历史决策及其结果。
+        """
+        if not self._vector_store:
+            return []
+
+        technical_grade = state.metadata.get("technical_grade", "")
+        macro_regime = state.metadata.get("macro_regime", "")
+        query = f"Decision for {state.symbol}: grade={technical_grade}, regime={macro_regime}"
+        try:
+            memories = self._vector_store.search(query, top_k=10)
+        except Exception as exc:
+            logger.warning("find_similar_decisions search failed: %s", exc)
+            return []
+
+        # 过滤出 decision_reflection 类型的 memory
+        relevant = [m for m in memories if m.get("metadata", {}).get("type") == "decision_reflection"]
+        return relevant[:5]

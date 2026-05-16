@@ -34,6 +34,9 @@ class DecisionLog:
                 )
                 """
             )
+            # Migration: add quality_score and quality_tags columns if they don't exist
+            self._migrate_add_column(conn, "decisions", "quality_score", "REAL")
+            self._migrate_add_column(conn, "decisions", "quality_tags", "TEXT")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_decisions_symbol_ts ON decisions(symbol, timestamp DESC)"
             )
@@ -41,6 +44,14 @@ class DecisionLog:
                 "CREATE INDEX IF NOT EXISTS idx_decisions_outcome_ts ON decisions(outcome, timestamp ASC)"
             )
             conn.commit()
+
+    @staticmethod
+    def _migrate_add_column(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
+        """Add a column if it doesn't already exist (idempotent migration)."""
+        cursor = conn.execute(f"PRAGMA table_info({table})")
+        existing = {row[1] for row in cursor.fetchall()}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
 
     async def append(self, entry: DecisionEntry) -> str:
         async with self._write_lock:
@@ -68,6 +79,30 @@ class DecisionLog:
     async def query_recent_reflected(self, limit: int = 5) -> list[DecisionEntry]:
         rows = await asyncio.to_thread(self._query_recent_reflected_rows, limit)
         return [DecisionEntry.model_validate_json(row[0]) for row in rows]
+
+    async def update_quality_score(self, decision_id: str, score: float, tags: list[str]) -> None:
+        """更新决策质量评分。"""
+        import json
+        await asyncio.to_thread(
+            self._update_quality_score_sqlite, decision_id, score, json.dumps(tags)
+        )
+
+    async def get_scored(self, limit: int = 100) -> list[dict]:
+        """获取已评分的决策。"""
+        rows = await asyncio.to_thread(self._get_scored_rows, limit)
+        return [self._row_to_dict(r) for r in rows]
+
+    async def get_recent(self, days: int = 90) -> list[dict]:
+        """获取最近 N 天的决策。"""
+        from datetime import datetime, timedelta
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        rows = await asyncio.to_thread(self._get_recent_rows, cutoff)
+        return [self._row_to_dict(r) for r in rows]
+
+    async def query_by_symbol_raw(self, symbol: str, limit: int = 20) -> list[dict]:
+        """按 symbol 查询决策历史（返回原始 dict）。"""
+        rows = await asyncio.to_thread(self._query_by_symbol_raw_rows, symbol.upper(), limit)
+        return [self._row_to_dict(r) for r in rows]
 
     async def export_markdown(self, symbol: str | None = None) -> str:
         if symbol:
@@ -185,3 +220,43 @@ class DecisionLog:
         if entry.reflection:
             lines.append(f"- Reflection: {entry.reflection}")
         return "\n".join(lines) + "\n\n"
+
+    def _update_quality_score_sqlite(self, decision_id: str, score: float, tags_json: str) -> None:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            conn.execute(
+                "UPDATE decisions SET quality_score = ?, quality_tags = ? WHERE id = ?",
+                (score, tags_json, decision_id)
+            )
+            conn.commit()
+
+    def _get_scored_rows(self, limit: int) -> list[tuple]:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            return conn.execute(
+                "SELECT * FROM decisions WHERE quality_score IS NOT NULL ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+
+    def _get_recent_rows(self, cutoff: str) -> list[tuple]:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            return conn.execute(
+                "SELECT * FROM decisions WHERE timestamp >= ? ORDER BY timestamp DESC",
+                (cutoff,)
+            ).fetchall()
+
+    def _query_by_symbol_raw_rows(self, symbol: str, limit: int) -> list[tuple]:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            return conn.execute(
+                "SELECT * FROM decisions WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?",
+                (symbol, limit)
+            ).fetchall()
+
+    @staticmethod
+    def _row_to_dict(row: tuple) -> dict:
+        """Convert a SQLite row to a dict using column names from the decisions table."""
+        columns = ["id", "timestamp", "symbol", "decision_type", "data_json",
+                   "outcome", "actual_pnl", "reflection", "quality_score", "quality_tags"]
+        result = {}
+        for i, col in enumerate(columns):
+            if i < len(row):
+                result[col] = row[i]
+        return result

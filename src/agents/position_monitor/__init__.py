@@ -5,6 +5,7 @@ from .monitor import AlertType, MonitorAlert, PositionMonitor
 from .position_bridge import PositionBridge
 from .position_manager import PositionManager
 from .reflection import ReflectionEngine
+from .rules_engine import PositionRulesEngine, RuleAction, RuleResult
 
 __all__ = [
     "AlertType",
@@ -13,5 +14,8 @@ __all__ = [
     "PositionManager",
     "PositionMonitor",
     "PositionMonitorAgent",
+    "PositionRulesEngine",
     "ReflectionEngine",
+    "RuleAction",
+    "RuleResult",
 ]

@@ -7,7 +7,7 @@
 - **change_id**: sprint3-merge-master
 - **size**: L
 - **current_stage**: 6-SHIP
-- **status**: in_progress
+- **status**: completed
 - **updated_at**: 2026-05-16T18:10:12+08:00
 
 ## Next Action
@@ -27,6 +27,7 @@ Run pre-ship/pre-commit gate, commit verification docs, then request explicit co
 - [2026-05-16T16:11:48+08:00] 2-DESIGN → drafted merge strategy, conflict policy, hotfix design, validation flow
 - [2026-05-16T16:13:57+08:00] 3-PLAN → created tasks.md with ordered merge waves and verify commands
 - [2026-05-16T18:10:12+08:00] 5-VERIFY → passed backend/API/frontend build validation and AC checks
+- [2026-05-16T18:10:12+08:00] 6-SHIP → completed (user confirmed); change closed to make room for sprint4-s3-memory-decoupled
 
 ## Notes
 Source plan: `/Users/bytedance/Downloads/sprint3-merge-master.md`.
