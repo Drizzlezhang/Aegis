@@ -6,12 +6,12 @@
 ## Current
 - **change_id**: sprint4-s3-memory-decoupled
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-05-16T18:42:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-16T18:45:00+08:00
 
 ## Next Action
-进入 6-SHIP 阶段：pre-commit gate，生成 conventional commit，git commit。
+可选：`git push origin aegis-memory`
 
 ## Open Questions
 - [ ] 无阻塞问题
@@ -26,6 +26,7 @@
 - [2026-05-16T18:30:00+08:00] 3-PLAN → created tasks.md with 12 tasks in 5 waves
 - [2026-05-16T18:40:00+08:00] 4-BUILD → 5 new + 2 modified + 4 test files, 24/24 tests passed, all py_compile OK
 - [2026-05-16T18:42:00+08:00] 5-VERIFY → 27/27 ACs passed, verification.md created with full traceability
+- [2026-05-16T18:45:00+08:00] 6-SHIP → committed f042fe9, 23 files, 1662 insertions
 
 ## Notes
 Source plan: `/Users/bytedance/Downloads/sprint4-s3-memory-decoupled.md`.
