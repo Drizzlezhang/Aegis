@@ -65,6 +65,10 @@ class DecisionLog:
     ) -> None:
         await asyncio.to_thread(self._update_outcome_sqlite, entry_id, outcome, actual_pnl, reflection)
 
+    async def query_recent_reflected(self, limit: int = 5) -> list[DecisionEntry]:
+        rows = await asyncio.to_thread(self._query_recent_reflected_rows, limit)
+        return [DecisionEntry.model_validate_json(row[0]) for row in rows]
+
     async def export_markdown(self, symbol: str | None = None) -> str:
         if symbol:
             return await asyncio.to_thread(self._read_markdown_file, self._markdown_path(symbol))
@@ -72,6 +76,13 @@ class DecisionLog:
         paths = sorted(self._storage_path.glob("*.md"))
         contents = await asyncio.to_thread(self._read_markdown_files, paths)
         return "\n\n".join(content for content in contents if content)
+
+    def _query_recent_reflected_rows(self, limit: int) -> list[tuple[str]]:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            return conn.execute(
+                "SELECT data_json FROM decisions WHERE outcome != ? ORDER BY timestamp DESC LIMIT ?",
+                (DecisionOutcome.PENDING.value, limit),
+            ).fetchall()
 
     def _append_sqlite(self, entry: DecisionEntry) -> None:
         with sqlite3.connect(str(self._db_path)) as conn:

@@ -183,6 +183,23 @@ class VectorStore:
             logger.error(f"Error adding analysis to vector store: {e}")
             return False
 
+    def add_memory(self, text: str, metadata: dict[str, Any]) -> bool:
+        """Add a generic memory entry to vector store."""
+        try:
+            embedding = self._generate_embedding(text)
+            memory_id = f"memory_{metadata.get('timestamp', '')}_{metadata.get('symbol', '')}"
+            self._notes_collection.add(
+                embeddings=[embedding],
+                documents=[text],
+                metadatas=[metadata],
+                ids=[memory_id]
+            )
+            logger.debug("Memory entry added to vector store")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding memory to vector store: {e}")
+            return False
+
     def add_market_note(self, note_id: int, note_data: dict[str, Any]) -> bool:
         """Add market note to vector store."""
         try:
