@@ -1,5 +1,6 @@
 """Global configuration management."""
 
+import os
 import threading
 from enum import StrEnum
 from pathlib import Path
@@ -178,10 +179,14 @@ class Config(BaseSettings):
     def apply_profile(self) -> "Config":
         """Apply profile-specific defaults."""
         if self.profile == ConfigProfile.PRODUCTION:
-            self.llm.max_retries = 5
-            self.llm.retry_base_delay = 2.0
-            self.data_source.circuit_breaker_threshold = 5
-            self.llm.enable_request_logging = True
+            if not os.environ.get("AEGIS_LLM__MAX_RETRIES"):
+                self.llm.max_retries = 5
+            if not os.environ.get("AEGIS_LLM__RETRY_BASE_DELAY"):
+                self.llm.retry_base_delay = 2.0
+            if not os.environ.get("AEGIS_DATA_SOURCE__CIRCUIT_BREAKER_THRESHOLD"):
+                self.data_source.circuit_breaker_threshold = 5
+            if not os.environ.get("AEGIS_LLM__ENABLE_REQUEST_LOGGING"):
+                self.llm.enable_request_logging = True
         return self
 
 

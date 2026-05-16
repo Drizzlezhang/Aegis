@@ -92,6 +92,9 @@ class SystemHealthAggregator:
         total_llm = len(llm)
         healthy_llm = sum(1 for v in llm.values() if v)
 
+        if total_fetchers == 0 and total_llm == 0:
+            return "healthy"
+
         # 全部健康
         if total_fetchers > 0 and healthy_fetchers == total_fetchers:
             if total_llm == 0 or healthy_llm == total_llm:
