@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
@@ -36,6 +37,23 @@ class CircuitState:
     backoff_wait: float = BACKOFF_INITIAL
 
 
+@dataclass
+class FetcherMetrics:
+    """单个 fetcher 的运行指标。"""
+    total_calls: int = 0
+    success_count: int = 0
+    error_count: int = 0
+    avg_latency_ms: float = 0.0
+    circuit_state: CircuitStatus = CircuitStatus.CLOSED
+    last_success: datetime | None = None
+    last_error: datetime | None = None
+
+
+class DataFetchError(Exception):
+    """所有 fetcher 均失败时抛出。"""
+    pass
+
+
 class DataFetcherManager:
     """多源容错数据获取管理器。"""
 
@@ -44,6 +62,9 @@ class DataFetcherManager:
         self._config = config
         self._circuits: dict[str, CircuitState] = {
             f.name: CircuitState() for f in self._fetchers
+        }
+        self._fetcher_metrics: dict[str, FetcherMetrics] = {
+            f.name: FetcherMetrics() for f in self._fetchers
         }
         self._cache: cachetools.TTLCache[str, Any] = cachetools.TTLCache(
             maxsize=128, ttl=config.cache_ttl_seconds
@@ -62,11 +83,13 @@ class DataFetcherManager:
     ) -> tuple[Any | None, bool]:
         """尝试调用单个 fetcher 的方法。返回 (result, success)。"""
         circuit = self._circuits[fetcher.name]
+        metrics = self._fetcher_metrics[fetcher.name]
         now = time.monotonic()
 
         # 熔断器检查
         if circuit.status == CircuitStatus.OPEN:
             if now < circuit.open_until:
+                metrics.circuit_state = circuit.status
                 return None, False
             # 半开
             circuit.status = CircuitStatus.HALF_OPEN
@@ -74,6 +97,9 @@ class DataFetcherManager:
         # 退避等待
         if circuit.backoff_wait > BACKOFF_INITIAL:
             await asyncio.sleep(min(circuit.backoff_wait, BACKOFF_MAX))
+
+        metrics.total_calls += 1
+        metrics.circuit_state = circuit.status
 
         try:
             method = getattr(fetcher, method_name)
@@ -88,6 +114,14 @@ class DataFetcherManager:
             fetcher._health.latency_ms = elapsed
             fetcher._health.status = FetcherStatus.HEALTHY
             fetcher._health.last_error = None
+
+            # 更新 metrics
+            metrics.success_count += 1
+            metrics.avg_latency_ms = (
+                metrics.avg_latency_ms * (metrics.success_count - 1) + elapsed
+            ) / metrics.success_count
+            metrics.last_success = datetime.now()
+            metrics.circuit_state = CircuitStatus.CLOSED
 
             return result, True
 
@@ -106,11 +140,17 @@ class DataFetcherManager:
             )
 
             # 熔断器：连续失败达阈值 → 打开
-            if circuit.failure_count >= CIRCUIT_FAILURE_THRESHOLD:
+            threshold = getattr(self._config, "circuit_breaker_threshold", CIRCUIT_FAILURE_THRESHOLD)
+            if circuit.failure_count >= threshold:
                 circuit.status = CircuitStatus.OPEN
                 circuit.open_until = now + CIRCUIT_OPEN_SECONDS
                 fetcher._health.status = FetcherStatus.DOWN
                 circuit.backoff_wait = BACKOFF_INITIAL  # 重置退避，等半开后重新开始
+
+            # 更新 metrics
+            metrics.error_count += 1
+            metrics.last_error = datetime.now()
+            metrics.circuit_state = circuit.status
 
             logger.warning(f"{fetcher.name}.{method_name} failed: {e}")
             return None, False
@@ -177,6 +217,30 @@ class DataFetcherManager:
                 return result
 
         return {}
+
+    async def fetch_with_fallback(
+        self, symbol: str, method: str, **kwargs: Any
+    ) -> Any:
+        """按优先级逐个尝试 fetcher，直到成功或全部失败。"""
+        errors: list[tuple[str, Exception]] = []
+        for fetcher in self._fetchers:
+            result, success = await self._try_fetcher(
+                fetcher, method, symbol, **kwargs
+            )
+            if success and result is not None:
+                return result
+            if not success:
+                # 记录最后一次错误（如果 try_fetcher 内部未抛出）
+                last_err = fetcher._health.last_error
+                if last_err:
+                    errors.append((fetcher.name, Exception(last_err)))
+        raise DataFetchError(
+            f"All fetchers failed for {symbol}.{method}: {errors}"
+        )
+
+    def get_fetcher_metrics(self) -> dict[str, FetcherMetrics]:
+        """返回各 fetcher 的运行指标副本。"""
+        return dict(self._fetcher_metrics)
 
     async def health_report(self) -> dict[str, FetcherHealth]:
         """所有 fetcher 的健康状态。"""

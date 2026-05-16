@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint3-data-pipeline"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "3-PLAN"
+status: "active"
+created_at: "2026-05-16T12:00:00+08:00"
+updated_at: "2026-05-16T12:08:00+08:00"
+retry_count: 0
+last_tldr: "3-PLAN done: 7 tasks in 4 waves, post-plan skipped (low-risk design)"
+last_next: "4-BUILD → start T01/T02/T03 in parallel"
+last_risk: "T01 config reload Lock edge case with partial env updates"
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""
