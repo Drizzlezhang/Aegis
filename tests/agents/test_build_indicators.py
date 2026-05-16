@@ -26,7 +26,7 @@ class TestBuildIndicators:
         agent = QuantBrainAgent()
         from src.models import AgentState
 
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=[])
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=[])
         result = agent._build_technical_indicators(state)
         assert result == {}
 
@@ -35,7 +35,7 @@ class TestBuildIndicators:
         from src.models import AgentState
 
         bars = [make_ohlcv_bar(100.0 + i, 1000000) for i in range(25)]
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert "close" in result
@@ -48,18 +48,30 @@ class TestBuildIndicators:
         assert 0 <= result["adx"] <= 50
         assert "obv_aligned" in result
         assert isinstance(result["obv_aligned"], bool)
+        assert result["obv_trend"] in {"up", "down", "flat"}
 
     def test_sma50_with_enough_data(self):
         agent = QuantBrainAgent()
         from src.models import AgentState
 
         bars = [make_ohlcv_bar(100.0 + i, 1000000) for i in range(55)]
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert "sma50" in result
         expected_sma50 = sum(100.0 + i for i in range(5, 55)) / 50
         assert abs(result["sma50"] - expected_sma50) < 0.01
+
+    def test_sma50_above_sma200_with_enough_data(self):
+        agent = QuantBrainAgent()
+        from src.models import AgentState
+
+        bars = [make_ohlcv_bar(100.0 + i, 1000000) for i in range(205)]
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
+        result = agent._build_technical_indicators(state)
+
+        assert "sma200" in result
+        assert result["sma50_above_sma200"] is True
 
     def test_rsi_calculation(self):
         agent = QuantBrainAgent()
@@ -67,7 +79,7 @@ class TestBuildIndicators:
 
         # Price going steadily up → RSI should be high
         bars = [make_ohlcv_bar(100.0 + i, 1000000) for i in range(20)]
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert result["rsi"] > 50  # All gains, no losses → RSI=100
@@ -77,7 +89,7 @@ class TestBuildIndicators:
         from src.models import AgentState
 
         bars = [make_ohlcv_bar(100.0 + i * 0.5, 1000000) for i in range(40)]
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert "macd" in result
@@ -90,7 +102,7 @@ class TestBuildIndicators:
 
         bars = [make_ohlcv_bar(100.0, 1000000) for _ in range(19)]
         bars.append(make_ohlcv_bar(100.0, 2000000))
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert result["relative_volume"] == pytest.approx(2.0 / (21.0 / 20), rel=0.01)
@@ -104,11 +116,12 @@ class TestBuildIndicators:
         # last 5 bars have much higher volume
         for i in range(15, 20):
             bars[i] = make_ohlcv_bar(bars[i].close, 2000000)
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert "obv_aligned" in result
         assert result["obv_aligned"] is True
+        assert result["obv_trend"] == "up"
 
     def test_estimate_adx(self):
         agent = QuantBrainAgent()
@@ -118,7 +131,7 @@ class TestBuildIndicators:
         import random
         random.seed(42)
         bars = [make_ohlcv_bar(100.0 + random.uniform(-5, 5), 1000000) for _ in range(20)]
-        state = AgentState(symbol="TEST", trade_date="2024-01-01", ohlcv_data=bars)
+        state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)
         result = agent._build_technical_indicators(state)
 
         assert result["adx"] > 0

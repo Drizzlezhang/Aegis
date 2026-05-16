@@ -6,12 +6,14 @@ from pydantic import BaseModel, Field
 class TechnicalScoreBreakdown(BaseModel):
     """100 分制技术评分细项。"""
 
-    trend_score: float = Field(0.0, ge=0, le=30, description="趋势得分 (0-30)")
-    deviation_score: float = Field(0.0, ge=0, le=20, description="乖离率得分 (0-20)")
-    volume_score: float = Field(0.0, ge=0, le=15, description="量能得分 (0-15)")
+    trend_score: float = Field(0.0, ge=0, le=25, description="趋势得分 (0-25)")
+    deviation_score: float = Field(0.0, ge=0, le=15, description="乖离率得分 (0-15)")
+    volume_score: float = Field(0.0, ge=0, le=12, description="量能得分 (0-12)")
     support_score: float = Field(0.0, ge=0, le=10, description="支撑位得分 (0-10)")
-    macd_score: float = Field(0.0, ge=0, le=15, description="MACD 得分 (0-15)")
+    macd_score: float = Field(0.0, ge=0, le=13, description="MACD 得分 (0-13)")
     rsi_score: float = Field(0.0, ge=0, le=10, description="RSI 得分 (0-10)")
+    adx_score: float = Field(0.0, ge=0, le=8, description="ADX 得分 (0-8)")
+    obv_score: float = Field(0.0, ge=0, le=7, description="OBV 得分 (0-7)")
 
     @property
     def total(self) -> float:
@@ -22,6 +24,8 @@ class TechnicalScoreBreakdown(BaseModel):
             + self.support_score
             + self.macd_score
             + self.rsi_score
+            + self.adx_score
+            + self.obv_score
         )
 
     @property

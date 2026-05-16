@@ -44,6 +44,9 @@ class AntiWhipsaw:
         if now - last_ts > self._cooldown:
             return True, "cooldown_expired"
 
+        if new_direction == "neutral" or last_direction == "neutral":
+            return True, "neutral_direction"
+
         if new_direction == last_direction:
             return True, "same_direction"
 

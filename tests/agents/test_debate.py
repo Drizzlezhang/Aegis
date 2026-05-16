@@ -196,3 +196,6 @@ class TestDebateAgent:
         assert "## Investment Debate" in result_state.analysis_report
         assert "Verdict:" in result_state.analysis_report
         assert "Winning side:" in result_state.analysis_report
+        assert result_state.metadata["debate_result"]["rating"]
+        assert result_state.metadata["debate_result"]["bull_confidence"] > 0
+        assert result_state.agent_sequence[-1] == "Investment-Debate"

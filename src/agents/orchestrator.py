@@ -18,8 +18,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_PIPELINE = [
     ("Data-Harvester", "src.agents.data_harvester.agent", "DataHarvesterAgent"),
     ("Quant-Brain", "src.agents.quant_brain.agent", "QuantBrainAgent"),
+    ("Investment-Debate", "src.agents.debate.agent", "DebateAgent"),
     ("Strategy-Execution", "src.agents.strategy_exec.agent", "StrategyExecAgent"),
     ("Aegis-Memory", "src.agents.aegis_memory.agent", "AegisMemoryAgent"),
+    ("Position-Monitor", "src.agents.position_monitor.agent", "PositionMonitorAgent"),
 ]
 
 
