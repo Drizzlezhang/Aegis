@@ -52,6 +52,17 @@ class TaskType(StrEnum):
 
 
 @dataclass
+class ModelCost:
+    """Model cost per million tokens."""
+    input_per_million: float
+    output_per_million: float
+
+    def estimate(self, input_tokens: int, output_tokens: int) -> float:
+        """Estimate cost in USD."""
+        return (input_tokens * self.input_per_million + output_tokens * self.output_per_million) / 1_000_000
+
+
+@dataclass
 class ModelRouting:
     """Model routing configuration."""
     model_name: str
@@ -116,6 +127,15 @@ class LLMRouter:
             description="Fast response, good for quick queries and simple tasks",
             cost_per_1k_tokens=0.08
         )
+    }
+
+    # Per-model cost table (input / output per million tokens)
+    MODEL_COSTS: dict[str, ModelCost] = {
+        "deepseek-v3.2": ModelCost(input_per_million=0.50, output_per_million=1.50),
+        "minimax-2.7": ModelCost(input_per_million=0.30, output_per_million=0.80),
+        "glm5.1": ModelCost(input_per_million=0.40, output_per_million=1.20),
+        "gemini-pro": ModelCost(input_per_million=1.25, output_per_million=5.00),
+        "kimi": ModelCost(input_per_million=0.60, output_per_million=1.80),
     }
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -309,6 +329,88 @@ class LLMRouter:
 
         # Default to reasoning
         return self.get_model_for_task(TaskType.REASONING, context_length)
+
+    @staticmethod
+    def estimate_tokens(text: str) -> int:
+        """Estimate token count for a given text.
+
+        Heuristic: CJK characters ~ 0.5 token/char, others ~ 0.25 token/char.
+        """
+        if not text:
+            return 0
+        total = 0.0
+        for char in text:
+            code = ord(char)
+            # CJK Unified Ideographs, Hiragana, Katakana, Hangul
+            if (
+                0x4E00 <= code <= 0x9FFF
+                or 0x3400 <= code <= 0x4DBF
+                or 0xF900 <= code <= 0xFAFF
+                or 0x3040 <= code <= 0x309F
+                or 0x30A0 <= code <= 0x30FF
+                or 0xAC00 <= code <= 0xD7AF
+            ):
+                total += 0.5
+            else:
+                total += 0.25
+        return max(1, int(total))
+
+    def get_cheapest_model(
+        self, candidates: list[str], input_tokens: int = 1000, output_tokens: int = 500
+    ) -> ModelRouting | None:
+        """Return the cheapest model among candidates."""
+        cheapest: tuple[float, ModelRouting] | None = None
+        for name in candidates:
+            routing = self._resolve_model(name)
+            if not routing:
+                continue
+            cost_info = self.MODEL_COSTS.get(name)
+            if not cost_info:
+                continue
+            cost = cost_info.estimate(input_tokens, output_tokens)
+            if cheapest is None or cost < cheapest[0]:
+                cheapest = (cost, routing)
+        return cheapest[1] if cheapest else None
+
+    def get_model_for_task_with_cost_limit(
+        self,
+        task_type: TaskType | str,
+        context_length: int | None = None,
+        max_cost_per_request: float | None = None,
+        estimated_input_tokens: int = 1000,
+        estimated_output_tokens: int = 500,
+    ) -> ModelRouting:
+        """Get model with optional cost limit."""
+        model = self.get_model_for_task(task_type, context_length)
+
+        if max_cost_per_request is None:
+            return model
+
+        cost_info = self.MODEL_COSTS.get(model.model_name)
+        if cost_info is None:
+            return model
+
+        estimated_cost = cost_info.estimate(estimated_input_tokens, estimated_output_tokens)
+        if estimated_cost <= max_cost_per_request:
+            return model
+
+        # Over budget — try to find a cheaper alternative
+        logger.warning(
+            f"Model {model.model_name} estimated cost ${estimated_cost:.4f} exceeds "
+            f"limit ${max_cost_per_request:.4f}, searching for cheaper alternative"
+        )
+
+        # Try quick models first, then others
+        candidates = [
+            get_config().llm.quick_model,
+            get_config().llm.code_model,
+            get_config().llm.reasoning_model,
+        ]
+        cheaper = self.get_cheapest_model(candidates, estimated_input_tokens, estimated_output_tokens)
+        if cheaper:
+            return cheaper
+
+        return model
 
 
 # Global router instance

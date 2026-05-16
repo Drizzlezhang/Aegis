@@ -1,10 +1,19 @@
 """Global configuration management."""
 
+import threading
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ConfigProfile(StrEnum):
+    """Environment profile."""
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
 
 
 class DataSourceConfig(BaseModel):
@@ -16,6 +25,7 @@ class DataSourceConfig(BaseModel):
     futu_enabled: bool = False
     tiger_enabled: bool = False
     cache_ttl_seconds: int = 300  # 5 minutes
+    circuit_breaker_threshold: int = 3
 
 
 class ProviderCredential(BaseModel):
@@ -37,6 +47,7 @@ class LLMConfig(BaseModel):
     providers: dict[str, ProviderCredential] = Field(default_factory=dict)
     max_retries: int = 3
     retry_base_delay: float = 1.0
+    enable_request_logging: bool = False
 
 
 class AlgorithmConfig(BaseModel):
@@ -102,6 +113,9 @@ class Config(BaseSettings):
         case_sensitive=False
     )
 
+    # Profile
+    profile: ConfigProfile = ConfigProfile.DEVELOPMENT
+
     # Project
     project_name: str = "Aegis-Trader"
     version: str = "0.1.0"
@@ -160,30 +174,46 @@ class Config(BaseSettings):
             raise ValueError("core_symbols cannot be empty")
         return [s.upper() for s in value]
 
+    @model_validator(mode="after")
+    def apply_profile(self) -> "Config":
+        """Apply profile-specific defaults."""
+        if self.profile == ConfigProfile.PRODUCTION:
+            self.llm.max_retries = 5
+            self.llm.retry_base_delay = 2.0
+            self.data_source.circuit_breaker_threshold = 5
+            self.llm.enable_request_logging = True
+        return self
+
 
 # Global config instance
 _config: Config | None = None
+_config_lock = threading.Lock()
 
 
 def get_config() -> Config:
     """Get the global configuration instance."""
     global _config
     if _config is None:
-        _config = Config()
+        with _config_lock:
+            # Double-check after acquiring lock
+            if _config is None:
+                _config = Config()
     return _config
 
 
 def set_config(config: Config) -> None:
     """Set the global configuration instance."""
     global _config
-    _config = config
+    with _config_lock:
+        _config = config
 
 
 def reload_config() -> Config:
     """Reload configuration from environment."""
     global _config
-    _config = Config()
-    return _config
+    with _config_lock:
+        _config = Config()
+        return _config
 
 
 def get_config_dict() -> dict[str, Any]:
