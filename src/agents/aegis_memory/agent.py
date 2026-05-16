@@ -1,15 +1,20 @@
 """Aegis-Memory Agent implementation."""
 
 import logging
+import re
 import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from src.agents.base import BaseAgent
+from src.agents.position_monitor.position_bridge import PositionBridge
+from src.agents.position_monitor.position_manager import PositionManager
 from src.config import get_config
-from src.models import AgentState
+from src.models import AgentState, DecisionEntry, DecisionType
 
 from . import queries
+from .decision_log import DecisionLog
 from .storage import AnalysisStorage
 
 if TYPE_CHECKING:
@@ -31,11 +36,16 @@ class AegisMemoryAgent(BaseAgent):
         self._db_path = Path(self._config.memory.sqlite_path).expanduser()
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._storage = AnalysisStorage(self._db_path)
+        self._decision_log = DecisionLog(db_path=self._db_path)
+        position_storage_path = self.config.get("position_storage_path", "~/.aegis-trader/positions.json")
+        self._position_manager = PositionManager(storage_path=position_storage_path)
+        self._position_bridge = PositionBridge(self._position_manager)
         self._vector_store: VectorStore | None = None
 
     async def initialize(self) -> None:
         """Initialize database schema and vector store."""
         self._storage.ensure_schema()
+        await self._position_manager.load()
 
         # Initialize vector store
         try:
@@ -63,8 +73,70 @@ class AegisMemoryAgent(BaseAgent):
         if self._vector_store:
             await self._add_analysis_to_vector_store(state)
 
+        await self.log_decision(state)
+
         logger.info(f"Aegis-Memory completed recording for symbol: {symbol}")
         return state
+
+    async def log_decision(self, state: AgentState) -> None:
+        current_price = 0.0
+        if state.options_chain:
+            current_price = state.options_chain.spot_price
+        elif state.ohlcv_data:
+            current_price = state.ohlcv_data[-1].close
+
+        technical_score = self._extract_technical_score(state.analysis_report)
+        macro_regime = self._extract_macro_regime(state.analysis_report)
+
+        if not state.recommended_options:
+            await self._decision_log.append(
+                DecisionEntry(
+                    id=str(uuid4()),
+                    symbol=state.symbol,
+                    decision_type=DecisionType.SKIP,
+                    current_price=current_price,
+                    technical_score=technical_score,
+                    macro_regime=macro_regime,
+                    confidence=0.0,
+                    reasoning="No recommendation from analysis pipeline",
+                )
+            )
+            return
+
+        for option in state.recommended_options:
+            entry = DecisionEntry(
+                id=str(uuid4()),
+                symbol=state.symbol,
+                decision_type=DecisionType.OPEN,
+                current_price=current_price,
+                technical_score=technical_score,
+                macro_regime=macro_regime,
+                strategy_name=option.recommendation_type,
+                confidence=option.confidence,
+                reasoning=option.reasoning,
+                contract_symbol=option.contract.contract_symbol,
+                entry_price=option.entry_price,
+                stop_loss=option.stop_loss,
+                profit_target=option.target_price,
+                quantity=1,
+            )
+            await self._decision_log.append(entry)
+            try:
+                await self._position_bridge.bridge_open_decision(entry)
+            except Exception as exc:
+                logger.warning("Position bridge failed for %s: %s", entry.id, exc)
+
+    def _extract_technical_score(self, analysis_report: str) -> float | None:
+        match = re.search(r"technical[_\s-]*score\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)", analysis_report, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
+
+    def _extract_macro_regime(self, analysis_report: str) -> str | None:
+        match = re.search(r"macro[_\s-]*regime\s*[:=]\s*([^\n,;]+)", analysis_report, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        return None
 
     async def _add_analysis_to_vector_store(self, state: AgentState) -> None:
         """Add analysis to vector store for semantic search."""

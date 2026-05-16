@@ -15,6 +15,7 @@ from src.agents.aegis_memory import queries
 from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.agents.aegis_memory.storage import AnalysisStorage
 from src.models import (
+    DecisionOutcome,
     OHLCV,
     AgentState,
     OptionChain,
@@ -321,13 +322,13 @@ class TestAegisMemoryAgent:
     """Tests for AegisMemoryAgent integration."""
 
     @pytest.fixture
-    def agent(self, temp_db_path):
+    def agent(self, temp_db_path, tmp_path):
         """Create agent with temp database."""
         with patch('src.agents.aegis_memory.agent.get_config') as mock_get_config:
             mock_config = MagicMock()
             mock_config.memory.sqlite_path = temp_db_path
             mock_get_config.return_value = mock_config
-            agent = AegisMemoryAgent()
+            agent = AegisMemoryAgent(config={"position_storage_path": str(tmp_path / "positions.json")})
             return agent
 
     @pytest.mark.asyncio
@@ -367,6 +368,38 @@ class TestAegisMemoryAgent:
         records = await agent.recall_recent_analysis("QQQ")
         assert len(records) == 1
         assert records[0]["symbol"] == "QQQ"
+
+    @pytest.mark.asyncio
+    async def test_run_records_skip_decision_without_recommendation(self, agent, sample_agent_state):
+        await agent.initialize()
+        sample_agent_state.recommended_options = []
+
+        await agent.run(sample_agent_state)
+
+        decisions = await agent._decision_log.query_by_symbol("QQQ")
+        assert len(decisions) == 1
+        assert decisions[0].decision_type.value == "skip"
+        assert decisions[0].outcome == DecisionOutcome.PENDING
+
+    @pytest.mark.asyncio
+    async def test_run_records_open_decision_with_context_and_bridge(self, agent, sample_agent_state):
+        await agent.initialize()
+        sample_agent_state.analysis_report = "technical_score: 7.5\nmacro_regime: risk_on"
+
+        await agent.run(sample_agent_state)
+
+        decisions = await agent._decision_log.query_by_symbol("QQQ")
+        assert len(decisions) == 1
+        assert decisions[0].decision_type.value == "open"
+        assert decisions[0].contract_symbol == "QQQ240621C00150000"
+        assert decisions[0].strategy_name == sample_agent_state.recommended_options[0].recommendation_type
+        assert decisions[0].technical_score == 7.5
+        assert decisions[0].macro_regime == "risk_on"
+
+        await agent._position_manager.load()
+        positions = await agent._position_manager.get_positions_by_symbol("QQQ")
+        assert len(positions) == 1
+        assert positions[0].contract.contract_symbol == "QQQ240621C00150000"
 
     @pytest.mark.asyncio
     async def test_add_trading_action_via_agent(self, agent):

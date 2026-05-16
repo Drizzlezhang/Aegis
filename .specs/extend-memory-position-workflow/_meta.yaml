@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "extend-memory-position-workflow"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-15T20:45:00+08:00"
+updated_at: "2026-05-15T21:50:00+08:00"
+retry_count: 0
+last_tldr: "Shipped Sprint 2 memory-position workflow with shared DecisionLog, bridge/reflection flow, PositionManager semantics fixes, monitor upgrades, tests, and push to origin."
+last_next: "Open a new change for any further memory-position work."
+last_risk: "Non-blocking Pyright import-index noise remains, but compile, targeted tests, full tests, commit, and push all succeeded."
+last_progress_note: "6-SHIP completed with commit 9b5562f pushed to origin/aegis-memory after 381 full-suite passes."
+last_context_mode: "full"
+last_verified_at: "2026-05-15T21:50:00+08:00"

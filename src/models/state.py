@@ -55,6 +55,7 @@ class AgentState(BaseModel):
     recommended_options: list["RecommendedOption"] = Field(default_factory=list)
     action_report: str = ""
     analysis_report: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     quant_result: QuantResult = Field(default_factory=QuantResult)
     strategy_result: StrategyResult = Field(default_factory=StrategyResult)
