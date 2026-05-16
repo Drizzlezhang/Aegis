@@ -67,3 +67,23 @@ class TestGetStatus:
     def test_all_healthy(self) -> None:
         data = client.get("/api/status").json()
         assert all(data["health"].values())
+
+    def test_has_pipeline_metrics(self) -> None:
+        data = client.get("/api/status").json()
+        assert "pipeline" in data
+        pipeline = data["pipeline"]
+        assert "agents" in pipeline
+        assert "total_runs" in pipeline
+        assert "last_run_time" in pipeline
+        assert "avg_duration_seconds" in pipeline
+        assert "llm" in pipeline
+
+    def test_pipeline_llm_metrics_structure(self) -> None:
+        data = client.get("/api/status").json()
+        llm = data["pipeline"]["llm"]
+        assert "requests" in llm
+        assert "tokens" in llm
+        assert "errors" in llm
+        assert isinstance(llm["requests"], int)
+        assert isinstance(llm["tokens"], int)
+        assert isinstance(llm["errors"], int)

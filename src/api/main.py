@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.agents.orchestrator import Orchestrator
 
-from .routes import analysis, backtest, market, memory, status, symbols
+from .routes import analysis, backtest, market, memory, positions, status, symbols
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 
@@ -22,6 +22,7 @@ async def lifespan(_: FastAPI):
     await _orchestrator.initialize()
     analyze_routes.set_orchestrator(_orchestrator)
     analyze_stream_routes.set_orchestrator(_orchestrator)
+    status.set_orchestrator(_orchestrator)
     aegis_memory = _orchestrator.get_agent("Aegis-Memory")
     if aegis_memory is not None:
         memory.set_aegis_memory(cast(AegisMemoryAgent, aegis_memory))
@@ -57,6 +58,7 @@ app.include_router(analyze_stream_routes.router, prefix="/api")
 app.include_router(market.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(memory.router, prefix="/api")
+app.include_router(positions.router, prefix="/api")
 
 
 @app.get("/api/health")
