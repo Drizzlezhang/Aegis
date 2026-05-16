@@ -41,6 +41,15 @@ class TaskType(StrEnum):
     CONFIG = "config"  # Configuration changes
     STATUS = "status"  # Status checks, health
 
+    # Debate Tasks
+    DEBATE_QUICK = "debate_quick"  # Bull/Bear single-side argument, fast response
+    DEBATE_DEEP = "debate_deep"  # Debate arbitration/final decision, deep reasoning
+    DEBATE_SYNTHESIS = "debate_synthesis"  # Debate synthesis summary
+
+    # Position Tasks
+    POSITION_MONITOR = "position_monitor"  # Position monitoring, quick check
+    POSITION_REFLECT = "position_reflect"  # Delayed reflection, reasoning
+
 
 @dataclass
 class ModelRouting:
@@ -109,76 +118,126 @@ class LLMRouter:
         )
     }
 
-    # Task type to default model mapping - 统一使用 deepseek-v3.2
-    DEFAULT_ROUTING: dict[TaskType, str] = {
-        # 所有任务类型都使用 deepseek-v3.2
-        TaskType.ARCHITECTURE: "deepseek-v3.2",
-        TaskType.PLAN: "deepseek-v3.2",
-        TaskType.CODE: "deepseek-v3.2",
-        TaskType.DEBUG: "deepseek-v3.2",
-        TaskType.REFACTOR: "deepseek-v3.2",
-        TaskType.REVIEW: "deepseek-v3.2",
-        TaskType.TEST: "deepseek-v3.2",
-        TaskType.VALIDATION: "deepseek-v3.2",
-        TaskType.REASONING: "deepseek-v3.2",
-        TaskType.ANALYSIS: "deepseek-v3.2",
-        TaskType.STRATEGY: "deepseek-v3.2",
-        TaskType.DOCUMENTATION: "deepseek-v3.2",
-        TaskType.REPORT: "deepseek-v3.2",
-        TaskType.LOG_ANALYSIS: "deepseek-v3.2",
-        TaskType.QUERY: "deepseek-v3.2",
-        TaskType.CONFIG: "deepseek-v3.2",
-        TaskType.STATUS: "deepseek-v3.2"
-    }
-
     def __init__(self, config: dict[str, Any] | None = None):
         """Initialize router with configuration."""
         self.config = config or {}
         self._user_overrides = self.config.get("model_overrides", {})
+        self._routing = self._build_default_routing()
+        self._default_model = get_config().llm.reasoning_model
+
+    @staticmethod
+    def _build_default_routing() -> dict[TaskType, str]:
+        """基于 LLMConfig 构建默认路由表。"""
+        llm_config = get_config().llm
+        reasoning = llm_config.reasoning_model
+        quick = llm_config.quick_model
+        long_ctx = llm_config.long_context_model
+        code = llm_config.code_model
+
+        return {
+            # Architecture & Planning
+            TaskType.ARCHITECTURE: reasoning,
+            TaskType.PLAN: reasoning,
+            # Code Implementation
+            TaskType.CODE: code,
+            TaskType.DEBUG: code,
+            TaskType.REFACTOR: code,
+            # Review & Testing
+            TaskType.REVIEW: reasoning,
+            TaskType.TEST: code,
+            TaskType.VALIDATION: reasoning,
+            # Analysis & Reasoning
+            TaskType.REASONING: reasoning,
+            TaskType.ANALYSIS: reasoning,
+            TaskType.STRATEGY: reasoning,
+            # Long Context
+            TaskType.DOCUMENTATION: long_ctx,
+            TaskType.REPORT: long_ctx,
+            TaskType.LOG_ANALYSIS: long_ctx,
+            # Quick Interactions
+            TaskType.QUERY: quick,
+            TaskType.CONFIG: quick,
+            TaskType.STATUS: quick,
+            # Debate
+            TaskType.DEBATE_QUICK: quick,
+            TaskType.DEBATE_DEEP: reasoning,
+            TaskType.DEBATE_SYNTHESIS: reasoning,
+            # Position
+            TaskType.POSITION_MONITOR: quick,
+            TaskType.POSITION_REFLECT: reasoning,
+        }
+
+    LONG_CONTEXT_THRESHOLD = 32000
 
     def get_model_for_task(self, task_type: TaskType | str,
                           context_length: int | None = None) -> ModelRouting:
-        """
-        Get appropriate model for a given task type.
-
-        Args:
-            task_type: Task type enum or string
-            context_length: Optional context length to consider for model selection
-
-        Returns:
-            ModelRouting configuration
-        """
+        """Get appropriate model for a given task type."""
         # Convert string to enum if needed
         if isinstance(task_type, str):
             try:
                 task_type = TaskType(task_type)
             except ValueError:
-                # Fallback to default if unknown task type
                 task_type = TaskType.REASONING
                 logger.warning(f"Unknown task type: {task_type}, falling back to {task_type}")
 
-        # Check for user override first
+        # 1. User override — highest priority, return immediately
         if task_type.value in self._user_overrides:
             model_name = self._user_overrides[task_type.value]
-            if model_name in self.MODEL_REGISTRY:
-                return self.MODEL_REGISTRY[model_name]
-            else:
-                logger.warning(f"Unknown override model: {model_name}, using default")
+            resolved = self._resolve_model(model_name)
+            if resolved:
+                return resolved
+            logger.warning(f"Unknown override model: {model_name}, falling back to routing")
 
-        # Use default routing
-        model_name = self.DEFAULT_ROUTING[task_type]
+        # 2. Long context auto-switch (only when no override hit)
+        if context_length and context_length > self.LONG_CONTEXT_THRESHOLD:
+            long_ctx_model = get_config().llm.long_context_model
+            resolved = self._resolve_model(long_ctx_model)
+            if resolved:
+                logger.info(f"Switching to long-context model {long_ctx_model} for {task_type} (ctx={context_length})")
+                return resolved
 
-        # Handle long context cases
-        if context_length and context_length > 32000:
-            # 对于长上下文，仍然使用 deepseek-v3.2（支持 32k tokens）
-            logger.info(f"Context length {context_length} > 32k, deepseek-v3.2 可以处理")
-            # 保持使用 deepseek-v3.2，因为项目契约要求统一使用该模型
+        # 3. Default routing table
+        model_name = self._routing.get(task_type, self._default_model)
+        return self._resolve_model(model_name) or self.MODEL_REGISTRY[self._default_model]
 
-        return self.MODEL_REGISTRY[model_name]
+    def _resolve_model(self, model_name: str) -> ModelRouting | None:
+        """Resolve model name to ModelRouting, supporting dynamic fallback."""
+        if model_name in self.MODEL_REGISTRY:
+            return self.MODEL_REGISTRY[model_name]
+
+        # Unregistered model — try to infer provider
+        provider = self._infer_provider(model_name)
+        if provider:
+            return ModelRouting(
+                model_name=model_name,
+                provider=provider,
+                max_tokens=4096,
+                temperature=0.7,
+                description=f"Dynamic routing for {model_name}",
+            )
+        return None
+
+    @staticmethod
+    def _infer_provider(model_name: str) -> str | None:
+        """Infer provider from model name."""
+        name_lower = model_name.lower()
+        if "deepseek" in name_lower:
+            return "deepseek"
+        if "glm" in name_lower or "chatglm" in name_lower:
+            return "glm"
+        if "kimi" in name_lower or "moonshot" in name_lower:
+            return "kimi"
+        if "gemini" in name_lower:
+            return "gemini"
+        if "minimax" in name_lower:
+            return "minimax"
+        return None
 
     def get_model_by_name(self, model_name: str) -> ModelRouting | None:
-        """Get model configuration by name."""
-        return self.MODEL_REGISTRY.get(model_name)
+        """Get model configuration by name. Supports dynamic fallback for unregistered models."""
+        if model_name in self.MODEL_REGISTRY:
+            return self.MODEL_REGISTRY[model_name]
+        return self._resolve_model(model_name)
 
     def list_available_models(self) -> list[str]:
         """List all available model names."""

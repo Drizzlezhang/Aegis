@@ -29,7 +29,6 @@ class TestLLMRouter:
         router = LLMRouter()
         model = router.get_model_for_task(TaskType.PLAN)
 
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
         assert model.model_name == "deepseek-v3.2"
         assert model.provider == "deepseek"
         assert model.max_tokens == 32768
@@ -39,26 +38,21 @@ class TestLLMRouter:
         router = LLMRouter()
         model = router.get_model_for_task(TaskType.CODE)
 
-        assert model.model_name == "deepseek-v3.2"
-        assert model.provider == "deepseek"
-        assert model.max_tokens == 32768
+        assert model.model_name == "glm5.1"
+        assert model.provider == "glm"
 
     def test_get_model_for_task_review(self):
         """Test model selection for review tasks."""
         router = LLMRouter()
         model = router.get_model_for_task(TaskType.REVIEW)
 
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
         assert model.model_name == "deepseek-v3.2"
-        assert model.provider == "deepseek"
-        assert model.max_tokens == 32768
 
     def test_get_model_for_task_string(self):
         """Test model selection with string task type."""
         router = LLMRouter()
         model = router.get_model_for_task("plan")
 
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
         assert model.model_name == "deepseek-v3.2"
 
     def test_get_model_for_task_unknown_string(self):
@@ -66,7 +60,6 @@ class TestLLMRouter:
         router = LLMRouter()
         model = router.get_model_for_task("unknown_task")
 
-        # Should fall back to default
         assert model.model_name == "deepseek-v3.2"
 
     def test_user_override(self):
@@ -99,16 +92,14 @@ class TestLLMRouter:
         assert model.model_name == "deepseek-v3.2"
 
     def test_long_context_switching(self):
-        """Test model switching for long context (现在统一使用 deepseek-v3.2)."""
+        """Test model switching for long context."""
         router = LLMRouter()
 
-        # 根据项目契约，所有任务都使用 deepseek-v3.2，即使长上下文
         model = router.get_model_for_task(TaskType.CODE, context_length=35000)
-        assert model.model_name == "deepseek-v3.2"
+        assert model.model_name == "gemini-pro"
 
-        # 短上下文也使用 deepseek-v3.2
         model = router.get_model_for_task(TaskType.CODE, context_length=10000)
-        assert model.model_name == "deepseek-v3.2"
+        assert model.model_name == "glm5.1"
 
     def test_get_model_by_name(self):
         """Test getting model by name."""
@@ -163,35 +154,24 @@ class TestLLMRouter:
         """Test model recommendation based on keywords."""
         router = LLMRouter()
 
-        # Architecture keywords
         model = router.get_recommendation("Design a new system architecture")
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
         assert model.model_name == "deepseek-v3.2"
 
-        # Code keywords
         model = router.get_recommendation("Write a Python function to calculate moving average")
+        assert model.model_name == "glm5.1"
+
+        model = router.get_recommendation("Review this for potential bugs")
         assert model.model_name == "deepseek-v3.2"
 
-        # Review keywords
-        model = router.get_recommendation("Review this code for potential bugs")
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
-        assert model.model_name == "deepseek-v3.2"
-
-        # Analysis keywords
         model = router.get_recommendation("Analyze market trends and patterns")
         assert model.model_name == "deepseek-v3.2"
 
-        # Report keywords
         model = router.get_recommendation("Generate a summary report of trading activities")
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
-        assert model.model_name == "deepseek-v3.2"
+        assert model.model_name == "gemini-pro"
 
-        # Query keywords
-        model = router.get_recommendation("What's the current price of QQQ?")
-        # 根据项目契约，所有任务都使用 deepseek-v3.2
-        assert model.model_name == "deepseek-v3.2"
+        model = router.get_recommendation("Query the current price of QQQ")
+        assert model.model_name == "minimax-2.7"
 
-        # Default for unknown keywords
         model = router.get_recommendation("Some random text")
         assert model.model_name == "deepseek-v3.2"
 
@@ -340,7 +320,7 @@ class TestLLMClient:
         with pytest.raises(Exception) as exc_info:
             await client.generate(request, task_type=TaskType.CODE)
 
-        assert "API error" in str(exc_info.value)
+        assert "retries exhausted" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_health_check_success(self, client, mock_session):

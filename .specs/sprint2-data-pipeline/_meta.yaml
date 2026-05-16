@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint2-data-pipeline"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "0-CHANGE"
+status: "active"
+created_at: "2026-05-15T15:00:00+08:00"
+updated_at: "2026-05-15T15:00:00+08:00"
+retry_count: 0
+last_tldr: "Change created, proposal drafted."
+last_next: "Enter 1-SPEC."
+last_risk: "LLMClient retry + DataNormalizer OHLCV passthrough compatibility."
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""

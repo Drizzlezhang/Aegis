@@ -4,6 +4,10 @@ import logging
 from typing import Any
 
 from src.agents.base import BaseAgent
+from src.agents.data_harvester.base_fetcher import FetcherStatus
+from src.agents.data_harvester.data_normalizer import DataNormalizer
+from src.agents.data_harvester.fetcher_manager import DataFetcherManager
+from src.agents.data_harvester.fetchers.yfinance_fetcher import YFinanceFetcher
 from src.config import get_config
 from src.models import AgentState, MarketIndex
 from src.skills import get_global_registry
@@ -25,6 +29,7 @@ class DataHarvesterAgent(BaseAgent):
         self._data_source_priority: list[str] = []
         self._skills: dict[str, Any] = {}
         self._yfinance_skill: Any | None = None
+        self._fetcher_manager: DataFetcherManager | None = None
 
     async def initialize(self) -> None:
         """Initialize data sources and skills."""
@@ -48,14 +53,15 @@ class DataHarvesterAgent(BaseAgent):
         self._data_source_priority = priority or ["yfinance_ohlcv"]
 
         # Load all skills in priority order
+        yfinance_skill: Any | None = None
         for skill_name in self._data_source_priority:
             try:
                 skill = self._skill_registry.get_skill(skill_name)
                 if skill:
                     await skill.initialize()
                     self._skills[skill_name] = skill
-                    # Keep a direct reference to yfinance skill for convenience
                     if skill_name == "yfinance_ohlcv":
+                        yfinance_skill = skill
                         self._yfinance_skill = skill
                     logger.info(f"{skill_name} skill loaded successfully")
                 else:
@@ -65,6 +71,15 @@ class DataHarvesterAgent(BaseAgent):
 
         if not self._skills:
             logger.error("No data source skills available!")
+
+        # Build fetcher manager with available fetchers
+        fetchers: list[Any] = []
+        if ds_config.yfinance_enabled:
+            fetchers.append(YFinanceFetcher(skill=yfinance_skill))
+
+        if fetchers:
+            self._fetcher_manager = DataFetcherManager(fetchers, ds_config)
+            logger.info(f"DataFetcherManager initialized with {len(fetchers)} fetchers")
 
     def _get_skill(self, name: str) -> Any | None:
         """Get a loaded skill by name."""
@@ -114,7 +129,6 @@ class DataHarvesterAgent(BaseAgent):
 
     async def _get_options_chain(self, symbol: str) -> Any | None:
         """Get options chain (yfinance only, alpha_vantage free tier doesn't support)."""
-        # Options chain is only available via yfinance
         if "yfinance_ohlcv" in self._skills:
             data = await self._try_skill("yfinance_ohlcv", symbol, "options")
             if data is not None:
@@ -136,7 +150,6 @@ class DataHarvesterAgent(BaseAgent):
 
     async def _get_market_indices(self) -> list[dict[str, Any]] | None:
         """Get market index snapshots (SPX, NDX, VIX, HSI)."""
-        # Market indices are only available via yfinance
         if "yfinance_ohlcv" not in self._skills:
             logger.warning("Market indices require yfinance")
             return None
@@ -172,10 +185,42 @@ class DataHarvesterAgent(BaseAgent):
         symbol = state.symbol.upper()
         logger.info(f"Data-Harvester starting for symbol: {symbol}")
 
-        # Get all data
+        # Primary path: use DataFetcherManager
+        if self._fetcher_manager is not None:
+            try:
+                raw_data = await self._fetcher_manager.fetch_all(symbol)
+
+                # Normalize OHLCV
+                ohlcv = DataNormalizer.normalize_ohlcv(raw_data.get("ohlcv", {}), symbol)
+                if ohlcv:
+                    state.ohlcv_data = ohlcv
+
+                # Normalize options chain
+                options = DataNormalizer.normalize_options_chain(raw_data.get("options_chain"), symbol)
+                if options:
+                    state.options_chain = options
+
+                # Market indices via skill (not in manager)
+                market_indices = await self._get_market_indices()
+                if market_indices:
+                    indices: list[MarketIndex] = []
+                    for idx in market_indices:
+                        try:
+                            indices.append(MarketIndex(**idx))
+                        except Exception:
+                            logger.debug(f"Skipping invalid market index data: {idx}")
+                    state.market_indices = indices
+
+                state.add_agent_step(self.name)
+                logger.info(f"Data-Harvester completed for symbol: {symbol} (via DataFetcherManager)")
+                return state
+
+            except Exception as e:
+                logger.warning(f"DataFetcherManager failed, falling back to SkillRegistry: {e}")
+
+        # Fallback path: use SkillRegistry
         data = await self._get_all_data(symbol)
 
-        # Update state with data
         if data["ohlcv"]:
             state.ohlcv_data = data["ohlcv"]
         if data["options"]:
@@ -189,59 +234,23 @@ class DataHarvesterAgent(BaseAgent):
                     logger.debug(f"Skipping invalid market index data: {idx}")
             state.market_indices = indices
 
-        # Add agent step
         state.add_agent_step(self.name)
-
-        logger.info(f"Data-Harvester completed for symbol: {symbol}")
+        logger.info(f"Data-Harvester completed for symbol: {symbol} (via SkillRegistry fallback)")
         return state
-
-    def _create_analysis_report(self, symbol: str, data: dict[str, Any]) -> str:
-        """Create a brief analysis report of the collected data."""
-        report = f"Data-Harvester Report for {symbol}\n"
-        report += "=" * 40 + "\n"
-
-        # OHLCV summary
-        if data.get("ohlcv"):
-            ohlcv_list = data["ohlcv"]
-            if ohlcv_list:
-                latest = ohlcv_list[-1]
-                report += f"OHLCV: {latest.timestamp.date()} Close={latest.close:.2f}, Volume={latest.volume:,}\n"
-            else:
-                report += "OHLCV: No data available\n"
-        else:
-            report += "OHLCV: Failed to retrieve\n"
-
-        # Options summary
-        if data.get("options"):
-            options = data["options"]
-            report += f"Options: {len(options.calls)} calls, {len(options.puts)} puts\n"
-            report += f"Spot Price: {options.spot_price:.2f}\n"
-            if options.expiry_dates:
-                nearest = options.get_nearest_expiry()
-                if nearest:
-                    report += f"Nearest Expiry: {nearest}\n"
-        else:
-            report += "Options: Failed to retrieve\n"
-
-        # Fundamentals summary
-        if data.get("fundamentals"):
-            fundamentals = data["fundamentals"]
-            if fundamentals.get("pe_ratio"):
-                report += f"P/E Ratio: {fundamentals['pe_ratio']:.2f}\n"
-            if fundamentals.get("market_cap"):
-                market_cap = fundamentals['market_cap']
-                if market_cap >= 1e9:
-                    report += f"Market Cap: ${market_cap/1e9:.2f}B\n"
-                else:
-                    report += f"Market Cap: ${market_cap/1e6:.2f}M\n"
-        else:
-            report += "Fundamentals: Not available\n"
-
-        report += "=" * 40
-        return report
 
     async def health_check(self) -> bool:
         """Check if at least one data source is healthy."""
+        if self._fetcher_manager is not None:
+            try:
+                report = await self._fetcher_manager.health_report()
+                for name, health in report.items():
+                    if health.status in (FetcherStatus.HEALTHY, FetcherStatus.DEGRADED):
+                        return True
+                return False
+            except Exception:
+                pass
+
+        # Fallback to skill-based health check
         if not self._skills:
             return False
 

@@ -18,6 +18,13 @@ class DataSourceConfig(BaseModel):
     cache_ttl_seconds: int = 300  # 5 minutes
 
 
+class ProviderCredential(BaseModel):
+    """单个 LLM Provider 的凭证。"""
+    api_key: str | None = None
+    api_base_url: str | None = None
+    enabled: bool = True
+
+
 class LLMConfig(BaseModel):
     """LLM configuration."""
     provider: str = "deepseek"
@@ -27,6 +34,9 @@ class LLMConfig(BaseModel):
     code_model: str = "glm5.1"
     api_base_url: str | None = None
     api_key: str | None = None
+    providers: dict[str, ProviderCredential] = Field(default_factory=dict)
+    max_retries: int = 3
+    retry_base_delay: float = 1.0
 
 
 class AlgorithmConfig(BaseModel):
@@ -62,6 +72,28 @@ class AgentConfig(BaseModel):
     max_concurrent_agents: int = 4
 
 
+class DebateConfig(BaseModel):
+    """辩论系统配置。"""
+    max_rounds: int = 1
+    quick_think_timeout: int = 30
+    deep_think_timeout: int = 120
+    bull_bear_enabled: bool = True
+    risk_debate_enabled: bool = True
+    min_confidence_threshold: float = 0.6
+
+
+class PositionConfig(BaseModel):
+    """持仓管理配置。"""
+    max_positions: int = 10
+    max_sector_concentration: float = 0.4
+    stop_loss_default: float = 0.5
+    profit_target_pct: float = 1.0
+    monitor_interval_minutes: int = 60
+    reflection_delay_days: int = 30
+    dte_warning_days: int = 30
+    iv_alert_threshold: float = 0.3
+
+
 class Config(BaseSettings):
     """Main configuration."""
     model_config = SettingsConfigDict(
@@ -91,6 +123,8 @@ class Config(BaseSettings):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     web: WebConfig = Field(default_factory=WebConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
+    debate: DebateConfig = Field(default_factory=DebateConfig)
+    position: PositionConfig = Field(default_factory=PositionConfig)
 
     # Core symbols
     core_symbols: list[str] = Field(default=[
