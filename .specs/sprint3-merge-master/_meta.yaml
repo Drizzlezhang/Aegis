@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint3-merge-master"
+size: "L"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "4-BUILD"
+status: "active"
+created_at: "2026-05-16T13:54:31+08:00"
+updated_at: "2026-05-16T16:13:57+08:00"
+retry_count: 0
+last_tldr: "3-PLAN created ordered task plan T01-T15 with verify commands."
+last_next: "Run post-plan gate, then start BUILD at T01 baseline check."
+last_risk: "Merge conflicts and remote push remain high-risk; push is blocked until explicit confirmation."
+last_progress_note: "tasks.md created after post-design approval."
+last_context_mode: "full"
+last_verified_at: ""
