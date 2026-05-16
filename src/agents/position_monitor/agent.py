@@ -60,7 +60,28 @@ class PositionMonitorAgent(BaseAgent):
         except Exception as exc:
             logger.warning("Reflection engine failed: %s", exc)
         state.metadata["reflections_processed"] = reflections_processed
+
+        if reflections_processed > 0:
+            try:
+                reflection_summaries = await self._get_recent_reflections()
+                state.metadata["reflection_feedback"] = reflection_summaries
+            except Exception as exc:
+                logger.warning("Reflection feedback collection failed: %s", exc)
         return state
+
+    async def _get_recent_reflections(self) -> list[dict]:
+        recent = await self._decision_log.query_recent_reflected(limit=5)
+        return [
+            {
+                "symbol": entry.symbol,
+                "decision_type": entry.decision_type.value,
+                "outcome": entry.outcome.value if entry.outcome else "pending",
+                "pnl": entry.actual_pnl,
+                "reflection": entry.reflection,
+                "timestamp": entry.timestamp.isoformat(),
+            }
+            for entry in recent
+        ]
 
     def _extract_market_prices(self, state: AgentState) -> dict[str, float]:
         prices: dict[str, float] = {}

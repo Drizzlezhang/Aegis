@@ -75,6 +75,10 @@ class AegisMemoryAgent(BaseAgent):
 
         await self.log_decision(state)
 
+        reflection_feedback = state.metadata.get("reflection_feedback", [])
+        for feedback in reflection_feedback:
+            await self._store_reflection(feedback)
+
         logger.info(f"Aegis-Memory completed recording for symbol: {symbol}")
         return state
 
@@ -125,6 +129,28 @@ class AegisMemoryAgent(BaseAgent):
                 await self._position_bridge.bridge_open_decision(entry)
             except Exception as exc:
                 logger.warning("Position bridge failed for %s: %s", entry.id, exc)
+
+    async def _store_reflection(self, feedback: dict) -> None:
+        if not self._vector_store:
+            return
+        text = (
+            f"Decision reflection for {feedback['symbol']}: "
+            f"{feedback['decision_type']} resulted in {feedback['outcome']}. "
+            f"PnL: {feedback.get('pnl', 'N/A')}. "
+            f"Lesson: {feedback.get('reflection', 'No reflection recorded.')}"
+        )
+        try:
+            self._vector_store.add_memory(
+                text=text,
+                metadata={
+                    "type": "decision_reflection",
+                    "symbol": feedback["symbol"],
+                    "outcome": feedback["outcome"],
+                    "timestamp": feedback["timestamp"],
+                },
+            )
+        except Exception as exc:
+            logger.warning("Failed to store reflection for %s: %s", feedback["symbol"], exc)
 
     def _extract_technical_score(self, analysis_report: str) -> float | None:
         match = re.search(r"technical[_\s-]*score\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)", analysis_report, re.IGNORECASE)

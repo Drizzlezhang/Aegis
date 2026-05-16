@@ -57,15 +57,16 @@ async def test_open_position_and_get_active_positions(manager, sample_position):
 async def test_close_position_records_action(manager, sample_position):
     await manager.open_position(sample_position)
 
-    action = await manager.close_position("pos-1", close_price=12.0, reason="target hit")
+    pos = await manager.close_position("pos-1", close_price=12.0, reason="target hit")
     closed = await manager.get_position("pos-1")
 
-    assert action.action_type == "close"
-    assert action.notes == "target hit"
+    assert pos.status == PositionStatus.CLOSED
     assert closed is not None
     assert closed.status == PositionStatus.CLOSED
     assert closed.current_price == 12.0
+    assert closed.close_price == 12.0
     assert closed.unrealized_pnl == 800.0
+    assert any(a.action_type == "close" and a.notes == "target hit" for a in closed.actions)
 
 
 @pytest.mark.asyncio

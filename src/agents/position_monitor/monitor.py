@@ -1,6 +1,7 @@
 """Position monitoring rules."""
 
 from dataclasses import dataclass
+from datetime import date
 from enum import StrEnum
 
 from src.models.position import Position
@@ -32,6 +33,20 @@ class PositionMonitor:
     async def scan(self, market_prices: dict[str, float]) -> list[MonitorAlert]:
         alerts: list[MonitorAlert] = []
         for position in await self._manager.get_active_positions():
+            if position.contract.expiry and position.contract.expiry <= date.today():
+                await self._manager.expire_position(position.id)
+                alerts.append(
+                    MonitorAlert(
+                        alert_type=AlertType.DTE_WARNING,
+                        position_id=position.id,
+                        symbol=position.symbol,
+                        message=f"{position.symbol} contract expired",
+                        severity="critical",
+                        suggested_action="Position expired and closed automatically",
+                    )
+                )
+                continue
+
             current_price = market_prices.get(position.symbol.upper(), position.current_price)
             if current_price is None:
                 continue

@@ -35,6 +35,8 @@ class Position(BaseModel):
     quantity: int = 1
     entry_date: date
     close_date: date | None = None
+    close_price: float | None = None
+    parent_position_id: str | None = None
     trade_plan: TradePlan | None = None
     actions: list[PositionAction] = Field(default_factory=list)
     notes: str = ""
