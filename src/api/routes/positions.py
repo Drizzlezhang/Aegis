@@ -88,7 +88,7 @@ class _RoutePositionService:
         await self._manager.load()
 
     async def get_summary(self) -> dict:
-        positions = self._read_all_positions()
+        positions = await self._manager.get_all_positions()
         active_positions = [position for position in positions if position.status == PositionStatus.ACTIVE]
         closed_positions = [position for position in positions if self._is_closed(position.status)]
 
@@ -160,10 +160,6 @@ class _RoutePositionService:
             "scanned_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def _read_all_positions(self) -> list[Position]:
-        store = getattr(self._manager, "_positions", {})
-        return [position.model_copy(deep=True) for position in store.values()]
-
     def _to_position_item(self, position: Position) -> dict:
         return {
             "id": position.id,
@@ -189,16 +185,9 @@ class _RoutePositionService:
 
 
 async def _load_service() -> _PositionServiceProtocol:
-    try:
-        from src.services import PositionService  # type: ignore[attr-defined]
-
-        service = PositionService()
-        await service.load()
-        return service
-    except (ImportError, AttributeError):
-        fallback = _RoutePositionService()
-        await fallback.load()
-        return fallback
+    service = _RoutePositionService()
+    await service.load()
+    return service
 
 
 @router.get("/positions/summary", response_model=PositionSummaryResponse)
