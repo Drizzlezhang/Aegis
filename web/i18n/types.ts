@@ -113,6 +113,14 @@ export type InteractionMessages = {
   debate_confidence: string;
   debate_winning_side: string;
   position_alerts_title: string;
+  rec_contract: string;
+  rec_strike: string;
+  rec_expiry: string;
+  rec_entry: string;
+  rec_target: string;
+  rec_stop_loss: string;
+  rec_risk_reward: string;
+  rec_reasoning: string;
 };
 
 export type MessageTree = {

@@ -26,23 +26,23 @@ function RecommendationCard({ rec, locale }: { rec: AnalysisRecommendation; loca
           />
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
-          <div>Contract: <span className="text-[var(--foreground)]">{rec.contractSymbol}</span></div>
-          <div>Strike: <span className="text-[var(--foreground)]">${rec.strike}</span></div>
-          <div>Expiry: <span className="text-[var(--foreground)]">{rec.expiry}</span></div>
-          <div>Entry: <span className="text-[var(--foreground)]">${rec.entryPrice}</span></div>
+          <div>{getMessage(locale, 'interaction.rec_contract')}: <span className="text-[var(--foreground)]">{rec.contractSymbol}</span></div>
+          <div>{getMessage(locale, 'interaction.rec_strike')}: <span className="text-[var(--foreground)]">${rec.strike}</span></div>
+          <div>{getMessage(locale, 'interaction.rec_expiry')}: <span className="text-[var(--foreground)]">{rec.expiry}</span></div>
+          <div>{getMessage(locale, 'interaction.rec_entry')}: <span className="text-[var(--foreground)]">${rec.entryPrice}</span></div>
           {rec.targetPrice !== null && (
-            <div>Target: <span className="text-emerald-500">${rec.targetPrice}</span></div>
+            <div>{getMessage(locale, 'interaction.rec_target')}: <span className="text-emerald-500">${rec.targetPrice}</span></div>
           )}
           {rec.stopLoss !== null && (
-            <div>Stop: <span className="text-rose-500">${rec.stopLoss}</span></div>
+            <div>{getMessage(locale, 'interaction.rec_stop_loss')}: <span className="text-rose-500">${rec.stopLoss}</span></div>
           )}
           {rec.riskRewardRatio !== null && (
             <div>
-              {getMessage(locale, 'interaction.results_risk_reward')}: <span className="text-[var(--foreground)]">{rec.riskRewardRatio.toFixed(2)}</span>
+              {getMessage(locale, 'interaction.rec_risk_reward')}: <span className="text-[var(--foreground)]">{rec.riskRewardRatio.toFixed(2)}</span>
             </div>
           )}
         </div>
-        <p className="text-xs leading-relaxed text-slate-500">{rec.reasoning}</p>
+        <p className="text-xs leading-relaxed text-slate-500">{getMessage(locale, 'interaction.rec_reasoning')}: {rec.reasoning}</p>
       </div>
     </Paper>
   );

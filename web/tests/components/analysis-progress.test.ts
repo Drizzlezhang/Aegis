@@ -11,11 +11,12 @@ describe('analysis progress component source checks', () => {
   });
 
   it('passes AbortSignal and cleans up on unmount', () => {
+    expect(source).toContain('const controllerRef = useRef<AbortController | null>(null)');
     expect(source).toContain('const controller = new AbortController()');
     expect(source).toContain('void runStream(controller.signal)');
-    expect(source).toContain('return () => controller.abort()');
-    expect(source).toContain('const runStream = useCallback(async (signal?: AbortSignal) =>');
-    expect(source).toContain('if (signal?.aborted)');
+    expect(source).toContain('controllerRef.current?.abort()');
+    expect(source).toContain('const runStream = useCallback(async (signal: AbortSignal) =>');
+    expect(source).toContain('if (signal.aborted)');
   });
 
   it('keeps retry flow with manual retry button', () => {
@@ -23,5 +24,16 @@ describe('analysis progress component source checks', () => {
     expect(source).toContain('setTimeout(() =>');
     expect(source).toContain('const handleRetry = () =>');
     expect(source).toContain("getMessage(locale, 'interaction.retry_button')");
+  });
+
+  it('keeps retry handler wrapped, not raw async onClick', () => {
+    expect(source).toContain('const handleRetry = () =>');
+    expect(source).not.toMatch(/onClick=\{async\s/);
+  });
+
+  it('stores AbortController in ref for retry reuse', () => {
+    expect(source).toContain('const controllerRef = useRef<AbortController | null>(null)');
+    expect(source).toContain('controllerRef.current?.abort()');
+    expect(source).toContain('controller.signal');
   });
 });

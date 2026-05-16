@@ -114,6 +114,7 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
 
   const retriedRef = useRef(false);
   const startedRef = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
   const stepStartRef = useRef<Partial<Record<StepKey, number>>>({});
   const resultsRef = useRef<AnalysisResult[]>([]);
 
@@ -165,7 +166,7 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
     });
   }, []);
 
-  const runStream = useCallback(async (signal?: AbortSignal) => {
+  const runStream = useCallback(async (signal: AbortSignal) => {
     setRunning(true);
     setError('');
 
@@ -201,7 +202,7 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
         },
       }, signal);
     } catch (streamError) {
-      if (signal?.aborted) {
+      if (signal.aborted) {
         setRunning(false);
         return;
       }
@@ -210,7 +211,7 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
         retriedRef.current = true;
         setCurrentMessage(getMessage(locale, 'interaction.auto_retrying'));
         setTimeout(() => {
-          if (!signal?.aborted) {
+          if (!signal.aborted) {
             void runStream(signal);
           }
         }, 250);
@@ -229,18 +230,26 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
     }
   }, [symbols, locale, initialSteps, onComplete, onError, updateByProgress, updateByStep]);
 
+  const startStream = useCallback(() => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    void runStream(controller.signal);
+  }, [runStream]);
+
   useEffect(() => {
     if (!autoStart || symbols.length === 0 || startedRef.current) return;
     startedRef.current = true;
-    const controller = new AbortController();
-    void runStream(controller.signal);
-    return () => controller.abort();
-  }, [autoStart, symbols, runStream]);
+    startStream();
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, [autoStart, symbols, startStream]);
 
   const handleRetry = () => {
     retriedRef.current = false;
     resetState();
-    void runStream();
+    startStream();
   };
 
   return (
