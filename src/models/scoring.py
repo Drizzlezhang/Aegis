@@ -1,19 +1,19 @@
 """技术评分模型定义。"""
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class TechnicalScoreBreakdown(BaseModel):
     """100 分制技术评分细项。"""
 
-    trend_score: float = Field(0.0, ge=0, le=25, description="趋势得分 (0-25)")
-    deviation_score: float = Field(0.0, ge=0, le=15, description="乖离率得分 (0-15)")
-    volume_score: float = Field(0.0, ge=0, le=12, description="量能得分 (0-12)")
-    support_score: float = Field(0.0, ge=0, le=10, description="支撑位得分 (0-10)")
-    macd_score: float = Field(0.0, ge=0, le=13, description="MACD 得分 (0-13)")
-    rsi_score: float = Field(0.0, ge=0, le=10, description="RSI 得分 (0-10)")
-    adx_score: float = Field(0.0, ge=0, le=8, description="ADX 得分 (0-8)")
-    obv_score: float = Field(0.0, ge=0, le=7, description="OBV 得分 (0-7)")
+    trend_score: float = Field(0.0, ge=0, le=25, validation_alias=AliasChoices("trend_score", "trend"), description="趋势得分 (0-25)")
+    deviation_score: float = Field(0.0, ge=0, le=15, validation_alias=AliasChoices("deviation_score", "deviation"), description="乖离率得分 (0-15)")
+    volume_score: float = Field(0.0, ge=0, le=12, validation_alias=AliasChoices("volume_score", "volume"), description="量能得分 (0-12)")
+    support_score: float = Field(0.0, ge=0, le=10, validation_alias=AliasChoices("support_score", "support"), description="支撑位得分 (0-10)")
+    macd_score: float = Field(0.0, ge=0, le=13, validation_alias=AliasChoices("macd_score", "macd"), description="MACD 得分 (0-13)")
+    rsi_score: float = Field(0.0, ge=0, le=10, validation_alias=AliasChoices("rsi_score", "rsi"), description="RSI 得分 (0-10)")
+    adx_score: float = Field(0.0, ge=0, le=8, validation_alias=AliasChoices("adx_score", "adx"), description="ADX 得分 (0-8)")
+    obv_score: float = Field(0.0, ge=0, le=7, validation_alias=AliasChoices("obv_score", "obv"), description="OBV 得分 (0-7)")
 
     @property
     def total(self) -> float:
