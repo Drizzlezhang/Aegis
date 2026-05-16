@@ -45,7 +45,6 @@ class AgentState(BaseModel):
     ohlcv_data: list[OHLCV] | None = None
     options_chain: OptionChain | None = None
     market_indices: list[MarketIndex] = Field(default_factory=list)
-    youtube_signals: list[dict[str, Any]] = Field(default_factory=list)
 
     valuation_range: ValuationRange | None = None
     support_levels: list[SupportResistanceLevel] = Field(default_factory=list)

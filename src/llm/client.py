@@ -418,7 +418,9 @@ async def generate_stream(prompt: str,
     client = get_client()
 
     async with client:
-        stream = client.generate(request, task_type, model_name)
-        assert isinstance(stream, AsyncGenerator)  # noqa: S101
-        async for chunk in stream:
-            yield chunk
+        result = await client.generate(request, task_type, model_name)
+        if hasattr(result, '__aiter__'):
+            async for chunk in result:
+                yield chunk
+        elif isinstance(result, LLMResponse):
+            yield result.content

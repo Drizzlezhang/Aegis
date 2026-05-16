@@ -167,6 +167,8 @@ class LLMRouter:
             TaskType.POSITION_REFLECT: reasoning,
         }
 
+    LONG_CONTEXT_THRESHOLD = 32000
+
     def get_model_for_task(self, task_type: TaskType | str,
                           context_length: int | None = None) -> ModelRouting:
         """Get appropriate model for a given task type."""
@@ -178,29 +180,64 @@ class LLMRouter:
                 task_type = TaskType.REASONING
                 logger.warning(f"Unknown task type: {task_type}, falling back to {task_type}")
 
-        # Check for user override first
+        # 1. User override — highest priority, return immediately
         if task_type.value in self._user_overrides:
             model_name = self._user_overrides[task_type.value]
-            if model_name in self.MODEL_REGISTRY:
-                return self.MODEL_REGISTRY[model_name]
-            else:
-                logger.warning(f"Unknown override model: {model_name}, using default")
+            resolved = self._resolve_model(model_name)
+            if resolved:
+                return resolved
+            logger.warning(f"Unknown override model: {model_name}, falling back to routing")
 
-        # Use config-driven routing
-        model_name = self._routing.get(task_type, self._default_model)
-
-        # Long context auto-switch
-        if context_length and context_length > 32000:
+        # 2. Long context auto-switch (only when no override hit)
+        if context_length and context_length > self.LONG_CONTEXT_THRESHOLD:
             long_ctx_model = get_config().llm.long_context_model
-            if long_ctx_model in self.MODEL_REGISTRY:
+            resolved = self._resolve_model(long_ctx_model)
+            if resolved:
                 logger.info(f"Switching to long-context model {long_ctx_model} for {task_type} (ctx={context_length})")
-                model_name = long_ctx_model
+                return resolved
 
-        return self.MODEL_REGISTRY.get(model_name, self.MODEL_REGISTRY[self._default_model])
+        # 3. Default routing table
+        model_name = self._routing.get(task_type, self._default_model)
+        return self._resolve_model(model_name) or self.MODEL_REGISTRY[self._default_model]
+
+    def _resolve_model(self, model_name: str) -> ModelRouting | None:
+        """Resolve model name to ModelRouting, supporting dynamic fallback."""
+        if model_name in self.MODEL_REGISTRY:
+            return self.MODEL_REGISTRY[model_name]
+
+        # Unregistered model — try to infer provider
+        provider = self._infer_provider(model_name)
+        if provider:
+            return ModelRouting(
+                model_name=model_name,
+                provider=provider,
+                max_tokens=4096,
+                temperature=0.7,
+                description=f"Dynamic routing for {model_name}",
+            )
+        return None
+
+    @staticmethod
+    def _infer_provider(model_name: str) -> str | None:
+        """Infer provider from model name."""
+        name_lower = model_name.lower()
+        if "deepseek" in name_lower:
+            return "deepseek"
+        if "glm" in name_lower or "chatglm" in name_lower:
+            return "glm"
+        if "kimi" in name_lower or "moonshot" in name_lower:
+            return "kimi"
+        if "gemini" in name_lower:
+            return "gemini"
+        if "minimax" in name_lower:
+            return "minimax"
+        return None
 
     def get_model_by_name(self, model_name: str) -> ModelRouting | None:
-        """Get model configuration by name."""
-        return self.MODEL_REGISTRY.get(model_name)
+        """Get model configuration by name. Supports dynamic fallback for unregistered models."""
+        if model_name in self.MODEL_REGISTRY:
+            return self.MODEL_REGISTRY[model_name]
+        return self._resolve_model(model_name)
 
     def list_available_models(self) -> list[str]:
         """List all available model names."""
