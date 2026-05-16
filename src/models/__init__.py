@@ -25,6 +25,15 @@ from .plan import (
     TradePlan,
 )
 from .position import Position, PositionAction, PositionStatus
+from .debate import (
+    DebateArgument,
+    DebateResult,
+    DebateRole,
+    DebateRound,
+    InvestmentRating,
+    JudgeVerdict,
+)
+from .scoring import MacroRegime, TechnicalScoreBreakdown
 from .state import AgentState, QuantResult, StrategyResult
 from .technical import (
     MomentumIndicators,
@@ -32,6 +41,7 @@ from .technical import (
     TrendIndicators,
     VolumeIndicators,
 )
+from .strategy_decision import DecisionRating, StrategyDecision
 from .trade import RecommendedOption
 
 __all__ = [
@@ -73,4 +83,14 @@ __all__ = [
     "TrendIndicators",
     "VolumeIndicators",
     "RecommendedOption",
+    "MacroRegime",
+    "TechnicalScoreBreakdown",
+    "DebateArgument",
+    "DebateResult",
+    "DebateRole",
+    "DebateRound",
+    "InvestmentRating",
+    "JudgeVerdict",
+    "DecisionRating",
+    "StrategyDecision",
 ]

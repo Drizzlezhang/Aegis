@@ -1,0 +1,19 @@
+schema_version: 2
+change_id: "sprint2-session2-analysis-brain"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "3-PLAN"
+status: "active"
+created_at: "2026-05-15T20:30:00+08:00"
+updated_at: "2026-05-15T20:45:00+08:00"
+retry_count: 0
+last_tldr: "10 tasks across 6 waves. Wave1: models (T01-T03 parallel). Wave2: strategies + anti-whipsaw (T04-T06 parallel). Wave3: debate system (T07). Wave4: indicators fix (T08). Wave5: tests (T09). Wave6: regression (T10)."
+last_next: "4-BUILD: Wave1 (T01+T02+T03) → Wave2 (T04+T05+T06) → Wave3 (T07) → Wave4 (T08) → Wave5 (T09) → Wave6 (T10)"
+last_risk: "T08 指标计算精度。T09 测试需构造复杂 mock。"

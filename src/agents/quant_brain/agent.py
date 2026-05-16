@@ -15,6 +15,7 @@ from .core import (
     create_support_resistance_levels,
 )
 from .llm_integration import generate_llm_enhanced_report
+from .macro_regime import MacroRegimeAnalyzer
 from .market_context import analyze_market_context
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,12 @@ class QuantBrainAgent(BaseAgent):
             if valuation_range:
                 state.valuation_range = valuation_range
 
+        # Run technical scoring step
+        await self._run_technical_score(state)
+
+        # Run macro regime step
+        await self._run_macro_regime(state)
+
         # Generate enhanced LLM report with market context
         try:
             enhanced_report = await generate_llm_enhanced_report(
@@ -132,3 +139,183 @@ class QuantBrainAgent(BaseAgent):
 
         logger.info(f"Quant-Brain completed analysis for symbol: {symbol}")
         return state
+
+    async def _run_technical_score(self, state: AgentState) -> None:
+        """Calculate 100-point technical score and append to analysis report."""
+        try:
+            scorer = self._skill_registry.get_skill("technical_scorer")
+            if scorer is None:
+                logger.warning("Technical scorer skill not found, skipping scoring step")
+                return
+
+            current_price = state.options_chain.spot_price if state.options_chain else None
+            if current_price is None and state.ohlcv_data:
+                current_price = state.ohlcv_data[-1].close
+
+            if current_price is None:
+                logger.warning("No current price available, skipping scoring step")
+                return
+
+            result = await scorer.execute({
+                "ohlcv_data": state.ohlcv_data or [],
+                "technical_indicators": self._build_technical_indicators(state),
+                "support_levels": [s.price for s in state.support_levels],
+                "current_price": current_price,
+            })
+
+            if result.success:
+                score = result.data
+                state.add_agent_step("technical_score")
+                breakdown_str = (
+                    f"Trend: {score.trend_score:.0f}/30 | "
+                    f"Deviation: {score.deviation_score:.0f}/20 | "
+                    f"Volume: {score.volume_score:.0f}/15 | "
+                    f"Support: {score.support_score:.0f}/10 | "
+                    f"MACD: {score.macd_score:.0f}/15 | "
+                    f"RSI: {score.rsi_score:.0f}/10"
+                )
+                state.analysis_report = (
+                    state.analysis_report
+                    + f"\n## Technical Score\n"
+                    f"Grade: {score.grade}, Total: {score.total:.1f}/100\n"
+                    f"{breakdown_str}\n"
+                )
+                logger.info(f"Technical score: Grade={score.grade}, Total={score.total:.1f}")
+            else:
+                logger.warning(f"Technical scorer failed: {result.error}")
+        except Exception as e:
+            logger.warning(f"Technical scoring step failed: {e}")
+
+    async def _run_macro_regime(self, state: AgentState) -> None:
+        """Analyze macro regime and append to analysis report."""
+        try:
+            analyzer = MacroRegimeAnalyzer()
+            market_data = self._build_market_data(state)
+            regime = await analyzer.analyze(market_data)
+
+            state.add_agent_step("macro_regime")
+            state.analysis_report = (
+                state.analysis_report
+                + f"\n## Macro Regime\n"
+                f"Regime: {regime.regime} (confidence: {regime.confidence:.2f})\n"
+                f"VIX: {regime.vix_signal} | Trend: {regime.market_trend} | "
+                f"Sector: {regime.sector_rotation} | "
+                f"Safe Haven Pressure: {regime.safe_haven_pressure:.2f} | "
+                f"Credit: {regime.credit_spread}\n"
+                f"Factors: {regime.factors}\n"
+            )
+            logger.info(f"Macro regime: {regime.regime} (confidence: {regime.confidence:.2f})")
+        except Exception as e:
+            logger.warning(f"Macro regime analysis failed: {e}")
+
+    def _build_technical_indicators(self, state: AgentState) -> dict:
+        """从 OHLCV 数据中计算基础技术指标。"""
+        if not state.ohlcv_data or len(state.ohlcv_data) < 20:
+            return {}
+
+        closes = [bar.close for bar in state.ohlcv_data]
+        volumes = [bar.volume for bar in state.ohlcv_data]
+
+        indicators: dict[str, Any] = {
+            "close": closes[-1],
+        }
+
+        if len(closes) >= 50:
+            indicators["sma50"] = sum(closes[-50:]) / 50
+        if len(closes) >= 200:
+            indicators["sma200"] = sum(closes[-200:]) / 200
+
+        if len(closes) >= 15:
+            indicators["rsi"] = self._calculate_rsi(closes, period=14)
+
+        if len(closes) >= 35:
+            macd, signal, histogram = self._calculate_macd(closes)
+            indicators["macd"] = macd
+            indicators["macd_signal"] = signal
+            indicators["macd_histogram_expanding"] = histogram > 0
+
+        if len(volumes) >= 20:
+            avg_vol = sum(volumes[-20:]) / 20
+            indicators["relative_volume"] = volumes[-1] / avg_vol if avg_vol > 0 else 0
+
+        if len(closes) >= 20:
+            indicators["adx"] = self._estimate_adx(closes, period=14)
+
+        if len(closes) >= 10 and len(volumes) >= 10:
+            price_up = closes[-1] > closes[-5]
+            vol_up = sum(volumes[-5:]) > sum(volumes[-10:-5])
+            indicators["obv_aligned"] = (price_up and vol_up) or (not price_up and not vol_up)
+
+        return indicators
+
+    @staticmethod
+    def _calculate_rsi(closes: list[float], period: int = 14) -> float:
+        deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+        recent = deltas[-period:]
+        gains = [d for d in recent if d > 0]
+        losses = [-d for d in recent if d < 0]
+        avg_gain = sum(gains) / period if gains else 0
+        avg_loss = sum(losses) / period if losses else 0
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return 100 - (100 / (1 + rs))
+
+    @staticmethod
+    def _calculate_macd(closes: list[float]) -> tuple[float, float, float]:
+        """计算 MACD (12, 26, 9)。"""
+        def ema_series(data: list[float], period: int) -> list[float]:
+            multiplier = 2 / (period + 1)
+            result = [data[0]]
+            for price in data[1:]:
+                result.append((price - result[-1]) * multiplier + result[-1])
+            return result
+
+        if len(closes) < 26:
+            return 0.0, 0.0, 0.0
+
+        ema12_series = ema_series(closes, 12)
+        ema26_series = ema_series(closes, 26)
+        macd_series = [e12 - e26 for e12, e26 in zip(ema12_series, ema26_series)]
+
+        macd_line = macd_series[-1]
+
+        if len(macd_series) >= 9:
+            signal_series = ema_series(macd_series, 9)
+            signal = signal_series[-1]
+        else:
+            signal = macd_line
+
+        histogram = macd_line - signal
+        return macd_line, signal, histogram
+
+    @staticmethod
+    def _estimate_adx(closes: list[float], period: int = 14) -> float:
+        if len(closes) < period + 1:
+            return 0.0
+        recent = closes[-period:]
+        price_range = max(recent) - min(recent)
+        avg_price = sum(recent) / len(recent)
+        if avg_price == 0:
+            return 0.0
+        volatility_pct = (price_range / avg_price) * 100
+        return min(volatility_pct * 3, 50)
+
+    def _build_market_data(self, state: AgentState) -> dict[str, Any]:
+        """Extract market data from state for regime analysis."""
+        market_data: dict[str, Any] = {}
+
+        for idx in state.market_indices:
+            symbol = idx.symbol.upper()
+            if symbol in ("^VIX", "VIX"):
+                market_data["VIX"] = idx.price
+            elif symbol in ("SPY", "^GSPC", "SPX"):
+                market_data["SPY_trend"] = (
+                    "bullish" if idx.change_percent > 0 else "bearish" if idx.change_percent < 0 else "neutral"
+                )
+            elif symbol in ("QQQ", "^IXIC", "NDX"):
+                market_data["QQQ_trend"] = (
+                    "bullish" if idx.change_percent > 0 else "bearish" if idx.change_percent < 0 else "neutral"
+                )
+
+        return market_data

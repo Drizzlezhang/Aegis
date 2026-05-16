@@ -1,0 +1,14 @@
+name: technical_scorer
+version: "0.1.0"
+description: "100-point technical scoring algorithm based on trend, deviation, volume, support, MACD, and RSI"
+type: algorithm
+dependencies:
+  - numpy>=1.24.0
+config:
+  requires_env: []
+  trend_score_max: 30
+  deviation_score_max: 20
+  volume_score_max: 15
+  support_score_max: 10
+  macd_score_max: 15
+  rsi_score_max: 10
