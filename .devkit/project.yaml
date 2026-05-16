@@ -1,5 +1,5 @@
 schema_version: 1
-scanned_at: 2026-05-14T12:56:48.084Z
+scanned_at: 2026-05-16T10:17:36.964Z
 ttl_seconds: 604800
 fingerprint:
   package_json_hash: sha256:d01cb3706d877258d854c19aaec643a56a70fac8e97103d190bc4f07f51e416d
@@ -12,7 +12,7 @@ project:
   language: [python, shell, typescript]
   framework: [fastapi, nextjs]
   scale: L
-  loc: 22364
+  loc: 39841
   module_count: 6
   is_monorepo: false
 byted_signals:

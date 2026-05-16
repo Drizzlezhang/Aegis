@@ -236,7 +236,7 @@ TradeAgent/
 - 大改前创建临时分支。
 - 修改后给明确回退命令。
 
-<!-- devkit-managed:start version=1 generated_at=2026-05-14T12:56:48.090Z -->
+<!-- devkit-managed:start version=1 generated_at=2026-05-16T10:16:51.442Z -->
 ## DevKit Configuration
 
 This section is managed by `devkit-init`. Do not edit manually.
