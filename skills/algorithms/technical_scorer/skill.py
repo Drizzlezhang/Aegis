@@ -13,12 +13,14 @@ class TechnicalScorerSkill(BaseSkill):
     """100-point technical scoring algorithm skill.
 
     Scoring breakdown:
-      - Trend (0-30): SMA50>SMA200 +15, Price>SMA50 +10, ADX>25 +5
-      - Deviation (0-20): 0% within [-2%,+2%] → 20, >±10% → 0
-      - Volume (0-15): relative_volume > 1.5 +10, OBV aligned +5
+      - Trend (0-25): SMA50>SMA200 +15, Price>SMA50 +10
+      - Deviation (0-15): 0% within [-2%,+2%] → 15, >±10% → 0
+      - Volume (0-12): relative_volume > 1.5 +12
       - Support (0-10): nearest support <3% +10, 3-5% +5, >5% 0
-      - MACD (0-15): MACD>Signal +8, histogram expanding 3d +7
+      - MACD (0-13): MACD>Signal +7, histogram expanding +6
       - RSI (0-10): 30-45 +10, 30-70 +5, >70 +2, <30 +3
+      - ADX (0-8): trend strength scoring
+      - OBV (0-7): volume-price alignment scoring
     """
 
     @property
@@ -41,14 +43,11 @@ class TechnicalScorerSkill(BaseSkill):
         sma50 = indicators.get("sma50", 0)
         sma200 = indicators.get("sma200", 0)
         price = indicators.get("close", 0)
-        adx = indicators.get("adx", 0)
 
         if sma50 > 0 and sma200 > 0 and sma50 > sma200:
             score += 15
         if price > 0 and sma50 > 0 and price > sma50:
             score += 10
-        if adx > 25:
-            score += 5
 
         return score
 
@@ -59,7 +58,7 @@ class TechnicalScorerSkill(BaseSkill):
             return 0.0
 
         deviation_pct = abs(price - sma50) / sma50
-        max_score = self.config.get("deviation_score_max", 20)
+        max_score = self.config.get("deviation_score_max", 15)
 
         if deviation_pct <= 0.02:
             return float(max_score)
@@ -68,16 +67,8 @@ class TechnicalScorerSkill(BaseSkill):
         return float(max_score) * (1 - (deviation_pct - 0.02) / 0.08)
 
     def _score_volume(self, indicators: dict) -> float:
-        score = 0.0
         rel_vol = indicators.get("relative_volume", 0)
-        obv_aligned = indicators.get("obv_aligned", False)
-
-        if rel_vol > 1.5:
-            score += 10
-        if obv_aligned:
-            score += 5
-
-        return score
+        return 12.0 if rel_vol > 1.5 else 0.0
 
     def _score_support(self, support_levels: list[float], current_price: float) -> float:
         if not support_levels or current_price <= 0:
@@ -105,9 +96,9 @@ class TechnicalScorerSkill(BaseSkill):
         histogram_expanding = indicators.get("macd_histogram_expanding", False)
 
         if macd > macd_signal:
-            score += 8
-        if histogram_expanding:
             score += 7
+        if histogram_expanding:
+            score += 6
 
         return score
 
@@ -124,6 +115,29 @@ class TechnicalScorerSkill(BaseSkill):
             return 3.0
         return 0.0
 
+    def _score_adx(self, indicators: dict) -> float:
+        adx = indicators.get("adx", 0)
+        if adx >= 40:
+            return 8.0
+        if adx >= 25:
+            return 6.0
+        if adx >= 20:
+            return 3.0
+        return 1.0
+
+    def _score_obv(self, indicators: dict) -> float:
+        obv_trend = indicators.get("obv_trend")
+        price_trend = indicators.get("sma50_above_sma200")
+        obv_aligned = indicators.get("obv_aligned")
+
+        if obv_trend == "up" and price_trend:
+            return 7.0
+        if obv_trend == "up" or price_trend or obv_aligned is True:
+            return 4.0
+        if obv_trend == "down" and price_trend is False:
+            return 1.0
+        return 3.0
+
     async def execute(self, params: dict[str, Any]) -> SkillResult:
         try:
             ohlcv_data: list = params.get("ohlcv_data", [])
@@ -137,14 +151,18 @@ class TechnicalScorerSkill(BaseSkill):
             support_score = self._score_support(support_levels, current_price)
             macd_score = self._score_macd(indicators)
             rsi_score = self._score_rsi(indicators)
+            adx_score = self._score_adx(indicators)
+            obv_score = self._score_obv(indicators)
 
             score = TechnicalScoreBreakdown(
-                trend_score=min(trend_score, 30),
-                deviation_score=min(deviation_score, 20),
-                volume_score=min(volume_score, 15),
+                trend_score=min(trend_score, 25),
+                deviation_score=min(deviation_score, 15),
+                volume_score=min(volume_score, 12),
                 support_score=min(support_score, 10),
-                macd_score=min(macd_score, 15),
+                macd_score=min(macd_score, 13),
                 rsi_score=min(rsi_score, 10),
+                adx_score=min(adx_score, 8),
+                obv_score=min(obv_score, 7),
             )
 
             return SkillResult.success_result(score, {"grade": score.grade, "total": score.total})

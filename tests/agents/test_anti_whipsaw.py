@@ -91,9 +91,10 @@ class TestAntiWhipsaw:
         allowed, _ = aw.should_allow("AAPL", "bearish")
         assert not allowed
 
-    def test_neutral_to_bullish_is_flip(self, tmp_path):
+    def test_neutral_to_bullish_allowed(self, tmp_path):
         state_file = tmp_path / "whipsaw.json"
         aw = AntiWhipsaw(cooldown_hours=24, state_file=str(state_file))
         aw.record_decision("AAPL", "neutral")
-        allowed, _ = aw.should_allow("AAPL", "bullish")
-        assert not allowed
+        allowed, reason = aw.should_allow("AAPL", "bullish")
+        assert allowed
+        assert reason == "neutral_direction"

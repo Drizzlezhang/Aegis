@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.agents.orchestrator import Orchestrator
+from src.agents.orchestrator import DEFAULT_PIPELINE, Orchestrator
 from src.models import (
     OHLCV,
     OptionChain,
@@ -90,12 +90,29 @@ def mock_registry(mock_yfinance_skill):
 
 
 @pytest.fixture
-def orchestrator(mock_registry):
+def orchestrator(mock_registry, tmp_path):
     """Create an orchestrator with mocked dependencies."""
+    config = {
+        "whipsaw_state_file": str(tmp_path / "whipsaw.json"),
+        "position_storage_path": str(tmp_path / "positions.json"),
+        "storage_path": str(tmp_path / "positions.json"),
+        "decision_storage_path": str(tmp_path / "decisions.json"),
+    }
     with patch('src.agents.data_harvester.agent.get_global_registry', return_value=mock_registry), \
          patch('src.agents.quant_brain.agent.get_global_registry', return_value=mock_registry):
-        orch = Orchestrator()
+        orch = Orchestrator(config)
         yield orch
+
+
+def test_default_pipeline_has_sprint3_agent_order():
+    assert [step[0] for step in DEFAULT_PIPELINE] == [
+        "Data-Harvester",
+        "Quant-Brain",
+        "Investment-Debate",
+        "Strategy-Execution",
+        "Aegis-Memory",
+        "Position-Monitor",
+    ]
 
 
 @pytest.mark.asyncio
@@ -114,8 +131,10 @@ async def test_pipeline_single_symbol(orchestrator):
     # Verify agent sequence (format: "AgentName:timestamp")
     assert any("Data-Harvester" in step for step in state.agent_sequence)
     assert any("Quant-Brain" in step for step in state.agent_sequence)
+    assert any("Investment-Debate" in step for step in state.agent_sequence)
     assert any("Strategy-Execution" in step for step in state.agent_sequence)
     assert any("Aegis-Memory" in step for step in state.agent_sequence)
+    assert any("Position-Monitor" in step for step in state.agent_sequence)
 
     # Verify recommendations were generated
     assert len(state.recommended_options) >= 0  # May be 0 if no suitable strategies
@@ -208,8 +227,10 @@ async def test_generate_basic_report(orchestrator):
     assert "QQQ" in report
     assert "Data-Harvester" in report
     assert "Quant-Brain" in report
+    assert "Investment-Debate" in report
     assert "Strategy-Execution" in report
     assert "Aegis-Memory" in report
+    assert "Position-Monitor" in report
 
 
 @pytest.mark.asyncio
@@ -220,5 +241,7 @@ async def test_health_check(orchestrator):
 
     assert "data_harvester" in health
     assert "quant_brain" in health
+    assert "Investment-Debate" in health
     assert "strategy_exec" in health
     assert "aegis_memory" in health
+    assert "Position-Monitor" in health

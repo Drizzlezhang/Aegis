@@ -18,6 +18,7 @@ from src.models import (
     SupportResistanceLevel,
     ValuationRange,
 )
+from src.models.debate import InvestmentRating
 
 
 @pytest.fixture
@@ -90,11 +91,17 @@ def mock_registry(mock_yfinance_skill):
 
 
 @pytest.fixture
-def orchestrator(mock_registry):
+def orchestrator(mock_registry, tmp_path):
     """Create an orchestrator with mocked dependencies."""
+    config = {
+        "whipsaw_state_file": str(tmp_path / "whipsaw.json"),
+        "position_storage_path": str(tmp_path / "positions.json"),
+        "storage_path": str(tmp_path / "positions.json"),
+        "decision_storage_path": str(tmp_path / "decisions.json"),
+    }
     with patch('src.agents.data_harvester.agent.get_global_registry', return_value=mock_registry), \
          patch('src.agents.quant_brain.agent.get_global_registry', return_value=mock_registry):
-        orch = Orchestrator()
+        orch = Orchestrator(config)
         yield orch
 
 
@@ -232,15 +239,21 @@ class TestStrategyGeneration:
         return skill
 
     @pytest.fixture
-    def orchestrator_with_leaps(self, mock_yfinance_with_leaps):
+    def orchestrator_with_leaps(self, mock_yfinance_with_leaps, tmp_path):
         """Create orchestrator with LEAPS-capable mock data."""
         registry = MagicMock()
         registry.get_skill.return_value = mock_yfinance_with_leaps
         registry.discover_skills.return_value = ["yfinance_ohlcv"]
+        config = {
+            "whipsaw_state_file": str(tmp_path / "whipsaw-leaps.json"),
+            "position_storage_path": str(tmp_path / "positions-leaps.json"),
+            "storage_path": str(tmp_path / "positions-leaps.json"),
+            "decision_storage_path": str(tmp_path / "decisions-leaps.json"),
+        }
 
         with patch('src.agents.data_harvester.agent.get_global_registry', return_value=registry), \
              patch('src.agents.quant_brain.agent.get_global_registry', return_value=registry):
-            orch = Orchestrator()
+            orch = Orchestrator(config)
             yield orch
 
     @pytest.mark.asyncio
@@ -250,6 +263,13 @@ class TestStrategyGeneration:
         await orch.initialize()
 
         state = await orch.analyze_symbol("QQQ")
+        state.metadata["debate_result"] = {
+            "rating": InvestmentRating.BUY.value,
+            "confidence": 0.8,
+            "winning_side": "bull",
+            "reasoning": "integration test verdict",
+        }
+        state = await orch.get_agent("Strategy-Execution").run(state)
 
         leaps_recs = [r for r in state.recommended_options if r.recommendation_type == "leaps_call"]
         assert len(leaps_recs) >= 1
@@ -276,6 +296,13 @@ class TestStrategyGeneration:
         await orch.initialize()
 
         state = await orch.analyze_symbol("QQQ")
+        state.metadata["debate_result"] = {
+            "rating": InvestmentRating.BUY.value,
+            "confidence": 0.8,
+            "winning_side": "bull",
+            "reasoning": "integration test verdict",
+        }
+        state = await orch.get_agent("Strategy-Execution").run(state)
 
         cc_recs = [r for r in state.recommended_options if r.recommendation_type == "covered_call"]
         assert len(cc_recs) >= 1

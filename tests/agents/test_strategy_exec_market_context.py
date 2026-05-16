@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.agents.strategy_exec.agent import StrategyExecAgent
 from src.agents.strategy_exec.market_context import (
     StrategyMarketContext,
     analyze_strategy_market_context,
@@ -14,8 +15,9 @@ from src.agents.strategy_exec.market_context import (
 from src.agents.strategy_exec.strategies import BaseStrategy, LeapsCallStrategy, discover_strategies
 from src.agents.strategy_exec.strategies.base import StrategyGenerator
 from src.agents.strategy_exec.strategies.bull_spread import BullSpreadStrategy
-from src.models import MarketIndex, SupportResistanceLevel
-from src.models.options import OptionContract, OptionType
+from src.models import AgentState, MarketIndex, SupportResistanceLevel
+from src.models.debate import InvestmentRating
+from src.models.options import OptionChain, OptionContract, OptionType
 
 
 def make_index(symbol: str, price: float, change_pct: float) -> MarketIndex:
@@ -40,7 +42,65 @@ def make_call(strike: float, last_price: float) -> OptionContract:
         last_price=last_price,
         bid=last_price,
         ask=last_price,
+        delta=0.7,
     )
+
+
+def make_chain() -> OptionChain:
+    return OptionChain(
+        symbol="QQQ",
+        timestamp=datetime(2024, 1, 1),
+        spot_price=100.0,
+        calls=[make_call(100.0, 5.0)],
+        puts=[],
+        expiry_dates=[date(2028, 1, 21)],
+    )
+
+
+def make_debate_result(rating: InvestmentRating) -> dict:
+    return {
+        "rating": rating.value,
+        "confidence": 0.8,
+        "winning_side": "bear" if rating in (InvestmentRating.SELL, InvestmentRating.STRONG_SELL) else "bull",
+        "reasoning": "test verdict",
+    }
+
+
+class TestStrategyExecAgentDebateIntegration:
+    @pytest.mark.asyncio
+    async def test_sell_verdict_skips_strategy_execution(self, tmp_path):
+        agent = StrategyExecAgent({"whipsaw_state_file": str(tmp_path / "whipsaw.json")})
+        state = AgentState(symbol="QQQ", trade_date=date(2024, 1, 1), options_chain=make_chain())
+        state.metadata["debate_result"] = make_debate_result(InvestmentRating.SELL)
+
+        result = await agent.run(state)
+
+        assert result.recommended_options == []
+        assert "Strategy Skipped" in result.action_report
+        assert result.agent_sequence[-1] == "Strategy-Execution"
+
+    @pytest.mark.asyncio
+    async def test_malformed_debate_result_does_not_crash(self, tmp_path):
+        agent = StrategyExecAgent({"whipsaw_state_file": str(tmp_path / "whipsaw.json")})
+        state = AgentState(symbol="QQQ", trade_date=date(2024, 1, 1), options_chain=make_chain())
+        state.metadata["debate_result"] = {"rating": "bad"}
+
+        result = await agent.run(state)
+
+        assert "Strategy Skipped" not in result.action_report
+        assert result.agent_sequence[-1] == "Strategy-Execution"
+
+    @pytest.mark.asyncio
+    async def test_anti_whipsaw_blocks_reversal(self, tmp_path):
+        agent = StrategyExecAgent({"whipsaw_state_file": str(tmp_path / "whipsaw.json")})
+        agent._anti_whipsaw.record_decision("QQQ", "bearish")
+        state = AgentState(symbol="QQQ", trade_date=date(2024, 1, 1), options_chain=make_chain())
+        state.metadata["debate_result"] = make_debate_result(InvestmentRating.BUY)
+
+        result = await agent.run(state)
+
+        assert result.recommended_options == []
+        assert "Anti-Whipsaw Blocked" in result.action_report
 
 
 class TestAnalyzeStrategyMarketContext:

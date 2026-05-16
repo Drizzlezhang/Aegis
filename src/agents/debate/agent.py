@@ -48,7 +48,6 @@ class DebateAgent(BaseAgent):
         )
 
         verdict = await self._judge.evaluate(bull_arg, bear_arg, state.symbol)
-
         result = DebateResult(
             symbol=state.symbol,
             debate_type="investment",
@@ -57,7 +56,7 @@ class DebateAgent(BaseAgent):
             total_duration_ms=(time.time() - start) * 1000,
         )
 
-        state.add_agent_step("investment_debate")
+        state.add_agent_step(self.name)
         state.analysis_report = (
             state.analysis_report
             + f"\n## Investment Debate\n"
@@ -67,6 +66,17 @@ class DebateAgent(BaseAgent):
             f"Winning side: {verdict.winning_side}\n"
             f"Reasoning: {verdict.reasoning}\n"
         )
+        state.metadata["debate_result"] = {
+            "rating": verdict.rating.value,
+            "confidence": verdict.confidence,
+            "winning_side": verdict.winning_side,
+            "reasoning": verdict.reasoning,
+            "key_factors": verdict.key_factors,
+            "action_items": verdict.action_items,
+            "dissenting_points": verdict.dissenting_points,
+            "bull_confidence": result.rounds[0].bull_argument.confidence if result.rounds[0].bull_argument else 0.0,
+            "bear_confidence": result.rounds[0].bear_argument.confidence if result.rounds[0].bear_argument else 0.0,
+        }
 
         logger.info(
             f"DebateAgent completed for {state.symbol}: "

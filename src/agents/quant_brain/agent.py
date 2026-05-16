@@ -165,14 +165,19 @@ class QuantBrainAgent(BaseAgent):
 
             if result.success:
                 score = result.data
+                if score is None:
+                    logger.warning("Technical scorer returned empty data")
+                    return
                 state.add_agent_step("technical_score")
                 breakdown_str = (
-                    f"Trend: {score.trend_score:.0f}/30 | "
-                    f"Deviation: {score.deviation_score:.0f}/20 | "
-                    f"Volume: {score.volume_score:.0f}/15 | "
+                    f"Trend: {score.trend_score:.0f}/25 | "
+                    f"Deviation: {score.deviation_score:.0f}/15 | "
+                    f"Volume: {score.volume_score:.0f}/12 | "
                     f"Support: {score.support_score:.0f}/10 | "
-                    f"MACD: {score.macd_score:.0f}/15 | "
-                    f"RSI: {score.rsi_score:.0f}/10"
+                    f"MACD: {score.macd_score:.0f}/13 | "
+                    f"RSI: {score.rsi_score:.0f}/10 | "
+                    f"ADX: {score.adx_score:.0f}/8 | "
+                    f"OBV: {score.obv_score:.0f}/7"
                 )
                 state.analysis_report = (
                     state.analysis_report
@@ -224,6 +229,8 @@ class QuantBrainAgent(BaseAgent):
             indicators["sma50"] = sum(closes[-50:]) / 50
         if len(closes) >= 200:
             indicators["sma200"] = sum(closes[-200:]) / 200
+        if len(closes) >= 200:
+            indicators["sma50_above_sma200"] = indicators["sma50"] > indicators["sma200"]
 
         if len(closes) >= 15:
             indicators["rsi"] = self._calculate_rsi(closes, period=14)
@@ -245,6 +252,12 @@ class QuantBrainAgent(BaseAgent):
             price_up = closes[-1] > closes[-5]
             vol_up = sum(volumes[-5:]) > sum(volumes[-10:-5])
             indicators["obv_aligned"] = (price_up and vol_up) or (not price_up and not vol_up)
+            if vol_up and price_up:
+                indicators["obv_trend"] = "up"
+            elif vol_up and not price_up:
+                indicators["obv_trend"] = "down"
+            else:
+                indicators["obv_trend"] = "flat"
 
         return indicators
 
