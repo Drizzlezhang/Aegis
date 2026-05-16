@@ -1,4 +1,4 @@
-"""LLM Gateway — 统一入口、计量、日志。"""
+"""LLM Gateway — 统一入口、计量、日志、熔断。"""
 
 import logging
 import time
@@ -12,6 +12,42 @@ from src.config import get_config
 from .client import LLMClient, LLMError, LLMRequest, LLMResponse
 
 logger = logging.getLogger(__name__)
+
+
+class ModelCircuitBreaker:
+    """Per-model 熔断器: CLOSED → OPEN → HALF_OPEN → CLOSED."""
+
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0):
+        self._failure_threshold = failure_threshold
+        self._recovery_timeout = recovery_timeout
+        self._failures = 0
+        self._state = "closed"  # closed | open | half_open
+        self._opened_at: float = 0.0
+
+    def should_allow(self) -> bool:
+        if self._state == "closed":
+            return True
+        if self._state == "open":
+            if time.time() - self._opened_at >= self._recovery_timeout:
+                self._state = "half_open"
+                return True
+            return False
+        # half_open: 允许 1 个试探
+        return True
+
+    def record_success(self) -> None:
+        self._failures = 0
+        self._state = "closed"
+
+    def record_failure(self) -> None:
+        self._failures += 1
+        if self._failures >= self._failure_threshold:
+            self._state = "open"
+            self._opened_at = time.time()
+
+    @property
+    def state(self) -> str:
+        return self._state
 
 
 @dataclass
@@ -42,6 +78,7 @@ class LLMGateway:
     def __init__(self, client: LLMClient | None = None):
         self._client = client or LLMClient()
         self._metrics = LLMMetrics()
+        self._breakers: dict[str, ModelCircuitBreaker] = {}
 
     @property
     def metrics(self) -> LLMMetrics:
@@ -58,15 +95,22 @@ class LLMGateway:
         start = time.time()
         model_used = model_name or "unknown"
 
+        # 检查熔断器
+        breaker = self._breakers.setdefault(model_used, ModelCircuitBreaker())
+        if not breaker.should_allow():
+            raise LLMError(f"Circuit open for model {model_used}")
+
         try:
             response = await self._client.generate(
                 request, task_type=task_type, model_name=model_name
             )
             latency_ms = (time.time() - start) * 1000
+            breaker.record_success()
             self._record_success(response, latency_ms, model_used)
             return response
         except LLMError as e:
             latency_ms = (time.time() - start) * 1000
+            breaker.record_failure()
             self._record_error(e, latency_ms, model_used)
             raise
 

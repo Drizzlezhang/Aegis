@@ -12,6 +12,7 @@ import cachetools
 
 from src.agents.data_harvester.base_fetcher import BaseFetcher, FetcherHealth, FetcherStatus
 from src.config import DataSourceConfig
+from .cache import DataCache
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class DataFetcherManager:
         self._cache: cachetools.TTLCache[str, Any] = cachetools.TTLCache(
             maxsize=128, ttl=config.cache_ttl_seconds
         )
+        self._data_cache = DataCache(max_entries=500)
 
     def _cache_key(self, prefix: str, symbol: str, **kwargs: Any) -> str:
         parts = [prefix, symbol] + [f"{k}={v}" for k, v in sorted(kwargs.items())]
@@ -222,15 +224,20 @@ class DataFetcherManager:
         self, symbol: str, method: str, **kwargs: Any
     ) -> Any:
         """按优先级逐个尝试 fetcher，直到成功或全部失败。"""
+        cache_key = DataCache.make_key(symbol, method, **kwargs)
+        cached = self._data_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         errors: list[tuple[str, Exception]] = []
         for fetcher in self._fetchers:
             result, success = await self._try_fetcher(
                 fetcher, method, symbol, **kwargs
             )
             if success and result is not None:
+                self._data_cache.put(cache_key, result, data_type=method)
                 return result
             if not success:
-                # 记录最后一次错误（如果 try_fetcher 内部未抛出）
                 last_err = fetcher._health.last_error
                 if last_err:
                     errors.append((fetcher.name, Exception(last_err)))

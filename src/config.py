@@ -106,6 +106,15 @@ class PositionConfig(BaseModel):
     iv_alert_threshold: float = 0.3
 
 
+class RealtimeConfig(BaseModel):
+    """实时数据配置。"""
+    enabled: bool = False
+    poll_interval_seconds: float = 5.0
+    stale_threshold_seconds: float = 60.0
+    max_subscribers: int = 50
+    symbols: list[str] = Field(default_factory=list)
+
+
 class Config(BaseSettings):
     """Main configuration."""
     model_config = SettingsConfigDict(
@@ -140,6 +149,7 @@ class Config(BaseSettings):
     agent: AgentConfig = Field(default_factory=AgentConfig)
     debate: DebateConfig = Field(default_factory=DebateConfig)
     position: PositionConfig = Field(default_factory=PositionConfig)
+    realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
 
     # Core symbols
     core_symbols: list[str] = Field(default=[
