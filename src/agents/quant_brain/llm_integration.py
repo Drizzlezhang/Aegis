@@ -6,11 +6,23 @@ from typing import Any
 from src.llm import TaskType, generate
 from src.models import AgentState, GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
 
+from .llm_guard import llm_optional
 from .market_context import MarketContext, format_market_summary
 
 logger = logging.getLogger(__name__)
 
+SYSTEM_PROMPT_ANALYST = """你是 Aegis-Trader 的量化分析师。基于提供的技术指标数据，生成简洁的投资分析段落。
 
+规则：
+1. 只基于数据说话，不编造数字
+2. 明确指出看多/看空信号及其强度
+3. 给出具体价位参考（支撑/阻力/入场区间）
+4. 风险提示必须具体，不泛泛而谈
+5. 中文输出，专业术语保留英文缩写
+6. 总长度 300-500 字"""
+
+
+@llm_optional(fallback_value="")
 async def generate_llm_enhanced_report(
     symbol: str,
     ohlcv_data: list[Any] | None = None,
@@ -21,6 +33,7 @@ async def generate_llm_enhanced_report(
     gex_walls: list[GEXWall] | None = None,
     valuation_range: ValuationRange | None = None,
     market_context: MarketContext | None = None,
+    technical_summary: dict | None = None,
 ) -> str:
     """
     Generate enhanced analysis report using LLM.
@@ -39,6 +52,26 @@ async def generate_llm_enhanced_report(
     Returns:
         Enhanced analysis report
     """
+    if technical_summary is None and isinstance(ohlcv_data, dict):
+        technical_summary = ohlcv_data
+        if support_levels is None and isinstance(options_chain, list):
+            support_levels = options_chain
+        if valuation_range is None and not isinstance(resistance_levels, list):
+            valuation_range = resistance_levels
+        if market_context is None and volume_profile is not None:
+            market_context = volume_profile
+
+    if technical_summary is not None:
+        prompt = _build_analysis_prompt(symbol, technical_summary, support_levels or [], valuation_range, market_context)
+        report = await generate(
+            prompt=prompt,
+            system_prompt=SYSTEM_PROMPT_ANALYST,
+            task_type=TaskType.REASONING,
+            max_tokens=1500,
+            temperature=0.3,
+        )
+        return report or ""
+
     # Create data summary for LLM
     data_summary = _create_data_summary(
         symbol=symbol,
@@ -64,10 +97,9 @@ async def generate_llm_enhanced_report(
         if market_context.risk_warning:
             macro_paragraph += f"- Risk Warning: {market_context.risk_warning}\n"
 
-    try:
-        # Generate enhanced report using LLM
-        report: str = await generate(
-            prompt=f"""You are a senior quantitative analyst. Analyze this market data and provide a professional trading analysis report.
+    # Generate enhanced report using LLM
+    report: str = await generate(
+        prompt=f"""You are a senior quantitative analyst. Analyze this market data and provide a professional trading analysis report.
 
 Data Summary:
 {data_summary}{macro_paragraph}
@@ -104,22 +136,38 @@ Please provide a comprehensive analysis including:
 
 
 IMPORTANT: Incorporate the macro market context (VIX level, market sentiment, position size factor) into your analysis. When VIX is elevated or market sentiment is bearish, be more conservative with recommendations.""",
-            system_prompt="""You are a senior quantitative analyst at a hedge fund specializing in options trading and market analysis.
+        system_prompt="""You are a senior quantitative analyst at a hedge fund specializing in options trading and market analysis.
 You have deep expertise in technical analysis, options pricing, and risk management.
 Provide professional, data-driven insights suitable for institutional investors.
 Always factor in the macro market context (VIX, SPX/NDX trend) when making recommendations.""",
-            task_type=TaskType.ANALYSIS,
-            max_tokens=4000,
-            temperature=0.3
-        )
+        task_type=TaskType.ANALYSIS,
+        max_tokens=4000,
+        temperature=0.3,
+    )
 
-        logger.info(f"Generated enhanced LLM report for {symbol}")
-        return report
+    logger.info(f"Generated enhanced LLM report for {symbol}")
+    return report or ""
 
-    except Exception as e:
-        logger.error(f"LLM report generation failed for {symbol}: {e}")
-        # Fallback to basic report
-        return _create_basic_report(data_summary)
+
+def _build_analysis_prompt(
+    symbol: str,
+    technical: dict,
+    supports: list[Any],
+    valuation: Any | None,
+    macro: Any | None,
+) -> str:
+    parts = [f"标的: {symbol}"]
+    parts.append(f"技术评分: {technical.get('score', 'N/A')}/100, Grade: {technical.get('grade', 'N/A')}")
+    parts.append(f"趋势: {technical.get('trend', 'N/A')}")
+    if technical.get("signals"):
+        parts.append(f"信号: {', '.join(technical['signals'])}")
+    if supports:
+        parts.append(f"支撑位: {supports}")
+    if valuation:
+        parts.append(f"估值区间: {valuation}")
+    if macro:
+        parts.append(f"宏观环境: {macro}")
+    return "\n".join(parts)
 
 
 def _create_data_summary(

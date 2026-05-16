@@ -38,20 +38,38 @@ class DebateAgent(BaseAgent):
         """执行投资辩论。"""
         start = time.time()
 
-        bull_arg = await self._bull.argue(state)
-        bear_arg = await self._bear.argue(state)
+        max_rounds = max(1, int(self.config.get("max_rounds", 1)))
+        confidence_threshold = float(self.config.get("early_stop_confidence", 0.85))
 
-        debate_round = DebateRound(
-            round_number=1,
-            bull_argument=bull_arg,
-            bear_argument=bear_arg,
-        )
+        rounds: list[DebateRound] = []
+        prev_bull = None
+        prev_bear = None
 
-        verdict = await self._judge.evaluate(bull_arg, bear_arg, state.symbol)
+        for round_num in range(1, max_rounds + 1):
+            bull_arg = await self._bull.argue(state, counter_argument=prev_bear)
+            bear_arg = await self._bear.argue(state, counter_argument=prev_bull)
+
+            debate_round = DebateRound(
+                round_number=round_num,
+                bull_argument=bull_arg,
+                bear_argument=bear_arg,
+            )
+            rounds.append(debate_round)
+
+            if max(bull_arg.confidence, bear_arg.confidence) >= confidence_threshold:
+                break
+
+            prev_bull = bull_arg
+            prev_bear = bear_arg
+
+        final_round = rounds[-1]
+        bull_arg = final_round.bull_argument
+        bear_arg = final_round.bear_argument
+        verdict = await self._judge.evaluate_rounds(rounds, state.symbol)
         result = DebateResult(
             symbol=state.symbol,
             debate_type="investment",
-            rounds=[debate_round],
+            rounds=rounds,
             verdict=verdict,
             total_duration_ms=(time.time() - start) * 1000,
         )
@@ -74,8 +92,9 @@ class DebateAgent(BaseAgent):
             "key_factors": verdict.key_factors,
             "action_items": verdict.action_items,
             "dissenting_points": verdict.dissenting_points,
-            "bull_confidence": result.rounds[0].bull_argument.confidence if result.rounds[0].bull_argument else 0.0,
-            "bear_confidence": result.rounds[0].bear_argument.confidence if result.rounds[0].bear_argument else 0.0,
+            "rounds_played": len(result.rounds),
+            "bull_confidence": bull_arg.confidence if bull_arg else 0.0,
+            "bear_confidence": bear_arg.confidence if bear_arg else 0.0,
         }
 
         logger.info(
