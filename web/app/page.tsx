@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import MarketIndexCard from '@/components/market-index-card';
 import MarketSentimentInline from '@/components/market-sentiment-inline';
+import { RealtimeTicker } from '@/components/RealtimeTicker';
 import Sidebar from '@/components/Sidebar';
 import SymbolCard from '@/components/SymbolCard';
 import { getMessage } from '@/i18n/get-message';
@@ -21,6 +22,7 @@ export default async function Home() {
   } catch {
     indices = [];
   }
+  const coreSymbols = symbols.slice(0, 8).map((item) => item.symbol);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -52,6 +54,12 @@ export default async function Home() {
                     />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {coreSymbols.length > 0 && (
+              <div className="mb-6">
+                <RealtimeTicker symbols={coreSymbols} showVolume locale={locale} />
               </div>
             )}
 

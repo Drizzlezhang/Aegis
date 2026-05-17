@@ -348,7 +348,7 @@ class TestAegisMemoryAgent:
     @pytest.mark.asyncio
     async def test_initialize_degrades_when_vector_store_init_fails(self, agent):
         """Test initialization degrades gracefully when vector store setup fails."""
-        with patch('src.agents.aegis_memory.vector_store.VectorStore.__init__', side_effect=RuntimeError("chromadb unavailable")):
+        with patch('src.agents.aegis_memory.agent.VectorStore', side_effect=RuntimeError("chromadb unavailable")):
             await agent.initialize()
 
         assert agent._vector_store is None

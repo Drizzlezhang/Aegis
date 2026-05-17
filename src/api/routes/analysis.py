@@ -31,6 +31,7 @@ class AnalysisDetail(BaseModel):
     agentSequence: list[str]
     recommendations: list[dict[str, Any]]
     actionReport: str
+    metadata: dict[str, Any] = {}
     executionTime: float
     success: bool
     createdAt: str
@@ -82,6 +83,7 @@ async def get_analysis_detail(analysis_id: int) -> AnalysisDetail:
         agentSequence=row["agentSequence"],
         recommendations=row["recommendations"],
         actionReport=row["actionReport"] or "",
+        metadata=row.get("metadata", {}),
         executionTime=row["executionTime"],
         success=row["success"],
         createdAt=row["createdAt"] or "",

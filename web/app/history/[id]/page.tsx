@@ -2,10 +2,22 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { getAnalysisDetail } from '@/lib/api';
+import { AnalysisReport } from '@/components/AnalysisReport';
+import { getAnalysisDetail, type AnalysisDetail } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+type StructuredReport = React.ComponentProps<typeof AnalysisReport>['report'];
+
+function isStructuredReport(value: unknown): value is StructuredReport {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && 'sections' in value
+    && Array.isArray((value as { sections?: unknown }).sections)
+  );
 }
 
 export default async function HistoryDetailPage({ params }: PageProps) {
@@ -15,7 +27,7 @@ export default async function HistoryDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  let detail;
+  let detail: AnalysisDetail;
   try {
     detail = await getAnalysisDetail(analysisId);
   } catch {
@@ -23,6 +35,8 @@ export default async function HistoryDetailPage({ params }: PageProps) {
   }
 
   const recommendations = detail.recommendations || [];
+  const structuredReport = detail.metadata?.structured_report;
+  const hasStructuredReport = isStructuredReport(structuredReport);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -117,6 +131,16 @@ export default async function HistoryDetailPage({ params }: PageProps) {
             )}
 
             {/* Report */}
+            {hasStructuredReport && (
+              <div className="card">
+                <h3 className="mb-3 text-sm font-semibold text-slate-300">Structured Report</h3>
+                <AnalysisReport
+                  report={structuredReport}
+                  defaultExpanded={['executive_summary']}
+                />
+              </div>
+            )}
+
             {detail.actionReport && (
               <div className="card">
                 <h3 className="mb-3 text-sm font-semibold text-slate-300">Agent Report</h3>

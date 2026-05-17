@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint4-master-integration"
+size: "L"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-17T09:19:50+08:00"
+updated_at: "2026-05-17T10:15:00+08:00"
+retry_count: 0
+last_tldr: "Sprint 4 BUILD and VERIFY passed: branches merged, hotfixes applied, coupled backend/frontend integration implemented, tests/build pass."
+last_next: "Local commit completed; ask for explicit confirmation before git push origin master."
+last_risk: "Only environment-scoped ChromaDB/yfinance tests are excluded per verification notes; remote push remains unconfirmed."
+last_progress_note: "6-SHIP ready: verification passed and local commit approved via pre-ship/pre-commit gate."
+last_context_mode: "full"
+last_verified_at: "2026-05-17T10:13:25+08:00"

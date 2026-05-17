@@ -42,6 +42,7 @@ class AnalysisStorage:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            self._migrate_add_column(conn, "analysis_results", "metadata", "TEXT")
 
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS trading_actions (
@@ -77,6 +78,13 @@ class AnalysisStorage:
             conn.commit()
 
         self._initialized = True
+
+    @staticmethod
+    def _migrate_add_column(conn: sqlite3.Connection, table: str, column: str, column_type: str) -> None:
+        cursor = conn.execute(f"PRAGMA table_info({table})")
+        existing = {row[1] for row in cursor.fetchall()}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
 
     def record_analysis(
         self, state: AgentState, execution_time: float = 0.0, success: bool = True
@@ -138,8 +146,8 @@ class AnalysisStorage:
                         symbol, trade_date, agent_sequence, ohlcv_summary,
                         options_summary, support_levels, resistance_levels,
                         valuation_summary, recommendations, action_report,
-                        execution_time, success
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        execution_time, success, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     state.symbol,
                     str(state.trade_date),
@@ -153,6 +161,7 @@ class AnalysisStorage:
                     state.action_report,
                     execution_time,
                     1 if success else 0,
+                    json.dumps(state.metadata, default=str),
                 ))
 
                 conn.commit()
@@ -236,6 +245,7 @@ class AnalysisStorage:
                     "valuationSummary": json.loads(row["valuation_summary"] or "null"),
                     "recommendations": json.loads(row["recommendations"] or "[]"),
                     "actionReport": row["action_report"],
+                    "metadata": json.loads(row["metadata"] or "{}") if "metadata" in row.keys() else {},
                     "executionTime": row["execution_time"] or 0.0,
                     "success": bool(row["success"]),
                     "createdAt": row["created_at"],

@@ -198,6 +198,7 @@ export interface AnalysisDetail {
     [key: string]: unknown;
   }>;
   actionReport: string;
+  metadata?: Record<string, unknown>;
   executionTime: number;
   success: boolean;
   createdAt: string;
@@ -306,6 +307,7 @@ export interface AnalysisResult {
   executionTime: number;
   report: string;
   recommendations: AnalysisRecommendation[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface AnalysisResponse {
@@ -523,6 +525,36 @@ export async function runBacktest(config: BacktestConfigPayload): Promise<Backte
     method: 'POST',
     body: JSON.stringify(config),
   });
+}
+
+export interface TradingStatsData {
+  total_decisions: number;
+  total_positions: number;
+  win_rate: number;
+  avg_pnl_pct: number;
+  total_realized_pnl: number;
+  best_trade: Record<string, unknown> | null;
+  worst_trade: Record<string, unknown> | null;
+  avg_holding_days: number;
+  monthly_pnl: Record<string, number>;
+  by_strategy: Record<string, unknown>;
+  by_symbol: Record<string, unknown>;
+}
+
+export interface StrategyPerformanceData {
+  strategy_type: string;
+  count: number;
+  win_rate: number;
+  avg_pnl: number;
+  [key: string]: unknown;
+}
+
+export async function getTradingStats(days = 90): Promise<TradingStatsData> {
+  return fetchApi<TradingStatsData>(`/api/stats/trading?days=${days}`);
+}
+
+export async function getStrategyPerformance(): Promise<StrategyPerformanceData[]> {
+  return fetchApi<StrategyPerformanceData[]>('/api/stats/strategy-performance');
 }
 
 // Memory types

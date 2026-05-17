@@ -9,6 +9,7 @@ from importlib import import_module
 from typing import Any, Callable
 
 from src.agents.base import BaseAgent
+from src.agents.quant_brain.report_templates import FULL_ANALYSIS, build_structured_report
 from src.config import get_config
 from src.llm import TaskType, generate
 from src.models import AgentState
@@ -114,6 +115,7 @@ class Orchestrator:
 
         try:
             state = await self._run_pipeline(state, pipeline_steps)
+            self._attach_structured_report(state)
         except Exception as e:
             logger.error(f"Error in analysis pipeline for {symbol}: {e}")
             state.action_report += f"\n\nPipeline Error: {str(e)}"
@@ -152,6 +154,21 @@ class Orchestrator:
             await self._emit("step_completed", step=step, state=state)
             logger.info(f"[{step.index}/{step.total}] {step.display_name} completed")
         return state
+
+    def _attach_structured_report(self, state: AgentState) -> None:
+        """Attach frontend-friendly structured report metadata after the full pipeline."""
+        sections_data = {
+            "executive_summary": state.analysis_report or state.action_report or "",
+            "technical_analysis": str(state.metadata.get("technical_summary", "")),
+            "macro_context": str(state.metadata.get("macro_context", "")),
+            "debate_summary": str(state.metadata.get("debate_summary", "")),
+            "strategy_recommendations": str(
+                state.metadata.get("strategy_recommendations", state.action_report or "")
+            ),
+            "risk_assessment": str(state.metadata.get("risk_assessment", "")),
+            "position_context": str(state.metadata.get("position_context", "")),
+        }
+        state.metadata["structured_report"] = build_structured_report(sections_data, FULL_ANALYSIS)
 
     async def analyze_symbols(self, symbols: list[str]) -> list[AgentState]:
         """Run analysis pipeline for multiple symbols in parallel."""

@@ -3,7 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 let server: any;
-let sendSpy: ReturnType<typeof vi.fn> | null = null;
+let sendSpy: ((data: string) => void) | null = null;
 
 class MockWebSocket {
   static CONNECTING = 0;
@@ -95,7 +95,7 @@ describe('useWebSocket', () => {
 
   it('heartbeat ping sent', async () => {
     vi.useRealTimers();
-    sendSpy = vi.fn();
+    sendSpy = vi.fn<(data: string) => void>();
 
     const { result } = renderHook(() => useWebSocket('ws://localhost:1234', { heartbeatInterval: 50 }));
     await waitFor(() => expect(result.current.status).toBe('connected'));

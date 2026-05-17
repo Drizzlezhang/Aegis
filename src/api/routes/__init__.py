@@ -1,6 +1,6 @@
 """API routes package."""
 
-from . import analysis, analyze, analyze_stream, backtest, market, memory, positions, status, symbols
+from . import analysis, analyze, analyze_stream, backtest, market, memory, positions, stats, status, symbols, ws
 
 __all__ = [
     "analysis",
@@ -10,6 +10,8 @@ __all__ = [
     "market",
     "memory",
     "positions",
+    "stats",
     "status",
     "symbols",
+    "ws",
 ]

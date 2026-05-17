@@ -26,6 +26,14 @@ export function RealtimeTicker({ symbols, wsUrl = null, showVolume = false, loca
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [flashSymbol, setFlashSymbol] = useState<string | null>(null);
 
+  const effectiveWsUrl = useMemo(() => {
+    if (wsUrl) return wsUrl;
+    if (typeof window === 'undefined' || symbols.length === 0) return null;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const params = new URLSearchParams({ symbols: symbols.join(',') });
+    return `${protocol}//${window.location.host}/ws/prices?${params.toString()}`;
+  }, [symbols, wsUrl]);
+
   const handleMessage = useCallback((data: any) => {
     if (data.type === 'update' || data.type === 'snapshot') {
       setPrices(prev => ({
@@ -44,7 +52,7 @@ export function RealtimeTicker({ symbols, wsUrl = null, showVolume = false, loca
     }
   }, []);
 
-  const { status } = useWebSocket(wsUrl, { onMessage: handleMessage });
+  const { status } = useWebSocket(effectiveWsUrl, { onMessage: handleMessage });
 
   const statusColor = useMemo(() => {
     switch (status) {

@@ -61,6 +61,7 @@ class AnalyzeResult(BaseModel):
     executionTime: float
     report: str
     recommendations: list[RecommendationItem]
+    metadata: dict[str, Any] = {}
 
 
 class AnalyzeResponse(BaseModel):
@@ -122,6 +123,7 @@ async def run_analysis(request: AnalyzeRequest) -> AnalyzeResponse:
                 executionTime=0.0,  # Per-symbol timing not tracked individually
                 report=state.action_report or "",
                 recommendations=recommendations,
+                metadata=getattr(state, "metadata", {}),
             )
         )
 

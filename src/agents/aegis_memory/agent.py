@@ -17,8 +17,13 @@ from . import queries
 from .decision_log import DecisionLog
 from .storage import AnalysisStorage
 
-if TYPE_CHECKING:
+try:
     from .vector_store import VectorStore
+except ImportError:
+    VectorStore = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:
+    from .vector_store import VectorStore as VectorStoreType
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +45,7 @@ class AegisMemoryAgent(BaseAgent):
         position_storage_path = self.config.get("position_storage_path", "~/.aegis-trader/positions.json")
         self._position_manager = PositionManager(storage_path=position_storage_path)
         self._position_bridge = PositionBridge(self._position_manager)
-        self._vector_store: VectorStore | None = None
+        self._vector_store: VectorStoreType | None = None
 
     async def initialize(self) -> None:
         """Initialize database schema and vector store."""
@@ -49,9 +54,11 @@ class AegisMemoryAgent(BaseAgent):
 
         # Initialize vector store
         try:
-            from .vector_store import VectorStore
-
-            self._vector_store = VectorStore()
+            if VectorStore is None:
+                from .vector_store import VectorStore as vector_store_class
+            else:
+                vector_store_class = VectorStore
+            self._vector_store = vector_store_class()
             logger.info("Vector store initialized")
         except Exception as e:
             logger.warning(f"Failed to initialize vector store: {e}. Semantic search will be disabled.")

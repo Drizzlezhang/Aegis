@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import type { AnalysisRecommendation, AnalysisResult } from '@/lib/api';
+import { AnalysisReport } from './AnalysisReport';
 import { getMessage } from '@/i18n/get-message';
 import { interpolate } from '@/i18n/interpolate';
 import AnalysisProgress, { type AnalysisProgressCompletePayload } from './AnalysisProgress';
@@ -12,6 +13,16 @@ import { useLocale } from './LocaleProvider';
 import SymbolSearch from './SymbolSearch';
 
 type ViewMode = 'idle' | 'progress' | 'results';
+type StructuredReport = React.ComponentProps<typeof AnalysisReport>['report'];
+
+function isStructuredReport(value: unknown): value is StructuredReport {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && 'sections' in value
+    && Array.isArray((value as { sections?: unknown }).sections)
+  );
+}
 
 function RecommendationCard({ rec, locale }: { rec: AnalysisRecommendation; locale: 'zh-CN' | 'en' }) {
   return (
@@ -118,6 +129,18 @@ export default function AnalyzeForm() {
         <div className="space-y-4">
           {results.map((result) => (
             <Paper key={result.symbol} elevation={0} className="card">
+              {(() => {
+                const structuredReport = result.metadata?.structured_report;
+                return isStructuredReport(structuredReport) ? (
+                  <div className="mb-3">
+                    <AnalysisReport
+                      report={structuredReport}
+                      defaultExpanded={['executive_summary']}
+                      locale={locale}
+                    />
+                  </div>
+                ) : null;
+              })()}
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className={`h-2.5 w-2.5 rounded-full ${result.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />

@@ -7,17 +7,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.aegis_memory.agent import AegisMemoryAgent
+from src.agents.data_harvester.realtime import RealtimeManager
 from src.agents.orchestrator import Orchestrator
+from src.config import get_config
 
-from .routes import analysis, backtest, market, memory, positions, status, symbols
+from .routes import analysis, backtest, market, memory, positions, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app_: FastAPI):
     """Application lifespan handler."""
     global _orchestrator
+    config = get_config()
+    app_.state.realtime_manager = RealtimeManager(
+        stale_threshold_seconds=config.realtime.stale_threshold_seconds
+    )
     _orchestrator = Orchestrator()
     await _orchestrator.initialize()
     analyze_routes.set_orchestrator(_orchestrator)
@@ -59,6 +65,8 @@ app.include_router(market.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(memory.router, prefix="/api")
 app.include_router(positions.router, prefix="/api")
+app.include_router(stats.router, prefix="/api")
+app.include_router(ws.router)
 
 
 @app.get("/api/health")
