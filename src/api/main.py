@@ -13,9 +13,12 @@ from src.agents.position_monitor.position_manager import PositionManager
 from src.config import get_config
 from src.services import DecisionLog, PositionService, StatsService
 
+from .middleware.auth import AuthMiddleware
+from .middleware.rate_limit import RateLimitMiddleware
 from .routes import analysis, backtest, market, memory, positions, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
+from .routes import auth
 
 
 @asynccontextmanager
@@ -65,7 +68,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security middleware — rate limit before auth
+app.add_middleware(RateLimitMiddleware, rate=120, per=60)
+app.add_middleware(AuthMiddleware)
+
 # Include routers
+app.include_router(auth.router, prefix="/api")
 app.include_router(symbols.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
