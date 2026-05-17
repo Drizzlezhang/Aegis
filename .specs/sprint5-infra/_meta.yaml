@@ -2,13 +2,13 @@ schema_version: 2
 change_id: "sprint5-infra"
 size: "M"
 stages: [0-CHANGE, 1-SPEC, 2-DESIGN, 3-PLAN, 4-BUILD, 5-VERIFY, 6-SHIP]
-current_stage: "5-VERIFY"
-status: "active"
+current_stage: "6-SHIP"
+status: "completed"
 created_at: "2026-05-17T11:45:00+08:00"
-updated_at: "2026-05-17T12:15:00+08:00"
+updated_at: "2026-05-17T12:30:00+08:00"
 retry_count: 0
-last_tldr: "VERIFY pass：15 AC 全部通过，10 测试 + 56 回归测试 + 编译 + Alembic 迁移均验证无误"
-last_next: "pre-commit gate：确认后进入 6-SHIP 执行 git commit"
+last_tldr: "SHIP 完成：5 commits (72de2f1 → 033d4c3)，branch aegis-infra，15/15 AC verified"
+last_next: "用户可选：git push origin aegis-infra / 创建 PR"
 last_risk: ""
 last_progress_note: "Wave 1-5 全部完成：config(AuthConfig+DatabaseConfig), db.py, alembic migration(3 tables), auth middleware, rate limit middleware, auth routes, API integration, 8+2 tests, docker-compose.yml, CI frontend job"
 last_context_mode: "full"
