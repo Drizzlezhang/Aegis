@@ -1,8 +1,8 @@
 # Active Change State
 
-- active_change_id: sprint4-data-pipeline
-- current_stage: 0-CHANGE
-- interrupted_reason: 
-- unfinished_tasks: 
-- updated_at: 2026-05-16T18:30:00+08:00
+- active_change_id: sprint4-master-integration
+- current_stage: 4-BUILD
+- interrupted_reason: none
+- unfinished_tasks: merge memory/ui, post-merge inventory, hotfixes, coupled integration, verify, ship
+- updated_at: 2026-05-17T09:40:50+08:00
 - recovery_mode: 新建

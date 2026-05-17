@@ -2,9 +2,51 @@
 
 from typing import Any
 
+from src.agents.quant_brain.llm_guard import llm_optional
+from src.llm import TaskType, generate
 from src.models import RecommendedOption, SupportResistanceLevel
 
 from .market_context import StrategyMarketContext, format_strategy_market_summary
+
+SYSTEM_PROMPT_STRATEGIST = """你是期权策略师。为给定的策略推荐生成简明的中文理由说明（100-200字）。
+包含: 选择该 strike/expiry 的逻辑、风险收益比、关键触发条件。"""
+
+
+@llm_optional(fallback_value="")
+async def generate_strategy_reasoning(
+    symbol: str,
+    recommendation: RecommendedOption,
+    support_levels: list[SupportResistanceLevel],
+    debate_verdict: dict | None,
+) -> str:
+    prompt = _build_strategy_prompt(symbol, recommendation, support_levels, debate_verdict)
+    response = await generate(
+        prompt=prompt,
+        system_prompt=SYSTEM_PROMPT_STRATEGIST,
+        task_type=TaskType.QUERY,
+        max_tokens=600,
+        temperature=0.3,
+    )
+    return response or ""
+
+
+def _build_strategy_prompt(
+    symbol: str,
+    rec: RecommendedOption,
+    supports: list[SupportResistanceLevel],
+    debate: dict | None,
+) -> str:
+    parts = [
+        f"标的: {symbol}",
+        f"推荐策略: {rec.recommendation_type}",
+        f"Strike: {rec.contract.strike}, Expiry: {rec.contract.expiry}",
+        f"信心度: {rec.confidence}",
+    ]
+    if supports:
+        parts.append(f"支撑位: {[level.price for level in supports]}")
+    if debate:
+        parts.append(f"辩论裁决: {debate.get('verdict') or debate.get('rating', 'N/A')}, 信心: {debate.get('confidence', 'N/A')}")
+    return "\n".join(parts)
 
 
 def create_action_report(

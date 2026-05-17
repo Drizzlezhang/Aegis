@@ -13,10 +13,15 @@ logger = logging.getLogger(__name__)
 class BullResearcher:
     """多头研究员：寻找看多理由。纯规则引擎，不调用 LLM。"""
 
-    async def argue(self, state: AgentState) -> DebateArgument:
+    async def argue(self, state: AgentState, counter_argument: DebateArgument | None = None) -> DebateArgument:
         evidence: list[str] = []
         risks: list[str] = []
         confidence = 0.5
+
+        if counter_argument:
+            rebuttal = self._build_rebuttal_context(counter_argument)
+            evidence.append(rebuttal)
+            confidence += 0.02
 
         # 1. 技术评分
         grade = extract_technical_grade(state)
@@ -69,14 +74,23 @@ class BullResearcher:
             risks=risks,
         )
 
+    def _build_rebuttal_context(self, counter_argument: DebateArgument) -> str:
+        points = "; ".join(counter_argument.key_points[:2]) or counter_argument.position
+        return f"反驳空方上轮核心论点: {points}"
+
 
 class BearResearcher:
     """空头研究员：寻找看空理由。纯规则引擎，不调用 LLM。"""
 
-    async def argue(self, state: AgentState) -> DebateArgument:
+    async def argue(self, state: AgentState, counter_argument: DebateArgument | None = None) -> DebateArgument:
         evidence: list[str] = []
         risks: list[str] = []
         confidence = 0.5
+
+        if counter_argument:
+            rebuttal = self._build_rebuttal_context(counter_argument)
+            evidence.append(rebuttal)
+            confidence += 0.02
 
         # 1. 技术评分
         grade = extract_technical_grade(state)
@@ -142,3 +156,7 @@ class BearResearcher:
             evidence=evidence,
             risks=risks,
         )
+
+    def _build_rebuttal_context(self, counter_argument: DebateArgument) -> str:
+        points = "; ".join(counter_argument.key_points[:2]) or counter_argument.position
+        return f"反驳多方上轮核心论点: {points}"

@@ -3,7 +3,10 @@
 import logging
 from typing import Any
 
+from src.llm import TaskType, generate
 from src.models import MacroRegime
+
+from .llm_guard import llm_optional
 
 logger = logging.getLogger(__name__)
 
@@ -145,3 +148,21 @@ class MacroRegimeAnalyzer:
             credit_spread=credit_spread,
             factors=factors,
         )
+
+    @llm_optional(fallback_value="")
+    async def analyze_with_llm_context(self, regime: MacroRegime, market_data: dict[str, Any]) -> str:
+        response = await generate(
+            prompt=self._build_macro_prompt(regime, market_data),
+            system_prompt="你是宏观经济分析师。基于提供的市场数据，用 1 段话描述当前宏观环境及其对期权策略的影响。",
+            task_type=TaskType.QUERY,
+            max_tokens=500,
+            temperature=0.2,
+        )
+        return response or ""
+
+    def _build_macro_prompt(self, regime: MacroRegime, market_data: dict[str, Any]) -> str:
+        parts = [f"当前 Regime: {regime.regime}"]
+        for key, label in (("vix", "VIX"), ("VIX", "VIX"), ("rate_10y", "10Y 利率"), ("spy_trend", "SPY 趋势"), ("SPY_trend", "SPY 趋势")):
+            if key in market_data:
+                parts.append(f"{label}: {market_data[key]}")
+        return "\n".join(parts)
