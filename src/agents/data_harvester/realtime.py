@@ -46,6 +46,11 @@ class RealtimeManager:
     def unsubscribe(self, queue: asyncio.Queue[PriceUpdate]) -> None:
         self._subscribers = [q for q in self._subscribers if q is not queue]
 
+    def shutdown(self) -> None:
+        """清理订阅者与最新行情缓存。"""
+        self._subscribers.clear()
+        self._latest.clear()
+
     def get_latest(self, symbol: str) -> PriceUpdate | None:
         update = self._latest.get(symbol.upper())
         if update and (time.time() - update.timestamp) > self._stale_threshold:

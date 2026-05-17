@@ -4,20 +4,10 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { AnalysisReport } from '@/components/AnalysisReport';
 import { getAnalysisDetail, type AnalysisDetail } from '@/lib/api';
+import { isStructuredReport } from '@/lib/type-guards';
 
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-type StructuredReport = React.ComponentProps<typeof AnalysisReport>['report'];
-
-function isStructuredReport(value: unknown): value is StructuredReport {
-  return Boolean(
-    value
-    && typeof value === 'object'
-    && 'sections' in value
-    && Array.isArray((value as { sections?: unknown }).sections)
-  );
 }
 
 export default async function HistoryDetailPage({ params }: PageProps) {

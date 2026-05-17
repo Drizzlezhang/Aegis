@@ -7,6 +7,18 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/ws/:path*',
+        destination: 'http://localhost:8003/ws/:path*',
+      },
+      {
+        source: '/api/stats/:path*',
+        destination: 'http://localhost:8003/api/stats/:path*',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.agents.data_harvester.realtime import RealtimeManager
 from src.agents.orchestrator import Orchestrator
+from src.agents.position_monitor.position_manager import PositionManager
 from src.config import get_config
+from src.services import DecisionLog, PositionService, StatsService
 
 from .routes import analysis, backtest, market, memory, positions, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
@@ -24,6 +26,12 @@ async def lifespan(app_: FastAPI):
     app_.state.realtime_manager = RealtimeManager(
         stale_threshold_seconds=config.realtime.stale_threshold_seconds
     )
+    position_manager = PositionManager()
+    await position_manager.load()
+    app_.state.stats_service = StatsService(
+        DecisionLog(),
+        PositionService(position_manager),
+    )
     _orchestrator = Orchestrator()
     await _orchestrator.initialize()
     analyze_routes.set_orchestrator(_orchestrator)
@@ -33,6 +41,8 @@ async def lifespan(app_: FastAPI):
     if aegis_memory is not None:
         memory.set_aegis_memory(cast(AegisMemoryAgent, aegis_memory))
     yield
+    if hasattr(app_.state, "realtime_manager"):
+        app_.state.realtime_manager.shutdown()
     _orchestrator = None
 
 # Global orchestrator instance

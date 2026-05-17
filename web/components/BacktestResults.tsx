@@ -10,8 +10,8 @@ interface BacktestStats {
   total_trades: number;
   win_rate: number;
   avg_pnl_pct: number;
-  max_drawdown_pct: number;
-  profit_factor: number;
+  max_drawdown_pct: number | null;
+  profit_factor: number | null;
   avg_days_held: number;
 }
 
@@ -30,7 +30,7 @@ interface StrategyBreakdown {
   count: number;
   win_rate: number;
   avg_pnl: number;
-  max_drawdown: number;
+  max_drawdown: number | null;
 }
 
 interface BacktestResultsProps {
@@ -42,6 +42,14 @@ interface BacktestResultsProps {
 }
 
 export function BacktestResults({ stats, equityCurve, monthlyReturns, strategyBreakdown, locale = 'zh-CN' }: BacktestResultsProps) {
+  const formatPct = (value: number | null, options: { signed?: boolean; negativePrefix?: boolean } = {}) => {
+    if (value === null) {
+      return '--';
+    }
+    const prefix = options.negativePrefix ? '-' : options.signed && value >= 0 ? '+' : '';
+    return `${prefix}${value.toFixed(1)}%`;
+  };
+
   return (
     <Box>
       {/* Summary Cards */}
@@ -68,7 +76,7 @@ export function BacktestResults({ stats, equityCurve, monthlyReturns, strategyBr
           <Card>
             <CardContent>
               <Typography variant="caption" color="text.secondary">{getMessage(locale, 'interaction.backtestMaxDrawdown')}</Typography>
-              <Typography variant="h5" fontWeight="bold" color="success.main">-{stats.max_drawdown_pct.toFixed(1)}%</Typography>
+              <Typography variant="h5" fontWeight="bold" color="success.main">{formatPct(stats.max_drawdown_pct, { negativePrefix: true })}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -142,7 +150,7 @@ export function BacktestResults({ stats, equityCurve, monthlyReturns, strategyBr
                     <TableCell align="right" sx={{ color: row.avg_pnl >= 0 ? 'error.main' : 'success.main' }}>
                       {row.avg_pnl >= 0 ? '+' : ''}{row.avg_pnl.toFixed(1)}%
                     </TableCell>
-                    <TableCell align="right">-{row.max_drawdown.toFixed(1)}%</TableCell>
+                    <TableCell align="right">{formatPct(row.max_drawdown, { negativePrefix: true })}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -7,22 +7,13 @@ import type { AnalysisRecommendation, AnalysisResult } from '@/lib/api';
 import { AnalysisReport } from './AnalysisReport';
 import { getMessage } from '@/i18n/get-message';
 import { interpolate } from '@/i18n/interpolate';
+import { isStructuredReport } from '@/lib/type-guards';
 import AnalysisProgress, { type AnalysisProgressCompletePayload } from './AnalysisProgress';
 import DebatePanel from './DebatePanel';
 import { useLocale } from './LocaleProvider';
 import SymbolSearch from './SymbolSearch';
 
 type ViewMode = 'idle' | 'progress' | 'results';
-type StructuredReport = React.ComponentProps<typeof AnalysisReport>['report'];
-
-function isStructuredReport(value: unknown): value is StructuredReport {
-  return Boolean(
-    value
-    && typeof value === 'object'
-    && 'sections' in value
-    && Array.isArray((value as { sections?: unknown }).sections)
-  );
-}
 
 function RecommendationCard({ rec, locale }: { rec: AnalysisRecommendation; locale: 'zh-CN' | 'en' }) {
   return (

@@ -14,8 +14,8 @@ function adaptStats(statsData: TradingStatsData, perfData: StrategyPerformanceDa
       total_trades: statsData.total_positions,
       win_rate: statsData.win_rate,
       avg_pnl_pct: statsData.avg_pnl_pct,
-      max_drawdown_pct: 0,
-      profit_factor: 0,
+      max_drawdown_pct: null,
+      profit_factor: null,
       avg_days_held: statsData.avg_holding_days,
     },
     equityCurve: Object.entries(statsData.monthly_pnl || {}).map(([month, pnl]) => ({
@@ -31,7 +31,7 @@ function adaptStats(statsData: TradingStatsData, perfData: StrategyPerformanceDa
       count: p.count,
       win_rate: p.win_rate,
       avg_pnl: p.avg_pnl,
-      max_drawdown: 0,
+      max_drawdown: null,
     })),
   };
 }

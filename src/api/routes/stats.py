@@ -1,25 +1,23 @@
 """Stats API routes for dashboard and backtest result views."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
-from src.agents.position_monitor.position_manager import PositionManager
-from src.services import DecisionLog, PositionService, StatsService
+from src.services import StatsService
 
 router = APIRouter()
 
 
-async def _build_stats_service() -> StatsService:
-    manager = PositionManager()
-    await manager.load()
-    decision_log = DecisionLog()
-    position_service = PositionService(manager)
-    return StatsService(decision_log, position_service)
+def _get_stats_service(request: Request) -> StatsService:
+    service = getattr(request.app.state, "stats_service", None)
+    if service is None:
+        raise RuntimeError("StatsService is not initialized in app.state.stats_service")
+    return service
 
 
 @router.get("/stats/trading")
-async def get_trading_stats(days: int = 90) -> dict:
+async def get_trading_stats(request: Request, days: int = 90) -> dict:
     """Return aggregate trading statistics for the last ``days`` days."""
-    service = await _build_stats_service()
+    service = _get_stats_service(request)
     stats = await service.get_trading_stats(days=days)
     return {
         "total_decisions": stats.total_decisions,
@@ -37,14 +35,14 @@ async def get_trading_stats(days: int = 90) -> dict:
 
 
 @router.get("/stats/strategy-performance")
-async def get_strategy_performance() -> list[dict]:
+async def get_strategy_performance(request: Request) -> list[dict]:
     """Return performance grouped by strategy type."""
-    service = await _build_stats_service()
+    service = _get_stats_service(request)
     return await service.get_strategy_performance()
 
 
 @router.get("/stats/decision-quality")
-async def get_decision_quality() -> dict[str, int]:
+async def get_decision_quality(request: Request) -> dict[str, int]:
     """Return decision quality score distribution."""
-    service = await _build_stats_service()
+    service = _get_stats_service(request)
     return await service.get_decision_quality_distribution()

@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint4-post-integration-fixes"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-17T10:34:22+08:00"
+updated_at: "2026-05-17T11:30:00+08:00"
+retry_count: 0
+last_tldr: "Implemented five post-integration fixes and completed mapped verification."
+last_next: "Committed and pushed after explicit user approval."
+last_risk: "npm run lint is blocked by missing ESLint config interactive prompt; AC-mapped checks pass."
+last_progress_note: "Pre-commit gate approved by user via commit + push request."
+last_context_mode: "full"
+last_verified_at: "2026-05-17T11:30:00+08:00"

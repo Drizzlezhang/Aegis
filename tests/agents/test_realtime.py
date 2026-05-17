@@ -85,3 +85,16 @@ class TestRealtimeManager:
         asyncio.run(mgr.publish(make_update(symbol="nvda")))
         assert mgr.get_latest("NVDA") is not None
         assert mgr.get_latest("nvda") is not None
+
+    def test_shutdown_clears_subscribers_and_latest(self):
+        mgr = RealtimeManager()
+        q = mgr.subscribe()
+        asyncio.run(mgr.publish(make_update()))
+
+        mgr.shutdown()
+
+        assert q.empty() is False
+        assert mgr.get_latest("NVDA") is None
+        q.get_nowait()
+        asyncio.run(mgr.publish(make_update(price=200.0)))
+        assert q.empty()
