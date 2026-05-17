@@ -75,6 +75,25 @@ class WebConfig(BaseModel):
     api_port: int = 8000
 
 
+class AuthConfig(BaseModel):
+    """Authentication configuration."""
+    enabled: bool = False
+    jwt_secret: str = ""
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+    api_key_header: str = "X-API-Key"
+    api_keys: list[str] = []
+    cors_origins: list[str] = ["http://localhost:3000"]
+
+
+class DatabaseConfig(BaseModel):
+    """Database configuration."""
+    url: str = "sqlite:///~/.aegis-trader/aegis.db"
+    pool_size: int = 5
+    max_overflow: int = 10
+    echo: bool = False
+
+
 class AgentConfig(BaseModel):
     """Agent configuration."""
     data_harvester_enabled: bool = True
@@ -146,6 +165,8 @@ class Config(BaseSettings):
     algorithm: AlgorithmConfig = Field(default_factory=AlgorithmConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     web: WebConfig = Field(default_factory=WebConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
     debate: DebateConfig = Field(default_factory=DebateConfig)
     position: PositionConfig = Field(default_factory=PositionConfig)
