@@ -157,6 +157,33 @@ export type InteractionMessages = {
   rec_stop_loss: string;
   rec_risk_reward: string;
   rec_reasoning: string;
+  // Realtime
+  realtimeConnected: string;
+  realtimeReconnecting: string;
+  realtimeDisconnected: string;
+  realtimeStale: string;
+  // Report
+  reportExecutiveSummary: string;
+  reportTechnical: string;
+  reportMacro: string;
+  reportDebate: string;
+  reportStrategy: string;
+  reportRisk: string;
+  reportShare: string;
+  reportExpandAll: string;
+  reportCollapseAll: string;
+  // Backtest
+  backtestWinRate: string;
+  backtestAvgPnl: string;
+  backtestMaxDrawdown: string;
+  backtestTrades: string;
+  backtestProfitFactor: string;
+  backtestEquityCurve: string;
+  backtestMonthly: string;
+  // Theme
+  themeLight: string;
+  themeDark: string;
+  themeSystem: string;
 };
 
 export type MessageTree = {

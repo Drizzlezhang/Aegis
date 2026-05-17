@@ -1,0 +1,20 @@
+schema_version: 2
+change_id: sprint4-s4-ui-decoupled
+size: M
+stages:
+  - 0-CHANGE
+  - 1-SPEC
+  - 4-BUILD
+  - 5-VERIFY
+  - 6-SHIP
+current_stage: 6-SHIP
+status: completed
+created_at: 2026-05-16T10:30:00Z
+updated_at: 2026-05-16T21:37:00Z
+retry_count: 0
+last_tldr: "Sprint 4 frontend UI components implemented, built, and verified."
+last_next: "Merge to master."
+last_risk: "None."
+last_progress_note: "Build passed, 74/74 tests passed, TypeScript 0 errors."
+last_context_mode: full
+last_verified_at: "2026-05-16T21:37:00Z"
