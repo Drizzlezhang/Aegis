@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { BacktestResults } from '@/components/BacktestResults';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { getStrategyPerformance, getTradingStats } from '@/lib/api';
 import type { StrategyPerformanceData, TradingStatsData } from '@/lib/api';
 
@@ -71,12 +72,7 @@ export default function BacktestResultsPage() {
   }, []);
 
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
-        <CircularProgress size={20} />
-        <Typography>Loading...</Typography>
-      </Box>
-    );
+    return <LoadingSkeleton variant="table" rows={8} />;
   }
 
   if (!stats) {

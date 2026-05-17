@@ -157,7 +157,17 @@ export type InteractionMessages = {
   rec_stop_loss: string;
   rec_risk_reward: string;
   rec_reasoning: string;
+  errorBoundaryTitle: string;
+  errorBoundaryMessage: string;
+  errorBoundaryRetry: string;
+  loginSubtitle: string;
+  loginApiKey: string;
+  loginInvalidApiKey: string;
+  loginConnectionFailed: string;
+  loginAuthenticating: string;
+  loginButton: string;
   // Realtime
+  realtimeConnecting: string;
   realtimeConnected: string;
   realtimeReconnecting: string;
   realtimeDisconnected: string;

@@ -57,16 +57,18 @@ export default async function Home() {
               </div>
             )}
 
-            {coreSymbols.length > 0 && (
-              <div className="mb-6">
-                <RealtimeTicker symbols={coreSymbols} showVolume locale={locale} />
+            <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {symbols.map((s) => (
+                  <SymbolCard key={s.symbol} symbol={s} />
+                ))}
               </div>
-            )}
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {symbols.map((s) => (
-                <SymbolCard key={s.symbol} symbol={s} />
-              ))}
+              {coreSymbols.length > 0 && (
+                <div className="min-w-0 overflow-x-auto md:overflow-x-visible">
+                  <RealtimeTicker symbols={coreSymbols} showVolume locale={locale} />
+                </div>
+              )}
             </div>
 
             <div className="card-muted mt-6">

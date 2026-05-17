@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Box, Card, CardContent, Typography, Chip, Stack } from '@mui/material';
+import { Box, Card, CardContent, Typography, Stack } from '@mui/material';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { getMessage } from '@/i18n/get-message';
 import type { Locale } from '@/i18n/types';
@@ -52,28 +52,45 @@ export function RealtimeTicker({ symbols, wsUrl = null, showVolume = false, loca
     }
   }, []);
 
-  const { status } = useWebSocket(effectiveWsUrl, { onMessage: handleMessage });
+  const { status } = useWebSocket(effectiveWsUrl, { onMessage: handleMessage, maxReconnectAttempts: 10 });
 
   const statusColor = useMemo(() => {
     switch (status) {
-      case 'connected': return 'success';
-      case 'reconnecting': return 'warning';
-      case 'disconnected': return 'error';
+      case 'connected': return 'success.main';
+      case 'connecting':
+      case 'reconnecting': return 'warning.main';
+      case 'disconnected': return 'error.main';
     }
   }, [status]);
 
   const statusLabel = useMemo(() => {
     switch (status) {
-      case 'connected': return getMessage(locale, 'interaction.realtimeConnected');
+      case 'connected': return 'Live';
+      case 'connecting': return getMessage(locale, 'interaction.realtimeConnecting');
       case 'reconnecting': return getMessage(locale, 'interaction.realtimeReconnecting');
-      case 'disconnected': return getMessage(locale, 'interaction.realtimeDisconnected');
+      case 'disconnected': return 'Offline';
     }
   }, [status, locale]);
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-        <Chip label={statusLabel} color={statusColor as any} size="small" />
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
+        <Box
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            bgcolor: statusColor,
+            animation: status === 'reconnecting' ? 'pulse 1.5s infinite' : 'none',
+            '@keyframes pulse': {
+              '0%, 100%': { opacity: 1 },
+              '50%': { opacity: 0.35 },
+            },
+          }}
+        />
+        <Typography variant="caption" color="text.secondary">
+          {statusLabel}
+        </Typography>
       </Stack>
       <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 1 }}>
         {symbols.map(symbol => {

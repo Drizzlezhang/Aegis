@@ -12,10 +12,11 @@ describe('RealtimeTicker component source checks', () => {
     expect(source).toContain('symbols.map');
   });
 
-  it('shows connection status chip', () => {
-    expect(source).toContain("<Chip");
+  it('shows connection status indicator', () => {
     expect(source).toContain('statusLabel');
     expect(source).toContain('statusColor');
+    expect(source).toContain("borderRadius: '50%'");
+    expect(source).toContain('pulse 1.5s infinite');
   });
 
   it('updates price on message and flashes background', () => {
