@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from importlib import import_module
@@ -13,6 +14,7 @@ from src.agents.quant_brain.report_templates import FULL_ANALYSIS, build_structu
 from src.config import get_config
 from src.llm import TaskType, generate
 from src.models import AgentState
+from src.observability.logging import TraceContext
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +104,10 @@ class Orchestrator:
         """Run full analysis pipeline for a single symbol."""
         symbol = symbol.upper()
         start_time = time.time()
+        
+        trace_id = str(uuid.uuid4())[:8]
+        TraceContext.set(trace_id, symbol)
+        logger.info("Pipeline started", extra={"extra_fields": {"trace_id": trace_id, "symbol": symbol}})
 
         logger.info(f"{'=' * 60}")
         logger.info(f"Starting analysis pipeline for {symbol}")
@@ -143,16 +149,51 @@ class Orchestrator:
         return state
 
     async def _run_pipeline(self, state: AgentState, pipeline_steps: list[PipelineStep] | None = None) -> AgentState:
+        """执行 pipeline，支持单 agent 失败时 graceful degradation。"""
         steps = pipeline_steps or self._build_pipeline_steps()
+        agent_timings = {}
+        checkpoints = []
+        
         for step in steps:
             state.current_step = step.index - 1
+            step_start = time.time()
+            
+            # 保存 checkpoint（浅拷贝 state）
+            checkpoints.append({
+                "agent": step.display_name,
+                "state_snapshot": state.model_copy(deep=False) if hasattr(state, 'model_copy') else None,
+            })
+            
             logger.info(f"[{step.index}/{step.total}] Running {step.display_name} for {state.symbol}...")
             await self._emit("step_started", step=step, state=state)
             runner = self._agents[step.agent_name]
-            state = await runner.run(state)
+            
+            try:
+                state = await runner.run(state)
+            except Exception as e:
+                elapsed = time.time() - step_start
+                logger.error(f"Agent {step.display_name} failed: {e}",
+                            extra={"extra_fields": {"agent": step.display_name, "error": str(e)}})
+                agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "error": str(e)}
+                
+                # Non-critical agents 可以跳过，critical 必须中断
+                if step.display_name in ("Data-Harvester",):  # critical
+                    raise
+                # 其他 agent 失败 → 记录错误，继续 pipeline
+                state.metadata.setdefault("agent_errors", {})[step.display_name] = str(e)
+                continue
+                
+            elapsed = time.time() - step_start
+            agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "status": "ok"}
+            
             state.current_step = step.index
             await self._emit("step_completed", step=step, state=state)
-            logger.info(f"[{step.index}/{step.total}] {step.display_name} completed")
+            logger.info(f"[{step.index}/{step.total}] {step.display_name} completed in {elapsed:.2f}s",
+                       extra={"extra_fields": {"agent": step.display_name, "duration_s": elapsed}})
+                       
+        state.metadata["agent_timings"] = agent_timings
+        state.metadata["trace_id"] = TraceContext.get().get("trace_id")
+        state.metadata["pipeline_checkpoints"] = len(checkpoints)
         return state
 
     def _attach_structured_report(self, state: AgentState) -> None:
