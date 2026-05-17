@@ -54,6 +54,31 @@ class PositionService:
             current_id = pos.parent_position_id
         return list(reversed(chain))
 
+    async def get_closed_positions(self, days: int = 90) -> list[dict]:
+        """获取最近 N 天内已平仓的持仓。"""
+        from datetime import datetime, timedelta
+        cutoff = datetime.now() - timedelta(days=days)
+        all_positions = await self._manager.get_all_positions()
+        closed = [
+            p for p in all_positions
+            if p.status in (PositionStatus.CLOSED, PositionStatus.EXPIRED, PositionStatus.ROLLED)
+        ]
+        # Filter by close_date if available
+        result = []
+        for p in closed:
+            serialized = self._serialize(p)
+            # Add computed fields for stats
+            serialized["pnl_pct"] = self._calc_pnl_pct(p)
+            if p.close_price and p.entry_price:
+                serialized["realized_pnl"] = (p.close_price - p.entry_price) * p.quantity * 100
+            else:
+                serialized["realized_pnl"] = 0.0
+            serialized["days_held"] = (p.close_date - p.entry_date).days if p.close_date and p.entry_date else 0
+            serialized["strategy_type"] = getattr(p, "strategy_type", "unknown")
+            if p.close_date and p.close_date >= cutoff.date():
+                result.append(serialized)
+        return result
+
     def _serialize(self, position: Position) -> dict:
         return {
             "id": position.id,

@@ -8,10 +8,10 @@
 - **size**: L
 - **current_stage**: 6-SHIP
 - **status**: blocked
-- **updated_at**: 2026-05-16T19:23:32+08:00
+- **updated_at**: 2026-05-17T09:19:50+08:00
 
 ## Next Action
-Paused before pre-ship/pre-commit gate while Sprint 4 Analysis Brain proceeds as active change.
+Resume only if Sprint 3 ship/push confirmation is explicitly requested.
 
 ## Open Questions
 - [ ] blocker: 是否允许执行 `git push origin master`？
@@ -28,6 +28,7 @@ Paused before pre-ship/pre-commit gate while Sprint 4 Analysis Brain proceeds as
 - [2026-05-16T16:13:57+08:00] 3-PLAN → created tasks.md with ordered merge waves and verify commands
 - [2026-05-16T18:10:12+08:00] 5-VERIFY → passed backend/API/frontend build validation and AC checks
 - [2026-05-16T19:23:32+08:00] 6-SHIP → paused by user choice to start sprint4-analysis-brain
+- [2026-05-17T09:19:50+08:00] 6-SHIP → blocked pending explicit push confirmation; root active pointer moved to sprint4-master-integration
 
 ## Notes
 Source plan: `/Users/bytedance/Downloads/sprint3-merge-master.md`.
