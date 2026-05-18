@@ -24,6 +24,8 @@ class LLMProvider(StrEnum):
     KIMI = "kimi"
     GEMINI = "gemini"
     MINIMAX = "minimax"
+    NEWAPI = "newapi"
+    CUSTOM = "custom"
 
 
 @dataclass
@@ -63,7 +65,9 @@ class LLMClient:
         LLMProvider.GLM: "https://api.glm.ai/v1/chat/completions",
         LLMProvider.KIMI: "https://api.kimi.ai/v1/chat/completions",
         LLMProvider.GEMINI: "https://api.gemini.com/v1/chat/completions",
-        LLMProvider.MINIMAX: "https://api.minimax.com/v1/chat/completions"
+        LLMProvider.MINIMAX: "https://api.minimax.com/v1/chat/completions",
+        LLMProvider.NEWAPI: "",
+        LLMProvider.CUSTOM: "",
     }
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -111,6 +115,8 @@ class LLMClient:
             "kimi": LLMProvider.KIMI,
             "gemini": LLMProvider.GEMINI,
             "minimax": LLMProvider.MINIMAX,
+            "newapi": LLMProvider.NEWAPI,
+            "custom": LLMProvider.CUSTOM,
         }
 
         configs: dict[LLMProvider, dict[str, Any]] = {}

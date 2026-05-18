@@ -45,6 +45,7 @@ class LLMConfig(BaseModel):
     code_model: str = "glm5.1"
     api_base_url: str | None = None
     api_key: str | None = None
+    model: str | None = None
     providers: dict[str, ProviderCredential] = Field(default_factory=dict)
     max_retries: int = 3
     retry_base_delay: float = 1.0
@@ -139,7 +140,9 @@ class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="AEGIS_",
         env_nested_delimiter="__",
-        case_sensitive=False
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
     )
 
     # Profile

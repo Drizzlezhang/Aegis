@@ -149,10 +149,10 @@ class LLMRouter:
     def _build_default_routing() -> dict[TaskType, str]:
         """基于 LLMConfig 构建默认路由表。"""
         llm_config = get_config().llm
-        reasoning = llm_config.reasoning_model
-        quick = llm_config.quick_model
-        long_ctx = llm_config.long_context_model
-        code = llm_config.code_model
+        reasoning = llm_config.model or llm_config.reasoning_model
+        quick = llm_config.model or llm_config.quick_model
+        long_ctx = llm_config.model or llm_config.long_context_model
+        code = llm_config.model or llm_config.code_model
 
         return {
             # Architecture & Planning
@@ -251,7 +251,12 @@ class LLMRouter:
             return "gemini"
         if "minimax" in name_lower:
             return "minimax"
-        return None
+        if "gpt" in name_lower or "openai" in name_lower:
+            return "openai"
+        if "claude" in name_lower or "anthropic" in name_lower:
+            return "anthropic"
+        # Generic fallback for custom providers — use provider from config
+        return get_config().llm.provider or "deepseek"
 
     def get_model_by_name(self, model_name: str) -> ModelRouting | None:
         """Get model configuration by name. Supports dynamic fallback for unregistered models."""
