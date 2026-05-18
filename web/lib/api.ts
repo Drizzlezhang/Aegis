@@ -1,4 +1,10 @@
 import { getServerApiBase } from '@/utils/server-api-base';
+import { getToken } from '@/lib/auth';
+
+function getAuthHeaders(): HeadersInit {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 function resolveApiBase(): string {
   if (typeof window !== 'undefined') {
@@ -156,6 +162,7 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
       ...options?.headers,
     },
   });
@@ -451,6 +458,7 @@ export async function runAnalysisStream(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({ symbols }),
       signal,

@@ -52,7 +52,12 @@ def setup_logging(level: str = "INFO", json_output: bool = True):
 
 
 class TraceContext:
-    """Pipeline trace context — 贯穿整个分析流程的 trace_id。"""
+    """Pipeline trace context — 贯穿整个分析流程的 trace_id。
+
+    WARNING: 当前实现使用类变量存储，不支持并发 pipeline。
+    如需并发安全，应改为 contextvars.ContextVar。
+    Sprint 6 TODO: 迁移到 contextvars 实现。
+    """
     
     _current: dict[str, Any] = {}
 

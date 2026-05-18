@@ -9,7 +9,7 @@ import jwt
 
 from src.config import get_config
 
-PUBLIC_PATHS = {"/api/health", "/api/auth/login", "/docs", "/openapi.json"}
+PUBLIC_PATHS = {"/api/health", "/api/auth/login", "/api/metrics", "/docs", "/openapi.json"}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

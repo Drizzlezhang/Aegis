@@ -8,7 +8,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   async rewrites() {
-    const apiBase = process.env.API_BASE_URL || 'http://localhost:8003';
+    const apiBase = process.env.API_BASE_URL || 'http://localhost:8001';
     return [
       {
         source: '/ws/:path*',

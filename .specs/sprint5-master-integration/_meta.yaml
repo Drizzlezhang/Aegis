@@ -1,0 +1,14 @@
+schema_version: 2
+change_id: "sprint5-master-integration"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-18T10:00:00+08:00"
+updated_at: "2026-05-18T15:20:00+08:00"
+retry_count: 0
+last_tldr: "SHIP complete: commit 4ff85c2, 15 files, 453 insertions/10 deletions. All 14 ACs verified."
+last_risk: "三个远程分支可能未 push；merge conflict 可能超出预期文件"
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: "2026-05-18T15:15:00+08:00"

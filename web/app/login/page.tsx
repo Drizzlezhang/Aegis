@@ -4,12 +4,14 @@ import { useState, type FormEvent } from 'react';
 import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { getMessage } from '@/i18n/get-message';
+import { useLocale } from '@/components/LocaleProvider';
 
 export default function LoginPage() {
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { locale } = useLocale();
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
@@ -24,7 +26,7 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        setError(getMessage('zh-CN', 'interaction.loginInvalidApiKey'));
+        setError(getMessage(locale, 'interaction.loginInvalidApiKey'));
         return;
       }
 
@@ -33,7 +35,7 @@ export default function LoginPage() {
       localStorage.setItem('aegis_token_expires', String(Date.now() + expires_in * 1000));
       router.push('/');
     } catch {
-      setError(getMessage('zh-CN', 'interaction.loginConnectionFailed'));
+      setError(getMessage(locale, 'interaction.loginConnectionFailed'));
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export default function LoginPage() {
       <Paper sx={{ p: 4, maxWidth: 400, width: '100%' }}>
         <Typography variant="h5" gutterBottom>Aegis-Trader</Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          {getMessage('zh-CN', 'interaction.loginSubtitle')}
+          {getMessage(locale, 'interaction.loginSubtitle')}
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -53,13 +55,13 @@ export default function LoginPage() {
           <TextField
             fullWidth
             type="password"
-            label={getMessage('zh-CN', 'interaction.loginApiKey')}
+            label={getMessage(locale, 'interaction.loginApiKey')}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             sx={{ mb: 2 }}
           />
           <Button fullWidth variant="contained" type="submit" disabled={loading || !apiKey}>
-            {loading ? getMessage('zh-CN', 'interaction.loginAuthenticating') : getMessage('zh-CN', 'interaction.loginButton')}
+            {loading ? getMessage(locale, 'interaction.loginAuthenticating') : getMessage(locale, 'interaction.loginButton')}
           </Button>
         </form>
       </Paper>

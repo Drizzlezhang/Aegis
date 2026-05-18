@@ -11,6 +11,7 @@ from src.agents.data_harvester.realtime import RealtimeManager
 from src.agents.orchestrator import Orchestrator
 from src.agents.position_monitor.position_manager import PositionManager
 from src.config import get_config
+from src.observability.logging import setup_logging
 from src.services import DecisionLog, PositionService, StatsService
 
 from .middleware.auth import AuthMiddleware
@@ -26,6 +27,10 @@ async def lifespan(app_: FastAPI):
     """Application lifespan handler."""
     global _orchestrator
     config = get_config()
+
+    log_json = config.profile.upper() == "PRODUCTION" if hasattr(config, 'profile') else False
+    setup_logging(level="INFO", json_output=log_json)
+
     app_.state.realtime_manager = RealtimeManager(
         stale_threshold_seconds=config.realtime.stale_threshold_seconds
     )

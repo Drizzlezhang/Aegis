@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getToken } from '@/lib/auth';
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -55,7 +56,12 @@ export function useWebSocket(
     cleanup();
     setStatus('connecting');
 
-    const ws = new WebSocket(url);
+    const token = getToken();
+    const wsUrl = token
+      ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`
+      : url;
+
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
