@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint5-ux"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-17T12:10:00+08:00"
+updated_at: "2026-05-17T21:50:00+08:00"
+retry_count: 0
+last_tldr: "Sprint 5 UX implementation verified and ready to commit."
+last_next: "Create git commit with approved conventional commit message."
+last_risk: "None blocking; ignored web/lib and web/tests/lib files must be force-staged."
+last_progress_note: "Pre-commit gate approved by user."
+last_context_mode: "full"
+last_verified_at: "2026-05-17T21:43:00+08:00"

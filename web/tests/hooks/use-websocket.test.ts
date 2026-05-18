@@ -115,4 +115,5 @@ describe('useWebSocket', () => {
     await waitFor(() => expect(result.current.lastMessage).toEqual({ type: 'update', symbol: 'AAPL', price: 150 }));
     expect(onMessage).toHaveBeenCalledWith({ type: 'update', symbol: 'AAPL', price: 150 });
   });
+
 });

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LocaleProvider } from '@/components/LocaleProvider';
 import { AppThemeProvider } from '@/components/theme/AppThemeProvider';
 import './globals.css';
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="min-h-screen">
         <AppThemeProvider>
-          <LocaleProvider initialLocale="zh-CN">{children}</LocaleProvider>
+          <LocaleProvider initialLocale="zh-CN">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </LocaleProvider>
         </AppThemeProvider>
       </body>
     </html>

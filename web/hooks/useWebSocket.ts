@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-export type WebSocketStatus = 'connected' | 'reconnecting' | 'disconnected';
+export type WebSocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 interface UseWebSocketOptions {
   reconnectAttempts?: number;
+  maxReconnectAttempts?: number;
   heartbeatInterval?: number;
   onMessage?: (data: any) => void;
 }
@@ -20,7 +21,8 @@ export function useWebSocket(
   options: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
   const {
-    reconnectAttempts = Infinity,
+    reconnectAttempts,
+    maxReconnectAttempts = reconnectAttempts ?? 10,
     heartbeatInterval = 30000,
     onMessage,
   } = options;
@@ -42,6 +44,7 @@ export function useWebSocket(
       reconnectTimerRef.current = null;
     }
     if (wsRef.current) {
+      wsRef.current.onclose = null;
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -50,6 +53,7 @@ export function useWebSocket(
   const connect = useCallback(() => {
     if (!url) return;
     cleanup();
+    setStatus('connecting');
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -77,10 +81,14 @@ export function useWebSocket(
 
     ws.onclose = () => {
       setStatus('disconnected');
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
       if (heartbeatTimerRef.current) {
         clearInterval(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
       }
-      if (reconnectCountRef.current < reconnectAttempts) {
+      if (reconnectCountRef.current < maxReconnectAttempts) {
         setStatus('reconnecting');
         const delay = Math.min(1000 * Math.pow(2, reconnectCountRef.current), 30000);
         reconnectTimerRef.current = setTimeout(() => {
@@ -93,7 +101,7 @@ export function useWebSocket(
     ws.onerror = () => {
       ws.close();
     };
-  }, [url, heartbeatInterval, reconnectAttempts, onMessage, cleanup]);
+  }, [url, heartbeatInterval, maxReconnectAttempts, onMessage, cleanup]);
 
   const sendMessage = useCallback((data: string | object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
