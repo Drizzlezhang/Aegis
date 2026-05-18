@@ -15,7 +15,7 @@ from src.services import DecisionLog, PositionService, StatsService
 
 from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
-from .routes import analysis, backtest, market, memory, positions, stats, status, symbols, ws
+from .routes import analysis, backtest, market, memory, metrics, positions, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 from .routes import auth
@@ -84,6 +84,7 @@ app.include_router(backtest.router, prefix="/api")
 app.include_router(memory.router, prefix="/api")
 app.include_router(positions.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+app.include_router(metrics.router, prefix="/api")
 app.include_router(ws.router)
 
 

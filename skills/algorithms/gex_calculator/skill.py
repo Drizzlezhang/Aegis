@@ -69,6 +69,34 @@ class GEXCalculatorSkill(BaseSkill):
 
         return gamma
 
+    def _calculate_bsm_gamma(
+        self,
+        spot: float,
+        strike: float,
+        dte_years: float,
+        risk_free_rate: float = 0.05,
+        implied_vol: float = 0.3,
+    ) -> float:
+        """Black-Scholes Gamma calculation.
+        
+        Gamma = N'(d1) / (S * σ * √T)
+        where d1 = [ln(S/K) + (r + σ²/2)T] / (σ√T)
+        """
+        import math
+        from scipy.stats import norm
+        
+        if dte_years <= 0 or implied_vol <= 0:
+            return 0.0
+        
+        sqrt_t = math.sqrt(dte_years)
+        d1 = (math.log(spot / strike) + (risk_free_rate + 0.5 * implied_vol**2) * dte_years) / (implied_vol * sqrt_t)
+        
+        # N'(d1) = standard normal PDF at d1
+        n_prime_d1 = norm.pdf(d1)
+        
+        gamma = n_prime_d1 / (spot * implied_vol * sqrt_t)
+        return gamma
+
     def _calculate_gex_for_contract(
         self,
         contract: OptionContract,
@@ -88,8 +116,13 @@ class GEXCalculatorSkill(BaseSkill):
             # GEX = Gamma × Open Interest × 100 × Spot² / 100
             gex = gamma * contract.open_interest * 100 * (spot_price ** 2) / 100
         elif calculation_method == GEXCalculationMethod.BLACK_SCHOLES:
-            # More accurate GEX calculation (placeholder)
-            # In production, use proper Black-Scholes gamma
+            # More accurate GEX calculation using Black-Scholes gamma
+            gamma = self._calculate_bsm_gamma(
+                spot=spot_price,
+                strike=contract.strike,
+                dte_years=max(contract.days_to_expiry / 365.0, 0.001),
+                implied_vol=getattr(contract, 'implied_vol', 0.3),
+            )
             gex = gamma * contract.open_interest * 100 * (spot_price ** 2) / 100
         else:
             raise ValueError(f"Unknown calculation method: {calculation_method}")
