@@ -13,6 +13,7 @@ COPY web/package*.json ./
 RUN npm ci
 
 COPY web/ ./
+ENV API_BASE_URL=http://localhost:8001
 RUN npm run build
 
 # ---------------------------------------------------------------------------

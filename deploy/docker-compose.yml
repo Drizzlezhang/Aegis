@@ -1,12 +1,13 @@
 version: '3.8'
 
 services:
-  aegis-api:
+  aegis:
     build:
       context: ..
       dockerfile: Dockerfile
     ports:
       - "8001:8001"
+      - "3000:3000"
     env_file:
       - ../.env
     depends_on:
@@ -17,17 +18,7 @@ services:
     environment:
       AEGIS_DATABASE__URL: postgresql://aegis:aegis@postgres:5432/aegis
       AEGIS_REDIS_URL: redis://redis:6379/0
-
-  aegis-web:
-    build:
-      context: ../web
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    depends_on:
-      - aegis-api
-    environment:
-      API_BASE_URL: http://aegis-api:8001
+      API_BASE_URL: http://aegis:8001
 
   postgres:
     image: postgres:16-alpine
