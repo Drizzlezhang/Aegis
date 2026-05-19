@@ -11,12 +11,12 @@ const nextConfig = {
     const apiBase = process.env.API_BASE_URL || 'http://localhost:8001';
     return [
       {
-        source: '/ws/:path*',
-        destination: `${apiBase}/ws/:path*`,
+        source: '/api/:path*',
+        destination: `${apiBase}/api/:path*`,
       },
       {
-        source: '/api/stats/:path*',
-        destination: `${apiBase}/api/stats/:path*`,
+        source: '/ws/:path*',
+        destination: `${apiBase}/ws/:path*`,
       },
     ];
   },

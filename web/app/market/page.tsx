@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { getChangeColorClasses } from '@/lib/change-color';
@@ -15,7 +14,7 @@ export default async function MarketPage() {
     indices = resp.indices || [];
     error = resp.error || null;
   } catch {
-    notFound();
+    error = '获取市场数据失败，请稍后重试。';
   }
 
   try {

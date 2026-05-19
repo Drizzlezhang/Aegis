@@ -1,5 +1,5 @@
 const LOCAL_DEV_FALLBACKS = new Set(['localhost', '127.0.0.1']);
-const DEFAULT_SERVER_API_PORT = '8003';
+const DEFAULT_SERVER_API_PORT = '8001';
 
 function normalizeBase(value: string): string {
   return value.replace(/\/$/, '');
