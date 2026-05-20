@@ -15,6 +15,8 @@ export type CommonMessages = {
   error: string;
   search: string;
   gex: string;
+  scheduler: string;
+  settings: string;
 };
 
 export type InteractionMessages = {
@@ -194,6 +196,47 @@ export type InteractionMessages = {
   themeLight: string;
   themeDark: string;
   themeSystem: string;
+  // Watchlist
+  watchlistEmpty: string;
+  watchlistAdd: string;
+  watchlistRemove: string;
+  watchlistSymbol: string;
+  watchlistPriority: string;
+  watchlistNotes: string;
+  watchlistAddedAt: string;
+  watchlistDuplicate: string;
+  watchlistPriorityHigh: string;
+  // Scheduler
+  schedulerStatus: string;
+  schedulerEnabled: string;
+  schedulerDisabled: string;
+  schedulerNextRun: string;
+  schedulerRunning: string;
+  schedulerRunAll: string;
+  schedulerAnalyzeSingle: string;
+  schedulerLastResults: string;
+  schedulerSuccess: string;
+  schedulerFailed: string;
+  schedulerUnavailable: string;
+  schedulerRecommendations: string;
+  schedulerTraceId: string;
+  // Settings
+  settingsTelegram: string;
+  settingsBotToken: string;
+  settingsChatId: string;
+  settingsTestMessage: string;
+  settingsTestSent: string;
+  settingsTestFailed: string;
+  settingsNotifications: string;
+  settingsHighConfidence: string;
+  settingsOnCompletion: string;
+  settingsOnError: string;
+  settingsConfidenceThreshold: string;
+  settingsSilentHours: string;
+  settingsSilentStart: string;
+  settingsSilentEnd: string;
+  settingsSave: string;
+  settingsSaved: string;
 };
 
 export type MessageTree = {

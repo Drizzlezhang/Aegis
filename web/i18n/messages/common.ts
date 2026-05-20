@@ -16,6 +16,8 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     error: '错误',
     search: '搜索',
     gex: 'GEX',
+    scheduler: '调度',
+    settings: '设置',
   },
   en: {
     watchlist: 'Watchlist',
@@ -32,5 +34,7 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     error: 'Error',
     search: 'Search',
     gex: 'GEX',
+    scheduler: 'Scheduler',
+    settings: 'Settings',
   },
 };
