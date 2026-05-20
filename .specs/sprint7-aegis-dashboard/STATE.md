@@ -6,12 +6,12 @@
 ## Current
 - **change_id**: sprint7-aegis-dashboard
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: verified
-- **updated_at**: 2026-05-20T15:20:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-20T15:25:00+08:00
 
 ## Next Action
-进入 6-SHIP: git add -A && git commit && git push origin aegis-dashboard
+无。Change 已完成。Master Integration 需要 aegis-scheduler 分支也完成后执行 merge。
 
 ## Open Questions
 - [ ] Settings 页面：后端是否已有 /api/settings 保存 API？当前使用 localStorage 降级
@@ -27,6 +27,7 @@
 - [2026-05-20T12:15:00+08:00] 2-DESIGN → design.md created: 3 component trees, 6 API functions, 35 i18n keys
 - [2026-05-20T12:20:00+08:00] 3-PLAN → tasks.md created: 11 tasks in 4 waves
 - [2026-05-20T15:20:00+08:00] 4-BUILD+5-VERIFY → 10 files: 3 pages, 3 tests, 4 modified. Full verify: 92 tests green, tsc clean, build ok.
+- [2026-05-20T15:25:00+08:00] 6-SHIP → commit 6fe9c6e pushed. 20 files, +1677/-6.
 
 ## Notes
 需求来源: 用户直接提供的 /devkit-go 命令
