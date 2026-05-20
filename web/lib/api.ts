@@ -616,3 +616,138 @@ export async function getMarketNotes(symbol?: string, category?: string, limit =
 export async function getMemoryStats(): Promise<MemoryStats> {
   return fetchApi<MemoryStats>('/api/memory/stats');
 }
+
+// Watchlist types
+export interface WatchlistItem {
+  symbol: string;
+  addedAt: string;
+  priority: number;
+  notes: string;
+}
+
+// Scheduler types
+export interface SchedulerRunResult {
+  symbol: string;
+  success: boolean;
+  recommendationsCount: number;
+  executionTime: number;
+  completedAt: string;
+  traceId: string;
+}
+
+export interface SchedulerStatusData {
+  enabled: boolean;
+  nextRunTime: string | null;
+  isRunning: boolean;
+  lastRunResults: SchedulerRunResult[];
+}
+
+// Settings types
+export interface SettingsData {
+  telegram: {
+    botToken: string;
+    chatId: string;
+    enabled: boolean;
+  };
+  notifications: {
+    highConfidence: boolean;
+    onCompletion: boolean;
+    onError: boolean;
+  };
+  confidenceThreshold: number;
+  silentHours: {
+    start: string;
+    end: string;
+  };
+}
+
+// Watchlist API
+const WATCHLIST_STORAGE_KEY = 'aegis_watchlist';
+
+function loadWatchlistFromStorage(): WatchlistItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWatchlistToStorage(items: WatchlistItem[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(items));
+}
+
+export async function getWatchlist(): Promise<WatchlistItem[]> {
+  try {
+    return await fetchApi<WatchlistItem[]>('/api/watchlist');
+  } catch {
+    return loadWatchlistFromStorage();
+  }
+}
+
+export async function addToWatchlist(
+  symbol: string,
+  notes?: string,
+  priority?: number
+): Promise<WatchlistItem> {
+  try {
+    return await fetchApi<WatchlistItem>('/api/watchlist', {
+      method: 'POST',
+      body: JSON.stringify({ symbol, notes, priority }),
+    });
+  } catch {
+    const items = loadWatchlistFromStorage();
+    const existing = items.find((i) => i.symbol.toUpperCase() === symbol.toUpperCase());
+    if (existing) {
+      existing.notes = notes ?? existing.notes;
+      existing.priority = priority ?? existing.priority;
+      existing.addedAt = new Date().toISOString();
+      saveWatchlistToStorage(items);
+      return existing;
+    }
+    const item: WatchlistItem = {
+      symbol: symbol.toUpperCase(),
+      addedAt: new Date().toISOString(),
+      priority: priority ?? 3,
+      notes: notes ?? '',
+    };
+    items.push(item);
+    saveWatchlistToStorage(items);
+    return item;
+  }
+}
+
+export async function removeFromWatchlist(symbol: string): Promise<void> {
+  try {
+    await fetchApi<void>(`/api/watchlist/${encodeURIComponent(symbol)}`, {
+      method: 'DELETE',
+    });
+  } catch {
+    const items = loadWatchlistFromStorage().filter(
+      (i) => i.symbol.toUpperCase() !== symbol.toUpperCase()
+    );
+    saveWatchlistToStorage(items);
+  }
+}
+
+// Scheduler API
+export async function getSchedulerStatus(): Promise<SchedulerStatusData> {
+  return fetchApi<SchedulerStatusData>('/api/scheduler/status');
+}
+
+export async function triggerDailyAnalysis(): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>('/api/scheduler/trigger', {
+    method: 'POST',
+  });
+}
+
+export async function triggerSingleAnalysis(
+  symbol: string
+): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>('/api/scheduler/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ symbol }),
+  });
+}

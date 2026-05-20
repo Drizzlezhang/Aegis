@@ -1,9 +1,8 @@
 # Active Change State
 
-- active_change_id: sprint5-master-integration
-- current_stage: 4-BUILD
+- active_change_id: sprint7-aegis-dashboard
+- current_stage: 0-CHANGE
 - status: in_progress
 - interrupted_reason: none
-- unfinished_tasks: T04-T12
-- merged_branches: aegis-infra ✓, aegis-observe ✓, aegis-ux ✓
-- updated_at: 2026-05-18T10:30:00+08:00
+- unfinished_tasks: none
+- updated_at: 2026-05-20T12:00:00+08:00

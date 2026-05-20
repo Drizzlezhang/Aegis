@@ -10,13 +10,16 @@ import { useLocale } from './LocaleProvider';
 
 const NAV_ITEMS = [
   { href: '/', key: 'common.dashboard' as const },
+  { href: '/watchlist', key: 'common.watchlist' as const },
   { href: '/market', key: 'common.market' as const },
   { href: '/analyze', key: 'common.analyze' as const },
   { href: '/positions', key: 'common.positions' as const },
   { href: '/backtest', key: 'common.backtest' as const },
   { href: '/history', key: 'common.history' as const },
+  { href: '/scheduler', key: 'common.scheduler' as const },
   { href: '/memory', key: 'common.memory' as const },
   { href: '/status', key: 'common.status' as const },
+  { href: '/settings', key: 'common.settings' as const },
 ];
 
 interface SidebarProps {
