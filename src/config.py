@@ -135,6 +135,34 @@ class RealtimeConfig(BaseModel):
     symbols: list[str] = Field(default_factory=list)
 
 
+class WatchlistConfig(BaseModel):
+    """Watchlist configuration."""
+    max_symbols: int = 30
+    storage_path: str = "~/.aegis-trader/watchlist.json"
+
+
+class SchedulerConfig(BaseModel):
+    """Scheduler configuration."""
+    enabled: bool = True
+    daily_run_time: str = "09:30"
+    timezone: str = "America/New_York"
+    max_concurrent_analyses: int = 3
+    retry_on_failure: bool = True
+    max_retries: int = 2
+
+
+class TelegramConfig(BaseModel):
+    """Telegram notification configuration."""
+    enabled: bool = False
+    bot_token: str = ""
+    chat_id: str = ""
+    silent_hours: tuple[int, int] = (23, 7)
+    notify_on_high_confidence: bool = True
+    notify_on_completion: bool = True
+    notify_on_error: bool = True
+    confidence_threshold: float = 0.7
+
+
 class Config(BaseSettings):
     """Main configuration."""
     model_config = SettingsConfigDict(
@@ -174,6 +202,9 @@ class Config(BaseSettings):
     debate: DebateConfig = Field(default_factory=DebateConfig)
     position: PositionConfig = Field(default_factory=PositionConfig)
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
+    watchlist: WatchlistConfig = Field(default_factory=WatchlistConfig)
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
+    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
 
     # Core symbols
     core_symbols: list[str] = Field(default=[

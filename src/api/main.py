@@ -16,10 +16,14 @@ from src.services import DecisionLog, PositionService, StatsService
 
 from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
+from src.scheduler.engine import AnalysisScheduler
+
 from .routes import analysis, backtest, market, memory, metrics, positions, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 from .routes import auth
+from .routes import scheduler as scheduler_routes
+from .routes import watchlist as watchlist_routes
 
 
 @asynccontextmanager
@@ -48,7 +52,16 @@ async def lifespan(app_: FastAPI):
     aegis_memory = _orchestrator.get_agent("Aegis-Memory")
     if aegis_memory is not None:
         memory.set_aegis_memory(cast(AegisMemoryAgent, aegis_memory))
+
+    # Scheduler
+    app_.state.scheduler = AnalysisScheduler()
+    await app_.state.scheduler.initialize()
+    app_.state.scheduler.start()
+
     yield
+    # Scheduler cleanup
+    app_.state.scheduler.stop()
+
     if hasattr(app_.state, "realtime_manager"):
         app_.state.realtime_manager.shutdown()
     _orchestrator = None
@@ -91,6 +104,8 @@ app.include_router(positions.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(metrics.router, prefix="/api")
 app.include_router(ws.router)
+app.include_router(watchlist_routes.router, prefix="/api")
+app.include_router(scheduler_routes.router, prefix="/api")
 
 
 @app.get("/api/health")
