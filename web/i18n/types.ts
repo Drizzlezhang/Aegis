@@ -16,6 +16,7 @@ export type CommonMessages = {
   search: string;
   gex: string;
   scheduler: string;
+  tracking: string;
   settings: string;
 };
 
@@ -192,6 +193,7 @@ export type InteractionMessages = {
   backtestProfitFactor: string;
   backtestEquityCurve: string;
   backtestMonthly: string;
+  backtestStrategy: string;
   // Theme
   themeLight: string;
   themeDark: string;
@@ -220,6 +222,29 @@ export type InteractionMessages = {
   schedulerUnavailable: string;
   schedulerRecommendations: string;
   schedulerTraceId: string;
+  // Tracking
+  trackingTitle: string;
+  trackingHitRate: string;
+  trackingAvgPnl: string;
+  trackingTotal: string;
+  trackingPending: string;
+  trackingByStrategy: string;
+  trackingDecisions: string;
+  trackingRefresh: string;
+  trackingEmpty: string;
+  trackingStatusHit: string;
+  trackingStatusStop: string;
+  trackingStatusExpired: string;
+  trackingStatusActive: string;
+  trackingStatusPending: string;
+  // Dashboard Quick Cards
+  dashboardSchedulerSummary: string;
+  dashboardWatchlistCount: string;
+  dashboardHitRate: string;
+  // Confidence
+  confidenceHigh: string;
+  confidenceMedium: string;
+  confidenceLow: string;
   // Settings
   settingsTelegram: string;
   settingsBotToken: string;

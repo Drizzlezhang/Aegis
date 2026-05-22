@@ -4,14 +4,25 @@ import { useState } from 'react';
 import { Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { runAnalysis, type AnalysisResult, type AnalysisRecommendation } from '@/lib/api';
 
+import ConfidenceBadge from './ConfidenceBadge';
+
 function RecommendationCard({ rec }: { rec: AnalysisRecommendation }) {
+  const isHighConf = rec.confidence >= 0.8;
   return (
-    <Paper elevation={0} sx={{ p: 2, borderRadius: '20px', bgcolor: 'action.hover' }}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: '20px',
+        bgcolor: 'action.hover',
+        ...(isHighConf ? { borderLeft: '4px solid', borderColor: 'success.main' } : {}),
+      }}
+    >
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-[var(--foreground)]">{rec.type}</span>
-          <Chip label={`${Math.round(rec.confidence * 100)}% confidence`} size="small" variant="outlined" />
         </div>
+        <ConfidenceBadge value={rec.confidence} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
           <div>Contract: <span className="text-[var(--foreground)]">{rec.contractSymbol}</span></div>
           <div>Strike: <span className="text-[var(--foreground)]">${rec.strike}</span></div>
