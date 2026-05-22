@@ -814,3 +814,120 @@ export async function triggerSingleAnalysis(
     body: JSON.stringify({ symbol }),
   });
 }
+
+// === Tracking Types ===
+
+export interface TrackingStats {
+  total: number;
+  hitRate: number;
+  avgPnlPct: number;
+  byStrategy: Record<string, { total: number; hits: number; hitRate: number }>;
+  pending: number;
+}
+
+export interface TrackedDecision {
+  id: string;
+  symbol: string;
+  strategyType: string;
+  recommendedAt: string;
+  entryPrice: number;
+  targetPrice: number | null;
+  stopLossPrice: number | null;
+  expiryDate: string | null;
+  confidence: number;
+  status: 'pending' | 'active' | 'hit_target' | 'hit_stop' | 'expired';
+  actualHigh: number | null;
+  actualLow: number | null;
+  pnlPct: number | null;
+  hitDate: string | null;
+  updatedAt: string | null;
+}
+
+// === Backend Types (snake_case) ===
+
+interface BackendTrackingStats {
+  total: number;
+  hit_rate: number;
+  avg_pnl_pct: number;
+  by_strategy: Record<string, { total: number; hits: number; hit_rate: number }>;
+  pending: number;
+}
+
+interface BackendTrackedDecision {
+  id: string;
+  symbol: string;
+  strategy_type: string;
+  recommended_at: string;
+  entry_price: number;
+  target_price: number | null;
+  stop_loss_price: number | null;
+  expiry_date: string | null;
+  confidence: number;
+  status: string;
+  actual_high: number | null;
+  actual_low: number | null;
+  pnl_pct: number | null;
+  hit_date: string | null;
+  updated_at: string | null;
+}
+
+// === Mappers ===
+
+function mapBackendStats(b: BackendTrackingStats): TrackingStats {
+  return {
+    total: b.total,
+    hitRate: b.hit_rate,
+    avgPnlPct: b.avg_pnl_pct,
+    byStrategy: Object.fromEntries(
+      Object.entries(b.by_strategy).map(([k, v]) => [
+        k,
+        { total: v.total, hits: v.hits, hitRate: v.hit_rate },
+      ])
+    ),
+    pending: b.pending,
+  };
+}
+
+function mapBackendDecision(b: BackendTrackedDecision): TrackedDecision {
+  return {
+    id: b.id,
+    symbol: b.symbol,
+    strategyType: b.strategy_type,
+    recommendedAt: b.recommended_at,
+    entryPrice: b.entry_price,
+    targetPrice: b.target_price,
+    stopLossPrice: b.stop_loss_price,
+    expiryDate: b.expiry_date,
+    confidence: b.confidence,
+    status: b.status as TrackedDecision['status'],
+    actualHigh: b.actual_high,
+    actualLow: b.actual_low,
+    pnlPct: b.pnl_pct,
+    hitDate: b.hit_date,
+    updatedAt: b.updated_at,
+  };
+}
+
+// === Tracking API Functions ===
+
+export async function getTrackingStats(): Promise<TrackingStats> {
+  const resp = await fetchApi<BackendTrackingStats>('/api/tracking/stats');
+  return mapBackendStats(resp);
+}
+
+export async function getTrackedDecisions(
+  limit: number = 20
+): Promise<TrackedDecision[]> {
+  const resp = await fetchApi<{ decisions: BackendTrackedDecision[] }>(
+    `/api/tracking/decisions?limit=${limit}`
+  );
+  return resp.decisions.map(mapBackendDecision);
+}
+
+export async function updateTracking(): Promise<TrackingStats> {
+  const resp = await fetchApi<{ status: string; stats: BackendTrackingStats }>(
+    '/api/tracking/update',
+    { method: 'POST' }
+  );
+  return mapBackendStats(resp.stats);
+}
