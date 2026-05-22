@@ -765,8 +765,39 @@ export async function removeFromWatchlist(symbol: string): Promise<void> {
 }
 
 // Scheduler API
+interface BackendSchedulerStatus {
+  enabled: boolean;
+  running: boolean;
+  next_run: string | null;
+  last_run: {
+    timestamp: string;
+    total: number;
+    success: number;
+    results: Array<{
+      symbol: string;
+      success: boolean;
+      recommendations: number;
+      trace_id: string;
+    }>;
+  } | null;
+}
+
 export async function getSchedulerStatus(): Promise<SchedulerStatusData> {
-  return fetchApi<SchedulerStatusData>('/api/scheduler/status');
+  const resp = await fetchApi<BackendSchedulerStatus>('/api/scheduler/status');
+  return {
+    enabled: resp.enabled,
+    isRunning: resp.running,
+    nextRunTime: resp.next_run,
+    lastRunResults:
+      resp.last_run?.results.map((r) => ({
+        symbol: r.symbol,
+        success: r.success,
+        recommendationsCount: r.recommendations,
+        executionTime: 0,
+        completedAt: resp.last_run?.timestamp ?? '',
+        traceId: r.trace_id ?? '',
+      })) ?? [],
+  };
 }
 
 export async function triggerDailyAnalysis(): Promise<{ message: string }> {

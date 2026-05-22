@@ -121,7 +121,8 @@
 - read_files: []
 - write_files: [`verification.md`]
 - verify: `git diff --stat && git status --short`
-- status: pending
+- status: done
+- result: Commit 1c2d43b on sprint7-integration; 18 files, 744+/55-; pre-ship approved by user
 
 ## 风险任务
 - T01/T02：会改变 git 分支/合并历史；执行前需确认当前工作树与用户意图。
