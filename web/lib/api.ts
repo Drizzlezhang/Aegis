@@ -616,3 +616,201 @@ export async function getMarketNotes(symbol?: string, category?: string, limit =
 export async function getMemoryStats(): Promise<MemoryStats> {
   return fetchApi<MemoryStats>('/api/memory/stats');
 }
+
+// Watchlist types
+export interface WatchlistItem {
+  symbol: string;
+  addedAt: string;
+  priority: number;
+  notes: string;
+}
+
+// Scheduler types
+export interface SchedulerRunResult {
+  symbol: string;
+  success: boolean;
+  recommendationsCount: number;
+  executionTime: number;
+  completedAt: string;
+  traceId: string;
+}
+
+export interface SchedulerStatusData {
+  enabled: boolean;
+  nextRunTime: string | null;
+  isRunning: boolean;
+  lastRunResults: SchedulerRunResult[];
+}
+
+// Settings types
+export interface SettingsData {
+  telegram: {
+    botToken: string;
+    chatId: string;
+    enabled: boolean;
+  };
+  notifications: {
+    highConfidence: boolean;
+    onCompletion: boolean;
+    onError: boolean;
+  };
+  confidenceThreshold: number;
+  silentHours: {
+    start: string;
+    end: string;
+  };
+}
+
+interface BackendWatchlistItem {
+  symbol: string;
+  added_at: string;
+  priority: number;
+  notes: string;
+}
+
+function mapBackendItem(b: BackendWatchlistItem): WatchlistItem {
+  return {
+    symbol: b.symbol,
+    addedAt: b.added_at,
+    priority: b.priority,
+    notes: b.notes,
+  };
+}
+
+function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError;
+}
+
+// Watchlist API
+const WATCHLIST_STORAGE_KEY = 'aegis_watchlist';
+
+function loadWatchlistFromStorage(): WatchlistItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWatchlistToStorage(items: WatchlistItem[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(items));
+}
+
+export async function getWatchlist(): Promise<WatchlistItem[]> {
+  try {
+    const resp = await fetchApi<{ items: BackendWatchlistItem[] }>('/api/watchlist');
+    return resp.items.map(mapBackendItem);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return loadWatchlistFromStorage();
+    }
+    throw err;
+  }
+}
+
+export async function addToWatchlist(
+  symbol: string,
+  notes?: string,
+  priority?: number
+): Promise<WatchlistItem> {
+  try {
+    const resp = await fetchApi<{ item: BackendWatchlistItem }>('/api/watchlist', {
+      method: 'POST',
+      body: JSON.stringify({ symbol, notes, priority }),
+    });
+    return mapBackendItem(resp.item);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const items = loadWatchlistFromStorage();
+      const existing = items.find((i) => i.symbol.toUpperCase() === symbol.toUpperCase());
+      if (existing) {
+        existing.notes = notes ?? existing.notes;
+        existing.priority = priority ?? existing.priority;
+        existing.addedAt = new Date().toISOString();
+        saveWatchlistToStorage(items);
+        return existing;
+      }
+      const item: WatchlistItem = {
+        symbol: symbol.toUpperCase(),
+        addedAt: new Date().toISOString(),
+        priority: priority ?? 3,
+        notes: notes ?? '',
+      };
+      items.push(item);
+      saveWatchlistToStorage(items);
+      return item;
+    }
+    throw err;
+  }
+}
+
+export async function removeFromWatchlist(symbol: string): Promise<void> {
+  try {
+    await fetchApi<void>(`/api/watchlist/${encodeURIComponent(symbol)}`, {
+      method: 'DELETE',
+    });
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const items = loadWatchlistFromStorage().filter(
+        (i) => i.symbol.toUpperCase() !== symbol.toUpperCase()
+      );
+      saveWatchlistToStorage(items);
+      return;
+    }
+    throw err;
+  }
+}
+
+// Scheduler API
+interface BackendSchedulerStatus {
+  enabled: boolean;
+  running: boolean;
+  next_run: string | null;
+  last_run: {
+    timestamp: string;
+    total: number;
+    success: number;
+    results: Array<{
+      symbol: string;
+      success: boolean;
+      recommendations: number;
+      trace_id: string;
+    }>;
+  } | null;
+}
+
+export async function getSchedulerStatus(): Promise<SchedulerStatusData> {
+  const resp = await fetchApi<BackendSchedulerStatus>('/api/scheduler/status');
+  return {
+    enabled: resp.enabled,
+    isRunning: resp.running,
+    nextRunTime: resp.next_run,
+    lastRunResults:
+      resp.last_run?.results.map((r) => ({
+        symbol: r.symbol,
+        success: r.success,
+        recommendationsCount: r.recommendations,
+        executionTime: 0,
+        completedAt: resp.last_run?.timestamp ?? '',
+        traceId: r.trace_id ?? '',
+      })) ?? [],
+  };
+}
+
+export async function triggerDailyAnalysis(): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>('/api/scheduler/trigger', {
+    method: 'POST',
+  });
+}
+
+export async function triggerSingleAnalysis(
+  symbol: string
+): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>('/api/scheduler/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ symbol }),
+  });
+}
