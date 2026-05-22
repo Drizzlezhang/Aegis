@@ -39,8 +39,9 @@ class TestWatchlistService:
         item = service.add("AAPL", notes="test")
         assert item.symbol == "AAPL"
         assert item.notes == "test"
+        assert item.priority == 3
 
-        items = service.list()
+        items = service.list_items()
         assert len(items) == 1
         assert items[0].symbol == "AAPL"
 
@@ -52,17 +53,16 @@ class TestWatchlistService:
     def test_remove_existing(self, service):
         service.add("AAPL")
         assert service.remove("AAPL") is True
-        assert len(service.list()) == 0
+        assert len(service.list_items()) == 0
 
     def test_remove_nonexistent(self, service):
         assert service.remove("NONEXIST") is False
 
     def test_get_symbols_sorted_by_priority(self, service):
         service.add("NVDA", priority=1)
-        service.add("AAPL", priority=0)
+        service.add("AAPL", priority=3)
         service.add("MSFT", priority=1)
-        service.add("TSLA", priority=0)
+        service.add("TSLA", priority=3)
 
         symbols = service.get_symbols()
-        # High priority first, then alphabetically within same priority
         assert symbols == ["MSFT", "NVDA", "AAPL", "TSLA"]

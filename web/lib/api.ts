@@ -661,6 +661,26 @@ export interface SettingsData {
   };
 }
 
+interface BackendWatchlistItem {
+  symbol: string;
+  added_at: string;
+  priority: number;
+  notes: string;
+}
+
+function mapBackendItem(b: BackendWatchlistItem): WatchlistItem {
+  return {
+    symbol: b.symbol,
+    addedAt: b.added_at,
+    priority: b.priority,
+    notes: b.notes,
+  };
+}
+
+function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError;
+}
+
 // Watchlist API
 const WATCHLIST_STORAGE_KEY = 'aegis_watchlist';
 
@@ -681,9 +701,13 @@ function saveWatchlistToStorage(items: WatchlistItem[]): void {
 
 export async function getWatchlist(): Promise<WatchlistItem[]> {
   try {
-    return await fetchApi<WatchlistItem[]>('/api/watchlist');
-  } catch {
-    return loadWatchlistFromStorage();
+    const resp = await fetchApi<{ items: BackendWatchlistItem[] }>('/api/watchlist');
+    return resp.items.map(mapBackendItem);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return loadWatchlistFromStorage();
+    }
+    throw err;
   }
 }
 
@@ -693,29 +717,33 @@ export async function addToWatchlist(
   priority?: number
 ): Promise<WatchlistItem> {
   try {
-    return await fetchApi<WatchlistItem>('/api/watchlist', {
+    const resp = await fetchApi<{ item: BackendWatchlistItem }>('/api/watchlist', {
       method: 'POST',
       body: JSON.stringify({ symbol, notes, priority }),
     });
-  } catch {
-    const items = loadWatchlistFromStorage();
-    const existing = items.find((i) => i.symbol.toUpperCase() === symbol.toUpperCase());
-    if (existing) {
-      existing.notes = notes ?? existing.notes;
-      existing.priority = priority ?? existing.priority;
-      existing.addedAt = new Date().toISOString();
+    return mapBackendItem(resp.item);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const items = loadWatchlistFromStorage();
+      const existing = items.find((i) => i.symbol.toUpperCase() === symbol.toUpperCase());
+      if (existing) {
+        existing.notes = notes ?? existing.notes;
+        existing.priority = priority ?? existing.priority;
+        existing.addedAt = new Date().toISOString();
+        saveWatchlistToStorage(items);
+        return existing;
+      }
+      const item: WatchlistItem = {
+        symbol: symbol.toUpperCase(),
+        addedAt: new Date().toISOString(),
+        priority: priority ?? 3,
+        notes: notes ?? '',
+      };
+      items.push(item);
       saveWatchlistToStorage(items);
-      return existing;
+      return item;
     }
-    const item: WatchlistItem = {
-      symbol: symbol.toUpperCase(),
-      addedAt: new Date().toISOString(),
-      priority: priority ?? 3,
-      notes: notes ?? '',
-    };
-    items.push(item);
-    saveWatchlistToStorage(items);
-    return item;
+    throw err;
   }
 }
 
@@ -724,11 +752,15 @@ export async function removeFromWatchlist(symbol: string): Promise<void> {
     await fetchApi<void>(`/api/watchlist/${encodeURIComponent(symbol)}`, {
       method: 'DELETE',
     });
-  } catch {
-    const items = loadWatchlistFromStorage().filter(
-      (i) => i.symbol.toUpperCase() !== symbol.toUpperCase()
-    );
-    saveWatchlistToStorage(items);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const items = loadWatchlistFromStorage().filter(
+        (i) => i.symbol.toUpperCase() !== symbol.toUpperCase()
+      );
+      saveWatchlistToStorage(items);
+      return;
+    }
+    throw err;
   }
 }
 

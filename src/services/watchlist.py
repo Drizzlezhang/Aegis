@@ -13,7 +13,7 @@ class WatchlistItem(BaseModel):
     symbol: str
     added_at: datetime
     notes: str = ""
-    priority: int = 0  # 0=normal, 1=high
+    priority: int = 3
 
 
 class WatchlistService:
@@ -36,10 +36,10 @@ class WatchlistService:
             json.dumps([item.model_dump(mode="json") for item in self._items], indent=2)
         )
 
-    def list(self) -> list[WatchlistItem]:
-        return sorted(self._items, key=lambda x: (-x.priority, x.symbol))
+    def list_items(self) -> list[WatchlistItem]:
+        return sorted(self._items, key=lambda x: (x.priority, x.symbol))
 
-    def add(self, symbol: str, notes: str = "", priority: int = 0) -> WatchlistItem:
+    def add(self, symbol: str, notes: str = "", priority: int = 3) -> WatchlistItem:
         symbol = symbol.upper()
         if any(i.symbol == symbol for i in self._items):
             raise ValueError(f"{symbol} already in watchlist")
@@ -60,4 +60,4 @@ class WatchlistService:
         return False
 
     def get_symbols(self) -> list[str]:
-        return [i.symbol for i in self.list()]
+        return [i.symbol for i in self.list_items()]

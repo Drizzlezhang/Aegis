@@ -19,20 +19,17 @@ logger = logging.getLogger(__name__)
 class AnalysisScheduler:
     """定时调度 Watchlist 全量分析。"""
 
-    def __init__(self):
+    def __init__(self, orchestrator: Orchestrator):
         self._config = get_config().scheduler
         self._scheduler = AsyncIOScheduler(timezone=self._config.timezone)
-        self._orchestrator: Orchestrator | None = None
+        self._orchestrator = orchestrator
         self._watchlist = WatchlistService()
         self._notifier = TelegramNotifier()
         self._last_run: dict | None = None
         self._running = False
 
     async def initialize(self):
-        """初始化 Orchestrator 并注册定时任务。"""
-        self._orchestrator = Orchestrator()
-        await self._orchestrator.initialize()
-
+        """注册定时任务。"""
         hour, minute = map(int, self._config.daily_run_time.split(":"))
         trigger = CronTrigger(hour=hour, minute=minute, timezone=self._config.timezone)
         self._scheduler.add_job(self.run_daily_analysis, trigger, id="daily_analysis")
@@ -48,6 +45,14 @@ class AnalysisScheduler:
     def stop(self):
         self._scheduler.shutdown(wait=False)
         logger.info("Scheduler stopped")
+
+    async def aclose(self):
+        """Async cleanup — close notifier client."""
+        await self._notifier.aclose()
+
+    @property
+    def is_running(self) -> bool:
+        return self._running
 
     @property
     def status(self) -> dict:

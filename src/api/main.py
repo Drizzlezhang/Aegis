@@ -54,13 +54,14 @@ async def lifespan(app_: FastAPI):
         memory.set_aegis_memory(cast(AegisMemoryAgent, aegis_memory))
 
     # Scheduler
-    app_.state.scheduler = AnalysisScheduler()
+    app_.state.scheduler = AnalysisScheduler(_orchestrator)
     await app_.state.scheduler.initialize()
     app_.state.scheduler.start()
 
     yield
     # Scheduler cleanup
     app_.state.scheduler.stop()
+    await app_.state.scheduler.aclose()
 
     if hasattr(app_.state, "realtime_manager"):
         app_.state.realtime_manager.shutdown()

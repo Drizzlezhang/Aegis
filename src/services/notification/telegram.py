@@ -91,3 +91,7 @@ class TelegramNotifier:
             return
         msg = f"⚠️ *系统异常*\n场景: {context}\n错误: `{error[:200]}`"
         await self.send(msg, force=True)
+
+    async def aclose(self):
+        """Close the underlying HTTP client."""
+        await self._client.aclose()

@@ -13,12 +13,12 @@ _service = WatchlistService()
 class AddSymbolRequest(BaseModel):
     symbol: str
     notes: str = ""
-    priority: int = 0
+    priority: int = 3
 
 
 @router.get("/watchlist")
 async def get_watchlist():
-    return {"items": [item.model_dump(mode="json") for item in _service.list()]}
+    return {"items": [item.model_dump(mode="json") for item in _service.list_items()]}
 
 
 @router.post("/watchlist")

@@ -17,7 +17,7 @@ async def get_scheduler_status(request: Request):
 @router.post("/scheduler/trigger")
 async def trigger_daily_analysis(request: Request):
     scheduler = request.app.state.scheduler
-    if scheduler._running:
+    if scheduler.is_running:
         raise HTTPException(status_code=409, detail="Analysis already running")
     asyncio.create_task(scheduler.run_daily_analysis())
     return {"status": "triggered"}
