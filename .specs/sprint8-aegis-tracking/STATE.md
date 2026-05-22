@@ -3,12 +3,12 @@
 ## Current
 - **change_id**: sprint8-aegis-tracking
 - **size**: S
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
+- **current_stage**: 6-SHIP
+- **status**: completed
 - **updated_at**: 2026-05-22T00:00:00+08:00
 
 ## Next Action
-进入 6-SHIP，生成 conventional commits 并 git commit
+可选: git push origin aegis-tracking, 创建 PR 合并到 master
 
 ## Open Questions
 - [ ] 无
@@ -21,6 +21,7 @@
 - [2026-05-22T00:00:00+08:00] 1-SPEC → drafted requirements.md, 8 FR + 8 AC with verification methods
 - [2026-05-22T00:00:00+08:00] 4-BUILD → Task 1-6 completed (models/service/routes/scheduler/main.py/tests), 6/6 new tests pass, 605/607 regression pass
 - [2026-05-22T00:00:00+08:00] 5-VERIFY → 5-full mode, 8/8 AC pass, verification.md created, pass
+- [2026-05-22T00:00:00+08:00] 6-SHIP → committed 5ac1a95, status completed
 
 ## Notes
 需求来源：`/Users/bytedance/Downloads/sprint8-branch1-aegis-tracking.md`（Sprint 8 分支 1 后端决策追踪）
