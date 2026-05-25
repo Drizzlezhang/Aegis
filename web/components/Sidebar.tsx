@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/backtest', key: 'common.backtest' as const },
   { href: '/history', key: 'common.history' as const },
   { href: '/scheduler', key: 'common.scheduler' as const },
+  { href: '/tracking', key: 'common.tracking' as const },
   { href: '/memory', key: 'common.memory' as const },
   { href: '/status', key: 'common.status' as const },
   { href: '/settings', key: 'common.settings' as const },

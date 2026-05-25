@@ -17,6 +17,7 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     search: '搜索',
     gex: 'GEX',
     scheduler: '调度',
+    tracking: '策略追踪',
     settings: '设置',
   },
   en: {
@@ -35,6 +36,7 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     search: 'Search',
     gex: 'GEX',
     scheduler: 'Scheduler',
+    tracking: 'Tracking',
     settings: 'Settings',
   },
 };

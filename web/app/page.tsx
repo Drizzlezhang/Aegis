@@ -5,7 +5,15 @@ import { RealtimeTicker } from '@/components/RealtimeTicker';
 import Sidebar from '@/components/Sidebar';
 import SymbolCard from '@/components/SymbolCard';
 import { getMessage } from '@/i18n/get-message';
-import { getMarketIndices, getSymbols, MarketIndexData, SymbolInfo } from '@/lib/api';
+import {
+  getMarketIndices,
+  getSchedulerStatus,
+  getSymbols,
+  getTrackingStats,
+  getWatchlist,
+  type MarketIndexData,
+  type SymbolInfo,
+} from '@/lib/api';
 
 export default async function Home() {
   const locale = 'zh-CN';
@@ -24,6 +32,42 @@ export default async function Home() {
   }
   const coreSymbols = symbols.slice(0, 8).map((item) => item.symbol);
 
+  // Quick Cards data (graceful degradation)
+  let schedulerStatus: string | null = null;
+  let schedulerHighConf: number | null = null;
+  let watchlistCount: number | null = null;
+  let trackingHitRate: number | null = null;
+  let trackingTotal: number | null = null;
+
+  try {
+    const sched = await getSchedulerStatus();
+    if (sched.lastRunResults.length > 0) {
+      const success = sched.lastRunResults.filter((r: { success: boolean }) => r.success).length;
+      const total = sched.lastRunResults.length;
+      schedulerStatus = `${success}/${total} successful`;
+      schedulerHighConf = sched.lastRunResults.filter(
+        (r: { recommendationsCount: number }) => r.recommendationsCount > 0
+      ).length;
+    }
+  } catch {
+    // scheduler unavailable
+  }
+
+  try {
+    const wl = await getWatchlist();
+    watchlistCount = wl.length;
+  } catch {
+    // watchlist unavailable
+  }
+
+  try {
+    const ts = await getTrackingStats();
+    trackingHitRate = ts.hitRate;
+    trackingTotal = ts.total;
+  } catch {
+    // tracking unavailable
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -34,6 +78,51 @@ export default async function Home() {
             <div className="card mb-6">
               <h1 className="text-3xl font-bold text-[var(--foreground)]">{getMessage(locale, 'common.dashboard')}</h1>
               <p className="mt-2 text-sm text-slate-500">多 Agent 量化分析总览</p>
+            </div>
+
+            {/* Quick Cards */}
+            <div className="mb-6">
+              <div className="grid gap-3 sm:grid-cols-3">
+                {/* Scheduler Status Card */}
+                <a href="/scheduler" className="card block no-underline transition-colors hover:border-primary/50">
+                  <div className="text-xs text-slate-500">
+                    {getMessage(locale, 'interaction.dashboardSchedulerSummary')}
+                  </div>
+                  <div className="mt-2 text-sm text-[var(--foreground)]">
+                    {schedulerStatus ?? '—'}
+                  </div>
+                  {schedulerHighConf != null && (
+                    <div className="mt-1 text-xs text-slate-500">
+                      {schedulerHighConf} high-confidence recommendations
+                    </div>
+                  )}
+                </a>
+
+                {/* Watchlist Quick Card */}
+                <a href="/watchlist" className="card block no-underline transition-colors hover:border-primary/50">
+                  <div className="text-xs text-slate-500">
+                    {getMessage(locale, 'interaction.dashboardWatchlistCount')}
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-[var(--foreground)]">
+                    {watchlistCount != null ? watchlistCount : '—'}
+                  </div>
+                </a>
+
+                {/* Tracking Summary Card */}
+                <a href="/tracking" className="card block no-underline transition-colors hover:border-primary/50">
+                  <div className="text-xs text-slate-500">
+                    {getMessage(locale, 'interaction.dashboardHitRate')}
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-[var(--foreground)]">
+                    {trackingHitRate != null ? `${(trackingHitRate * 100).toFixed(1)}%` : '—'}
+                  </div>
+                  {trackingTotal != null && (
+                    <div className="mt-1 text-xs text-slate-500">
+                      {trackingTotal} tracked
+                    </div>
+                  )}
+                </a>
+              </div>
             </div>
 
             {indices.length > 0 && (
