@@ -149,10 +149,10 @@ class LLMRouter:
     def _build_default_routing() -> dict[TaskType, str]:
         """基于 LLMConfig 构建默认路由表。"""
         llm_config = get_config().llm
-        reasoning = llm_config.model or llm_config.reasoning_model
-        quick = llm_config.model or llm_config.quick_model
-        long_ctx = llm_config.model or llm_config.long_context_model
-        code = llm_config.model or llm_config.code_model
+        reasoning = llm_config.reasoning_model or llm_config.model or "deepseek-v3.2"
+        quick = llm_config.quick_model or llm_config.model or "minimax-2.7"
+        long_ctx = llm_config.long_context_model or llm_config.model or "gemini-pro"
+        code = llm_config.code_model or llm_config.model or "glm5.1"
 
         return {
             # Architecture & Planning
