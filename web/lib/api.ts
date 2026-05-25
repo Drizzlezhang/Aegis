@@ -315,6 +315,7 @@ export interface AnalysisResult {
   report: string;
   recommendations: AnalysisRecommendation[];
   metadata?: Record<string, unknown>;
+  request_id?: string;
 }
 
 export interface AnalysisResponse {

@@ -63,6 +63,7 @@ export default function AnalyzeForm() {
   const [viewMode, setViewMode] = useState<ViewMode>('idle');
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [error, setError] = useState('');
+  const [requestId, setRequestId] = useState<string | null>(null);
 
   const running = viewMode === 'progress';
 
@@ -82,6 +83,11 @@ export default function AnalyzeForm() {
     setResults(payload.results);
     setError('');
     setViewMode('results');
+    // Extract request_id from first result for WS tracking
+    const firstResult = payload.results[0];
+    if (firstResult?.request_id) {
+      setRequestId(firstResult.request_id);
+    }
   };
 
   const handleError = (message: string) => {
@@ -111,6 +117,7 @@ export default function AnalyzeForm() {
           onComplete={handleComplete}
           onError={handleError}
           autoStart
+          requestId={requestId}
         />
       )}
 
