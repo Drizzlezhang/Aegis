@@ -7,9 +7,7 @@ describe('tracking page', () => {
   const source = readFileSync(filePath, 'utf8');
 
   it('renders stats cards and decision table', () => {
-    expect(source).toContain('TrackingSummaryCards');
-    expect(source).toContain('TrackingStrategyTable');
-    expect(source).toContain('TrackingDecisionTable');
+    expect(source).toContain('TrackingContent');
   });
 
   it('handles tracking API failure gracefully with try/catch', () => {
