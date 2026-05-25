@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint8-master-integration"
+size: "L"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "in_progress"
+created_at: "2026-05-22T00:00:00+08:00"
+updated_at: "2026-05-25T00:00:00+08:00"
+retry_count: 0
+last_tldr: "3-PLAN created with 16 atomic tasks across 5 waves."
+last_next: "Review tasks.md for post-plan gate; approve to enter 4-BUILD or request edits."
+last_risk: "main.py import/router conflicts between fixes-v2 and tracking branches; merge order must be strictly followed."
+last_progress_note: "post-plan gate pending"
+last_context_mode: "full"
+last_verified_at: ""

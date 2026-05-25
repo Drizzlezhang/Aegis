@@ -12,21 +12,27 @@ import AnalysisProgress, { type AnalysisProgressCompletePayload } from './Analys
 import DebatePanel from './DebatePanel';
 import { useLocale } from './LocaleProvider';
 import SymbolSearch from './SymbolSearch';
+import ConfidenceBadge from './ConfidenceBadge';
 
 type ViewMode = 'idle' | 'progress' | 'results';
 
 function RecommendationCard({ rec, locale }: { rec: AnalysisRecommendation; locale: 'zh-CN' | 'en' }) {
+  const isHighConf = rec.confidence >= 0.8;
   return (
-    <Paper elevation={0} sx={{ p: 2, borderRadius: '20px', bgcolor: 'action.hover' }}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: '20px',
+        bgcolor: 'action.hover',
+        ...(isHighConf ? { borderLeft: '4px solid', borderColor: 'success.main' } : {}),
+      }}
+    >
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-[var(--foreground)]">{rec.type}</span>
-          <Chip
-            label={`${Math.round(rec.confidence * 100)}% ${getMessage(locale, 'interaction.results_confidence')}`}
-            size="small"
-            variant="outlined"
-          />
         </div>
+        <ConfidenceBadge value={rec.confidence} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
           <div>{getMessage(locale, 'interaction.rec_contract')}: <span className="text-[var(--foreground)]">{rec.contractSymbol}</span></div>
           <div>{getMessage(locale, 'interaction.rec_strike')}: <span className="text-[var(--foreground)]">${rec.strike}</span></div>

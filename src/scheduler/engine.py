@@ -11,6 +11,7 @@ from src.agents.orchestrator import Orchestrator
 from src.config import get_config
 from src.observability.metrics import get_pipeline_metrics
 from src.services.notification.telegram import TelegramNotifier
+from src.services.tracking.service import TrackingService
 from src.services.watchlist import WatchlistService
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class AnalysisScheduler:
         self._orchestrator = orchestrator
         self._watchlist = WatchlistService()
         self._notifier = TelegramNotifier()
+        self._tracking = TrackingService()
         self._last_run: dict | None = None
         self._running = False
 
@@ -36,6 +38,10 @@ class AnalysisScheduler:
         logger.info(
             f"Scheduler configured: daily at {self._config.daily_run_time} {self._config.timezone}"
         )
+
+        update_trigger = CronTrigger(hour=16, minute=30, timezone=self._config.timezone)
+        self._scheduler.add_job(self._tracking.update_all, update_trigger, id="tracking_update")
+        logger.info("Tracking update configured: daily at 16:30")
 
     def start(self):
         if self._config.enabled:
@@ -100,6 +106,17 @@ class AnalysisScheduler:
                         "top_strategy": recs[0].get("strategy_type") if recs else None,
                         "trace_id": state.metadata.get("trace_id"),
                     }
+
+                    if recs:
+                        top = recs[0]
+                        self._tracking.record_recommendation(
+                            symbol=symbol,
+                            strategy_type=top.get("strategy_type", "unknown"),
+                            entry_price=top.get("entry_price", 0),
+                            target_price=top.get("target_price"),
+                            stop_loss=top.get("stop_loss"),
+                            confidence=confidence,
+                        )
 
                     if high_conf:
                         await self._notifier.notify_analysis_complete(symbol, recs, confidence)

@@ -103,7 +103,7 @@ class LLMClient:
         llm_config = config.llm
         base_config = {
             "api_key": llm_config.api_key,
-            "api_base_url": llm_config.api_base_url,
+            "api_base_url": None,
             "timeout": 30,
             "max_retries": llm_config.max_retries,
             "retry_base_delay": llm_config.retry_base_delay,
@@ -122,6 +122,9 @@ class LLMClient:
         configs: dict[LLMProvider, dict[str, Any]] = {}
         for provider_name, provider_enum in provider_map.items():
             provider_conf = {**base_config}
+            # 全局 api_base_url 只应用于与全局 provider 匹配的 provider
+            if llm_config.api_base_url and llm_config.provider and provider_name == llm_config.provider:
+                provider_conf["api_base_url"] = llm_config.api_base_url
             cred = llm_config.providers.get(provider_name)
             if cred:
                 if cred.api_key:

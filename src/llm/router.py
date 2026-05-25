@@ -149,10 +149,10 @@ class LLMRouter:
     def _build_default_routing() -> dict[TaskType, str]:
         """基于 LLMConfig 构建默认路由表。"""
         llm_config = get_config().llm
-        reasoning = llm_config.model or llm_config.reasoning_model
-        quick = llm_config.model or llm_config.quick_model
-        long_ctx = llm_config.model or llm_config.long_context_model
-        code = llm_config.model or llm_config.code_model
+        reasoning = llm_config.reasoning_model or llm_config.model or "deepseek-v3.2"
+        quick = llm_config.quick_model or llm_config.model or "minimax-2.7"
+        long_ctx = llm_config.long_context_model or llm_config.model or "gemini-pro"
+        code = llm_config.code_model or llm_config.model or "glm5.1"
 
         return {
             # Architecture & Planning
@@ -200,12 +200,11 @@ class LLMRouter:
                 task_type = TaskType.REASONING
                 logger.warning(f"Unknown task type: {task_type}, falling back to {task_type}")
 
-        # 1. User override — highest priority, return immediately
+        # 1. User override — highest priority, must be a known model
         if task_type.value in self._user_overrides:
             model_name = self._user_overrides[task_type.value]
-            resolved = self._resolve_model(model_name)
-            if resolved:
-                return resolved
+            if model_name in self.MODEL_REGISTRY:
+                return self.MODEL_REGISTRY[model_name]
             logger.warning(f"Unknown override model: {model_name}, falling back to routing")
 
         # 2. Long context auto-switch (only when no override hit)
@@ -259,10 +258,8 @@ class LLMRouter:
         return get_config().llm.provider or "deepseek"
 
     def get_model_by_name(self, model_name: str) -> ModelRouting | None:
-        """Get model configuration by name. Supports dynamic fallback for unregistered models."""
-        if model_name in self.MODEL_REGISTRY:
-            return self.MODEL_REGISTRY[model_name]
-        return self._resolve_model(model_name)
+        """Get model configuration by name. Returns None for unregistered models."""
+        return self.MODEL_REGISTRY.get(model_name)
 
     def list_available_models(self) -> list[str]:
         """List all available model names."""
