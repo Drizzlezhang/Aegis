@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Chip, Paper, Stack, Typography } from '@mui/material';
 import { getMessage } from '@/i18n/get-message';
+import type { MessageKey } from '@/i18n/types';
 import { getPositionAlerts, type PositionAlertData } from '@/lib/api';
 import { useLocale } from './LocaleProvider';
 
@@ -16,6 +17,13 @@ const severityColorMap: Record<string, 'error' | 'warning' | 'info' | 'default'>
   critical: 'error',
   warning: 'warning',
   info: 'info',
+};
+
+const alertTypeKeyMap: Record<string, MessageKey> = {
+  approaching_stop: 'interaction.alertApproachingStop',
+  approaching_target: 'interaction.alertApproachingTarget',
+  holding_timeout: 'interaction.alertHoldingTimeout',
+  large_drawdown: 'interaction.alertLargeDrawdown',
 };
 
 export default function AlertsPanel() {
@@ -38,7 +46,7 @@ export default function AlertsPanel() {
     void loadAlerts();
     const timer = setInterval(() => {
       void loadAlerts();
-    }, 30000);
+    }, 60000);
     return () => {
       clearInterval(timer);
     };
@@ -74,24 +82,34 @@ export default function AlertsPanel() {
       ) : (
         <Stack spacing={1.5}>
           {sortedAlerts.map((alert) => (
-            <Paper key={`${alert.position_id}-${alert.type}-${alert.message}`} elevation={0} className="card-muted">
+            <Paper key={`${alert.positionId}-${alert.type}-${alert.message}`} elevation={0} className="card-muted">
               <div className="flex items-center justify-between gap-3">
                 <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {alert.symbol}
                 </Typography>
-                <Chip
-                  label={alert.severity}
-                  size="small"
-                  color={severityColorMap[alert.severity] ?? 'default'}
-                  variant="filled"
-                  sx={{ textTransform: 'capitalize', borderRadius: '999px', fontWeight: 700 }}
-                />
+                <div className="flex items-center gap-1">
+                  {alert.alertType && alertTypeKeyMap[alert.alertType] && (
+                    <Chip
+                      label={getMessage(locale, alertTypeKeyMap[alert.alertType])}
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderRadius: '999px', fontWeight: 600, fontSize: '0.7rem' }}
+                    />
+                  )}
+                  <Chip
+                    label={alert.severity}
+                    size="small"
+                    color={severityColorMap[alert.severity] ?? 'default'}
+                    variant="filled"
+                    sx={{ textTransform: 'capitalize', borderRadius: '999px', fontWeight: 700 }}
+                  />
+                </div>
               </div>
               <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
                 {alert.message}
               </Typography>
               <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
-                {alert.suggested_action}
+                {alert.suggestedAction}
               </Typography>
             </Paper>
           ))}
