@@ -43,6 +43,16 @@ class AnalysisScheduler:
         self._scheduler.add_job(self._tracking.update_all, update_trigger, id="tracking_update")
         logger.info("Tracking update configured: daily at 16:30")
 
+        # Daily tracking summary notification at 17:00 (after tracking update at 16:30)
+        summary_trigger = CronTrigger(hour=17, minute=0, day_of_week="mon-fri",
+                                      timezone=self._config.timezone)
+        self._scheduler.add_job(
+            self._send_daily_summary,
+            summary_trigger,
+            id="daily_tracking_summary",
+        )
+        logger.info("Daily tracking summary configured: weekdays at 17:00")
+
     def start(self):
         if self._config.enabled:
             self._scheduler.start()
@@ -151,3 +161,22 @@ class AnalysisScheduler:
             "recommendations": len(state.recommended_options),
             "trace_id": state.metadata.get("trace_id"),
         }
+
+    def reschedule_job(self, job_id: str, **trigger_kwargs) -> None:
+        """Reschedule a job by ID with new trigger kwargs."""
+        try:
+            trigger = CronTrigger(**trigger_kwargs, timezone=self._config.timezone)
+            self._scheduler.reschedule_job(job_id, trigger=trigger)
+            logger.info(f"Rescheduled job {job_id}")
+        except Exception as e:
+            logger.warning(f"Failed to reschedule job {job_id}: {e}")
+
+    async def _send_daily_summary(self):
+        """Send daily tracking summary via Telegram."""
+        try:
+            stats = self._tracking.get_stats()
+            if stats.get("total", 0) == 0:
+                return
+            await self._notifier.send_tracking_summary(stats)
+        except Exception as e:
+            logger.error(f"Failed to send daily tracking summary: {e}")

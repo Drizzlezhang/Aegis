@@ -931,3 +931,82 @@ export async function updateTracking(): Promise<TrackingStats> {
   );
   return mapBackendStats(resp.stats);
 }
+
+// ─── Settings API ───────────────────────────────────────────────────────────
+
+interface BackendSettingsData {
+  telegram: { enabled: boolean; bot_token: string; chat_id: string };
+  notifications: { notify_on_high_confidence: boolean; notify_on_completion: boolean; notify_on_error: boolean };
+  scheduler: { enabled: boolean; daily_run_time: string; timezone: string; max_concurrent_analyses: number };
+  confidence_threshold: number;
+  silent_hours_start: number;
+  silent_hours_end: number;
+}
+
+function mapBackendSettings(b: BackendSettingsData): SettingsData {
+  return {
+    telegram: {
+      botToken: b.telegram.bot_token,
+      chatId: b.telegram.chat_id,
+      enabled: b.telegram.enabled,
+    },
+    notifications: {
+      highConfidence: b.notifications.notify_on_high_confidence,
+      onCompletion: b.notifications.notify_on_completion,
+      onError: b.notifications.notify_on_error,
+    },
+    confidenceThreshold: b.confidence_threshold,
+    silentHours: {
+      start: String(b.silent_hours_start).padStart(2, '0') + ':00',
+      end: String(b.silent_hours_end).padStart(2, '0') + ':00',
+    },
+  };
+}
+
+function mapFrontendSettings(s: Partial<SettingsData>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  if (s.telegram) {
+    result.telegram = {
+      enabled: s.telegram.enabled,
+      bot_token: s.telegram.botToken,
+      chat_id: s.telegram.chatId,
+    };
+  }
+  if (s.notifications) {
+    result.notifications = {
+      notify_on_high_confidence: s.notifications.highConfidence,
+      notify_on_completion: s.notifications.onCompletion,
+      notify_on_error: s.notifications.onError,
+    };
+  }
+  if (s.confidenceThreshold !== undefined) {
+    result.confidence_threshold = s.confidenceThreshold;
+  }
+  if (s.silentHours) {
+    result.silent_hours_start = parseInt(s.silentHours.start.split(':')[0], 10);
+    result.silent_hours_end = parseInt(s.silentHours.end.split(':')[0], 10);
+  }
+  return result;
+}
+
+export async function getSettings(): Promise<SettingsData> {
+  const res = await fetchApi<BackendSettingsData>('/api/settings');
+  return mapBackendSettings(res);
+}
+
+export async function updateSettings(settings: Partial<SettingsData>): Promise<SettingsData> {
+  const res = await fetchApi<BackendSettingsData>('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify(mapFrontendSettings(settings)),
+  });
+  return mapBackendSettings(res);
+}
+
+export async function testTelegramConnection(token: string, chatId: string): Promise<boolean> {
+  const res = await fetch(buildApiUrl('/api/settings/test-telegram'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ bot_token: token, chat_id: chatId }),
+  });
+  return res.ok;
+}

@@ -92,6 +92,24 @@ class TelegramNotifier:
         msg = f"⚠️ *系统异常*\n场景: {context}\n错误: `{error[:200]}`"
         await self.send(msg, force=True)
 
+    async def send_tracking_summary(self, stats: dict) -> bool:
+        """Send daily tracking performance summary."""
+        total = stats.get("total", 0)
+        hit_rate = stats.get("hit_rate", 0)
+        avg_pnl = stats.get("avg_pnl_pct", 0)
+        pending = stats.get("pending", 0)
+
+        message = (
+            "📊 Aegis Daily Tracking Summary\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"Total Tracked: {total}\n"
+            f"Hit Rate: {hit_rate:.1%}\n"
+            f"Avg PnL: {avg_pnl:+.2f}%\n"
+            f"Pending: {pending}\n"
+            f"━━━━━━━━━━━━━━━━━━━━"
+        )
+        return await self.send(message)
+
     async def aclose(self):
         """Close the underlying HTTP client."""
         await self._client.aclose()

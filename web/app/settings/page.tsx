@@ -17,8 +17,7 @@ import {
 import { getMessage } from '@/i18n/get-message';
 import { useLocale } from '@/components/LocaleProvider';
 import type { SettingsData } from '@/lib/api';
-
-const SETTINGS_STORAGE_KEY = 'aegis_settings';
+import { getSettings, updateSettings, testTelegramConnection } from '@/lib/api';
 
 const DEFAULT_SETTINGS: SettingsData = {
   telegram: {
@@ -38,33 +37,21 @@ const DEFAULT_SETTINGS: SettingsData = {
   },
 };
 
-function loadSettings(): SettingsData {
-  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-function saveSettings(settings: SettingsData): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-}
-
 export default function SettingsPage() {
   const { locale } = useLocale();
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
 
   useEffect(() => {
-    setSettings(loadSettings());
-    setLoaded(true);
+    getSettings()
+      .then((data) => setSettings(data))
+      .catch(() => {
+        setMsg({ type: 'warning', text: 'Failed to load settings from server, using defaults' });
+      })
+      .finally(() => setLoaded(true));
   }, []);
 
   if (!loaded) {
@@ -96,7 +83,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      saveSettings(settings);
+      await updateSettings(settings);
       setMsg({ type: 'success', text: getMessage(locale, 'interaction.settingsSaved') });
     } catch {
       setMsg({ type: 'error', text: 'Failed to save settings' });
@@ -112,17 +99,14 @@ export default function SettingsPage() {
     }
     setTesting(true);
     try {
-      // Attempt backend API; fall back to simulated success for now
-      const resp = await fetch('/api/settings/test-telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings.telegram),
-      });
-      if (!resp.ok) throw new Error('API error');
-      setMsg({ type: 'success', text: getMessage(locale, 'interaction.settingsTestSent') });
+      const ok = await testTelegramConnection(settings.telegram.botToken, settings.telegram.chatId);
+      if (ok) {
+        setMsg({ type: 'success', text: getMessage(locale, 'interaction.settingsTestSent') });
+      } else {
+        setMsg({ type: 'error', text: getMessage(locale, 'interaction.settingsTestFailed') });
+      }
     } catch {
-      // Simulate success when backend not available
-      setMsg({ type: 'success', text: getMessage(locale, 'interaction.settingsTestSent') });
+      setMsg({ type: 'error', text: getMessage(locale, 'interaction.settingsTestFailed') });
     } finally {
       setTesting(false);
     }
