@@ -3,12 +3,12 @@
 ## Current
 - **change_id**: sprint8-master-integration
 - **size**: L
-- **current_stage**: 4-BUILD
+- **current_stage**: 6-SHIP
 - **status**: in_progress
 - **updated_at**: 2026-05-25T00:00:00+08:00
 
 ## Next Action
-Execute Wave 1: create sprint8-integration branch and merge fixes-v2.
+Push sprint8-integration and merge to master.
 
 ## Open Questions
 - [ ] None
