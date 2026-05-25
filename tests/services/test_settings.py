@@ -49,3 +49,26 @@ class TestSettingsService:
 
         svc2 = SettingsService()
         assert svc2.get_current().confidence_threshold == 0.9
+
+    def test_apply_to_runtime_reschedules_job(self, service, monkeypatch):
+        """apply_to_runtime calls scheduler.reschedule_job."""
+        calls = []
+
+        class MockScheduler:
+            def reschedule_job(self, job_id, **kwargs):
+                calls.append((job_id, kwargs))
+
+        class MockAppState:
+            scheduler = MockScheduler()
+            notification_settings = None
+
+        service.update({"scheduler": {"daily_run_time": "18:00"}})
+        app_state = MockAppState()
+        service.apply_to_runtime(app_state)
+
+        assert len(calls) == 1
+        assert calls[0][0] == "tracking_update"
+        assert calls[0][1]["hour"] == 18
+        assert calls[0][1]["minute"] == 0
+        assert app_state.notification_settings is not None
+        assert app_state.notification_settings["notify_on_high_confidence"] is True

@@ -77,3 +77,36 @@ class TestTelegramNotifier:
 
         monkeypatch.setattr("src.services.notification.telegram.datetime", MockDatetime2)
         assert notifier._in_silent_hours() is False
+
+    def test_send_tracking_summary_format(self, monkeypatch):
+        """send_tracking_summary formats stats correctly."""
+        from src.config import get_config
+
+        config = get_config()
+        monkeypatch.setattr(config.telegram, "enabled", True)
+        monkeypatch.setattr(config.telegram, "bot_token", "fake_token")
+        monkeypatch.setattr(config.telegram, "chat_id", "123")
+
+        notifier = TelegramNotifier()
+        # Mock _in_silent_hours to avoid silent hours blocking
+        monkeypatch.setattr(notifier, "_in_silent_hours", lambda: False)
+        # Mock send to capture the message (must be async since send_tracking_summary awaits it)
+        sent_messages = []
+
+        async def mock_send(msg, force=False):
+            sent_messages.append(msg)
+            return True
+
+        monkeypatch.setattr(notifier, "send", mock_send)
+
+        import asyncio
+        stats = {"total": 10, "hit_rate": 0.6, "avg_pnl_pct": 2.5, "pending": 3}
+        result = asyncio.run(notifier.send_tracking_summary(stats))
+
+        assert result is True
+        assert len(sent_messages) == 1
+        msg = sent_messages[0]
+        assert "Total Tracked: 10" in msg
+        assert "Hit Rate: 60.0%" in msg
+        assert "Avg PnL: +2.50%" in msg
+        assert "Pending: 3" in msg

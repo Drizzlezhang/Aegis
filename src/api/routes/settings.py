@@ -29,6 +29,7 @@ async def update_settings(request: Request, req: UpdateSettingsRequest):
     service = request.app.state.settings_service
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
     settings = service.update(updates)
+    service.apply_to_runtime(request.app.state)
     return settings.model_dump()
 
 
