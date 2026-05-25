@@ -125,7 +125,7 @@ async def run_analysis(request: AnalyzeRequest) -> AnalyzeResponse:
                 report=state.action_report or "",
                 recommendations=recommendations,
                 metadata=getattr(state, "metadata", {}),
-                request_id=state.metadata.get("trace_id", ""),
+                request_id=getattr(state, "metadata", {}).get("trace_id", ""),
             )
         )
 
