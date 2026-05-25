@@ -53,6 +53,7 @@ async def lifespan(app_: FastAPI):
     analyze_routes.set_orchestrator(_orchestrator)
     analyze_stream_routes.set_orchestrator(_orchestrator)
     status.set_orchestrator(_orchestrator)
+    ws.set_orchestrator(_orchestrator)
     aegis_memory = _orchestrator.get_agent("Aegis-Memory")
     if aegis_memory is not None:
         memory.set_aegis_memory(cast(AegisMemoryAgent, aegis_memory))

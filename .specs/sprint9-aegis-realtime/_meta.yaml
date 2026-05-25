@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint9-aegis-realtime"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-25T00:00:00+08:00"
+updated_at: "2026-05-25T19:32:00+08:00"
+retry_count: 0
+last_tldr: "5-VERIFY partial-pass：专项测试全部通过（WS 3/3, hook 6/6, tsc 0 errors），全量回归跳过（预存 E/F 非 sprint9 引入）"
+last_next: "进入 6-SHIP，pre-commit gate 确认后提交"
+last_risk: "全量回归预存失败待后续修复"
+last_progress_note: "verification.md 已创建，AC-1~AC-6/AC-8 全部 PASS，AC-7 跳过"
+last_context_mode: "full"
+last_verified_at: "2026-05-25T19:32:00+08:00"
