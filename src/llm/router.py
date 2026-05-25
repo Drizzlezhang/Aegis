@@ -200,12 +200,11 @@ class LLMRouter:
                 task_type = TaskType.REASONING
                 logger.warning(f"Unknown task type: {task_type}, falling back to {task_type}")
 
-        # 1. User override — highest priority, return immediately
+        # 1. User override — highest priority, must be a known model
         if task_type.value in self._user_overrides:
             model_name = self._user_overrides[task_type.value]
-            resolved = self._resolve_model(model_name)
-            if resolved:
-                return resolved
+            if model_name in self.MODEL_REGISTRY:
+                return self.MODEL_REGISTRY[model_name]
             logger.warning(f"Unknown override model: {model_name}, falling back to routing")
 
         # 2. Long context auto-switch (only when no override hit)
@@ -259,10 +258,8 @@ class LLMRouter:
         return get_config().llm.provider or "deepseek"
 
     def get_model_by_name(self, model_name: str) -> ModelRouting | None:
-        """Get model configuration by name. Supports dynamic fallback for unregistered models."""
-        if model_name in self.MODEL_REGISTRY:
-            return self.MODEL_REGISTRY[model_name]
-        return self._resolve_model(model_name)
+        """Get model configuration by name. Returns None for unregistered models."""
+        return self.MODEL_REGISTRY.get(model_name)
 
     def list_available_models(self) -> list[str]:
         """List all available model names."""

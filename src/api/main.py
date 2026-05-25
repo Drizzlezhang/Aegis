@@ -13,12 +13,13 @@ from src.agents.position_monitor.position_manager import PositionManager
 from src.config import get_config
 from src.observability.logging import setup_logging
 from src.services import DecisionLog, PositionService, StatsService
+from src.services.settings import SettingsService
 
 from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from src.scheduler.engine import AnalysisScheduler
 
-from .routes import analysis, backtest, market, memory, metrics, positions, stats, status, symbols, ws
+from .routes import analysis, backtest, market, memory, metrics, positions, settings, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 from .routes import auth
@@ -44,6 +45,7 @@ async def lifespan(app_: FastAPI):
         DecisionLog(),
         PositionService(position_manager),
     )
+    app_.state.settings_service = SettingsService()
     _orchestrator = Orchestrator()
     await _orchestrator.initialize()
     analyze_routes.set_orchestrator(_orchestrator)
@@ -104,6 +106,7 @@ app.include_router(memory.router, prefix="/api")
 app.include_router(positions.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(metrics.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 app.include_router(ws.router)
 app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
