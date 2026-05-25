@@ -224,7 +224,11 @@ export async function getPositionSummary(): Promise<PositionSummaryData> {
 }
 
 export async function getPositionAlerts(): Promise<PositionAlertsResponse> {
-  return fetchApi<PositionAlertsResponse>('/api/positions/alerts');
+  const resp = await fetchApi<{ alerts: BackendAlertItem[]; scanned_at: string }>('/api/positions/alerts');
+  return {
+    alerts: resp.alerts.map(mapBackendAlert),
+    scanned_at: resp.scanned_at,
+  };
 }
 
 export async function getPositionChain(positionId: string): Promise<PositionChainItem[]> {
@@ -387,11 +391,40 @@ export interface PositionChainItem {
 
 export interface PositionAlertData {
   type: string;
-  position_id: string;
+  positionId: string;
   symbol: string;
   message: string;
   severity: 'critical' | 'warning' | 'info';
+  suggestedAction: string;
+  alertType?: string;
+  currentPrice?: number;
+  threshold?: number;
+}
+
+interface BackendAlertItem {
+  type: string;
+  position_id: string;
+  symbol: string;
+  message: string;
+  severity: string;
   suggested_action: string;
+  alert_type?: string | null;
+  current_price?: number | null;
+  threshold?: number | null;
+}
+
+function mapBackendAlert(b: BackendAlertItem): PositionAlertData {
+  return {
+    type: b.type,
+    positionId: b.position_id,
+    symbol: b.symbol,
+    message: b.message,
+    severity: b.severity as PositionAlertData['severity'],
+    suggestedAction: b.suggested_action,
+    alertType: b.alert_type ?? undefined,
+    currentPrice: b.current_price ?? undefined,
+    threshold: b.threshold ?? undefined,
+  };
 }
 
 export interface PositionAlertsResponse {

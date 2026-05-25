@@ -262,6 +262,11 @@ export type InteractionMessages = {
   settingsSilentEnd: string;
   settingsSave: string;
   settingsSaved: string;
+  // Alert types
+  alertApproachingStop: string;
+  alertApproachingTarget: string;
+  alertHoldingTimeout: string;
+  alertLargeDrawdown: string;
 };
 
 export type MessageTree = {

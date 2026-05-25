@@ -6,6 +6,7 @@ from typing import Protocol
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from src.agents.position_monitor.alerts import generate_alerts
 from src.agents.position_monitor.monitor import PositionMonitor
 from src.agents.position_monitor.position_manager import PositionManager
 from src.models.position import Position, PositionStatus
@@ -62,6 +63,9 @@ class AlertItem(BaseModel):
     message: str
     severity: str
     suggested_action: str
+    alert_type: str | None = None
+    current_price: float | None = None
+    threshold: float | None = None
 
 
 class AlertResponse(BaseModel):
@@ -139,24 +143,51 @@ class _RoutePositionService:
 
     async def get_alerts(self) -> dict:
         prices: dict[str, float] = {}
-        for position in await self._manager.get_active_positions():
+        active_positions = await self._manager.get_active_positions()
+        for position in active_positions:
             if position.current_price is not None:
                 prices[position.symbol.upper()] = position.current_price
 
-        alerts = await self._monitor.scan(prices)
+        monitor_alerts = await self._monitor.scan(prices)
+        generated_alerts = generate_alerts(active_positions, prices)
 
-        return {
-            "alerts": [
-                {
+        seen: set[tuple[str, str]] = set()
+        merged: list[dict] = []
+
+        for alert in monitor_alerts:
+            key = (alert.position_id, alert.alert_type.value)
+            if key not in seen:
+                seen.add(key)
+                merged.append({
                     "type": alert.alert_type.value,
                     "position_id": alert.position_id,
                     "symbol": alert.symbol,
                     "message": alert.message,
                     "severity": alert.severity,
                     "suggested_action": alert.suggested_action,
-                }
-                for alert in alerts
-            ],
+                    "alert_type": None,
+                    "current_price": None,
+                    "threshold": None,
+                })
+
+        for alert in generated_alerts:
+            key = (alert.position_id, alert.alert_type.value)
+            if key not in seen:
+                seen.add(key)
+                merged.append({
+                    "type": alert.alert_type.value,
+                    "position_id": alert.position_id,
+                    "symbol": alert.symbol,
+                    "message": alert.message,
+                    "severity": alert.level.value,
+                    "suggested_action": "",
+                    "alert_type": alert.alert_type.value,
+                    "current_price": alert.current_price,
+                    "threshold": alert.threshold,
+                })
+
+        return {
+            "alerts": merged,
             "scanned_at": datetime.now(timezone.utc).isoformat(),
         }
 

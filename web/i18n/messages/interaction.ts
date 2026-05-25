@@ -239,6 +239,11 @@ export const interactionMessages: Record<Locale, InteractionMessages> = {
     settingsSilentEnd: '结束',
     settingsSave: '保存设置',
     settingsSaved: '设置已保存',
+    // Alert types
+    alertApproachingStop: '接近止损',
+    alertApproachingTarget: '接近止盈',
+    alertHoldingTimeout: '持仓超时',
+    alertLargeDrawdown: '大幅回撤',
   },
   en: {
     searching: 'Searching...',
@@ -478,5 +483,10 @@ export const interactionMessages: Record<Locale, InteractionMessages> = {
     settingsSilentEnd: 'End',
     settingsSave: 'Save Settings',
     settingsSaved: 'Settings saved',
+    // Alert types
+    alertApproachingStop: 'Near Stop Loss',
+    alertApproachingTarget: 'Near Target',
+    alertHoldingTimeout: 'Holding Timeout',
+    alertLargeDrawdown: 'Large Drawdown',
   },
 };
