@@ -62,6 +62,7 @@ class AnalyzeResult(BaseModel):
     report: str
     recommendations: list[RecommendationItem]
     metadata: dict[str, Any] = {}
+    request_id: str = ""
 
 
 class AnalyzeResponse(BaseModel):
@@ -124,6 +125,7 @@ async def run_analysis(request: AnalyzeRequest) -> AnalyzeResponse:
                 report=state.action_report or "",
                 recommendations=recommendations,
                 metadata=getattr(state, "metadata", {}),
+                request_id=state.metadata.get("trace_id", ""),
             )
         )
 

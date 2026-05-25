@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import { Button, LinearProgress, Paper, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import {
   runAnalysisStream,
   type AnalysisResult,
@@ -10,23 +10,32 @@ import {
 } from '@/lib/api';
 import { getMessage } from '@/i18n/get-message';
 import { useLocale } from './LocaleProvider';
+import { useAnalysisSocket } from '@/hooks/useAnalysisSocket';
 
 type StepStatus = 'pending' | 'running' | 'done' | 'error';
 type StepKey = 'data_harvester' | 'quant_brain' | 'strategy' | 'memory';
 
-type StepView = { key: StepKey; status: StepStatus; elapsedMs: number | null };
+type StepView = { key: StepKey; status: StepStatus; elapsedMs: number | null; agentName?: string };
 
 const STEP_ORDER: StepKey[] = ['data_harvester', 'quant_brain', 'strategy', 'memory'];
 
 const STEP_AGENT_MAP: Record<string, StepKey> = {
   dataharvester: 'data_harvester',
   datacollection: 'data_harvester',
+  'data-harvester': 'data_harvester',
   quantbrain: 'quant_brain',
   quantitativeanalysis: 'quant_brain',
+  'quant-brain': 'quant_brain',
   strategyexecution: 'strategy',
   strategyexec: 'strategy',
+  'strategy-execution': 'strategy',
   memorylogging: 'memory',
   aegismemory: 'memory',
+  'aegis-memory': 'memory',
+  positionmonitor: 'memory',
+  'position-monitor': 'memory',
+  investmentdebate: 'quant_brain',
+  'investment-debate': 'quant_brain',
 };
 
 const STEP_LABEL_KEYS: Record<
@@ -60,6 +69,7 @@ type AnalysisProgressProps = {
   onComplete: (payload: AnalysisProgressCompletePayload) => void;
   onError: (error: string) => void;
   autoStart?: boolean;
+  requestId?: string | null;
 };
 
 function statusIcon(status: StepStatus): string {
@@ -76,7 +86,7 @@ function formatElapsed(elapsedMs: number | null): string {
 }
 
 function normalizeStageToStepIndex(stage: string, fallbackIndex: number): number {
-  const normalized = stage.toLowerCase().replace(/[^a-z]/g, '');
+  const normalized = stage.toLowerCase().replace(/[^a-z-]/g, '');
   const key = STEP_AGENT_MAP[normalized];
   if (!key) return fallbackIndex;
   return STEP_ORDER.indexOf(key);
@@ -98,7 +108,12 @@ function nextStepsByIndex(prev: StepView[], index: number, nowMs: number, markEr
   });
 }
 
-export default function AnalysisProgress({ symbols, onComplete, onError, autoStart = true }: AnalysisProgressProps) {
+function wsStepToStepView(agent: string, status: 'started' | 'completed' | 'failed', elapsedMs?: number): StepKey | null {
+  const normalized = agent.toLowerCase().replace(/[^a-z-]/g, '');
+  return STEP_AGENT_MAP[normalized] ?? null;
+}
+
+export default function AnalysisProgress({ symbols, onComplete, onError, autoStart = true, requestId = null }: AnalysisProgressProps) {
   const { locale } = useLocale();
   const initialSteps = useMemo<StepView[]>(
     () => STEP_ORDER.map((key) => ({ key, status: 'pending', elapsedMs: null })),
@@ -117,6 +132,46 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
   const controllerRef = useRef<AbortController | null>(null);
   const stepStartRef = useRef<Partial<Record<StepKey, number>>>({});
   const resultsRef = useRef<AnalysisResult[]>([]);
+
+  // WebSocket mode
+  const { steps: wsSteps, isConnected, isComplete: wsComplete, error: wsError } = useAnalysisSocket(requestId);
+
+  // Sync WS steps to local step views
+  useEffect(() => {
+    if (!requestId || wsSteps.length === 0) return;
+    const now = Date.now();
+    setSteps((prev) => {
+      let updated = [...prev];
+      for (const wsStep of wsSteps) {
+        const key = wsStepToStepView(wsStep.agent, wsStep.status, wsStep.elapsedMs);
+        if (key === null) continue;
+        const idx = STEP_ORDER.indexOf(key);
+        const status: StepStatus = wsStep.status === 'started' ? 'running' : wsStep.status === 'completed' ? 'done' : 'error';
+        updated = nextStepsByIndex(updated, idx, now, status === 'error');
+        if (wsStep.elapsedMs !== undefined) {
+          updated[idx] = { ...updated[idx], elapsedMs: wsStep.elapsedMs, agentName: wsStep.agent };
+        }
+      }
+      return updated;
+    });
+    setRunning(true);
+    setCurrentMessage(isConnected ? getMessage(locale, 'interaction.status_running') : getMessage(locale, 'interaction.realtimeConnecting'));
+  }, [wsSteps, isConnected, requestId, locale]);
+
+  useEffect(() => {
+    if (wsError) {
+      setError(wsError);
+      setRunning(false);
+    }
+  }, [wsError]);
+
+  useEffect(() => {
+    if (wsComplete && requestId) {
+      setRunning(false);
+      setProgress(100);
+      setCurrentMessage(getMessage(locale, 'interaction.status_done'));
+    }
+  }, [wsComplete, requestId, locale]);
 
   const resetState = useCallback(() => {
     setProgress(0);
@@ -238,19 +293,23 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
   }, [runStream]);
 
   useEffect(() => {
+    if (requestId) return; // WebSocket mode, skip stream auto-start
     if (!autoStart || symbols.length === 0 || startedRef.current) return;
     startedRef.current = true;
     startStream();
     return () => {
       controllerRef.current?.abort();
     };
-  }, [autoStart, symbols, startStream]);
+  }, [autoStart, symbols, startStream, requestId]);
 
   const handleRetry = () => {
     retriedRef.current = false;
     resetState();
     startStream();
   };
+
+  const activeStep = steps.findIndex((s) => s.status === 'running');
+  const stepperActiveStep = activeStep >= 0 ? activeStep : steps.filter((s) => s.status === 'done').length;
 
   return (
     <Paper elevation={0} className="card">
@@ -264,18 +323,53 @@ export default function AnalysisProgress({ symbols, onComplete, onError, autoSta
       </div>
       <LinearProgress variant="determinate" value={progress} sx={{ mt: 2, mb: 2, height: 10, borderRadius: 999, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { borderRadius: 999 } }} />
 
-      <Stack spacing={1.5}>
-        {steps.map((step) => (
-          <div key={step.key} className="flex items-center justify-between rounded-2xl bg-[var(--card)]/30 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <span aria-label={`status-${step.key}`}>{statusIcon(step.status)}</span>
-              <span className="text-sm text-[var(--foreground)]">{getMessage(locale, STEP_LABEL_KEYS[step.key])}</span>
-              <span className="text-xs text-slate-500">{getMessage(locale, STATUS_LABEL_KEYS[step.status])}</span>
+      {requestId ? (
+        <Stepper activeStep={stepperActiveStep} orientation="vertical" sx={{ mt: 1 }}>
+          {steps.map((step) => {
+            const isError = step.status === 'error';
+            const isRunning = step.status === 'running';
+            const isDone = step.status === 'done';
+            return (
+              <Step key={step.key} completed={isDone}>
+                <StepLabel
+                  error={isError}
+                  StepIconProps={{
+                    icon: isRunning ? (
+                      <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                    ) : isDone ? (
+                      <span className="text-green-500">✓</span>
+                    ) : isError ? (
+                      <span className="text-red-500">✗</span>
+                    ) : undefined,
+                  }}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-sm text-[var(--foreground)]">
+                      {step.agentName ?? getMessage(locale, STEP_LABEL_KEYS[step.key])}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {getMessage(locale, 'interaction.elapsed_time')}: {formatElapsed(step.elapsedMs)}
+                    </span>
+                  </div>
+                </StepLabel>
+              </Step>
+            );
+          })}
+        </Stepper>
+      ) : (
+        <Stack spacing={1.5}>
+          {steps.map((step) => (
+            <div key={step.key} className="flex items-center justify-between rounded-2xl bg-[var(--card)]/30 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span aria-label={`status-${step.key}`}>{statusIcon(step.status)}</span>
+                <span className="text-sm text-[var(--foreground)]">{getMessage(locale, STEP_LABEL_KEYS[step.key])}</span>
+                <span className="text-xs text-slate-500">{getMessage(locale, STATUS_LABEL_KEYS[step.status])}</span>
+              </div>
+              <span className="text-xs text-slate-500">{getMessage(locale, 'interaction.elapsed_time')}: {formatElapsed(step.elapsedMs)}</span>
             </div>
-            <span className="text-xs text-slate-500">{getMessage(locale, 'interaction.elapsed_time')}: {formatElapsed(step.elapsedMs)}</span>
-          </div>
-        ))}
-      </Stack>
+          ))}
+        </Stack>
+      )}
 
       {summary.length > 0 && (
         <div className="mt-3 rounded-2xl bg-[var(--card)]/30 px-3 py-2">

@@ -120,7 +120,7 @@ class Orchestrator:
         await self._emit("pipeline_started", symbol=symbol, state=state)
 
         try:
-            state = await self._run_pipeline(state, pipeline_steps)
+            state = await self._run_pipeline(state, pipeline_steps, trace_id)
             self._attach_structured_report(state)
         except Exception as e:
             logger.error(f"Error in analysis pipeline for {symbol}: {e}")
@@ -148,7 +148,7 @@ class Orchestrator:
 
         return state
 
-    async def _run_pipeline(self, state: AgentState, pipeline_steps: list[PipelineStep] | None = None) -> AgentState:
+    async def _run_pipeline(self, state: AgentState, pipeline_steps: list[PipelineStep] | None = None, request_id: str = "") -> AgentState:
         """执行 pipeline，支持单 agent 失败时 graceful degradation。"""
         steps = pipeline_steps or self._build_pipeline_steps()
         agent_timings = {}
@@ -166,6 +166,11 @@ class Orchestrator:
             
             logger.info(f"[{step.index}/{step.total}] Running {step.display_name} for {state.symbol}...")
             await self._emit("step_started", step=step, state=state)
+            if request_id:
+                await self._emit("pipeline_progress",
+                    request_id=request_id,
+                    step={"index": step.index - 1, "total": step.total,
+                          "agent": step.display_name, "status": "started"})
             runner = self._agents[step.agent_name]
             
             try:
@@ -176,6 +181,13 @@ class Orchestrator:
                             extra={"extra_fields": {"agent": step.display_name, "error": str(e)}})
                 agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "error": str(e)}
                 
+                if request_id:
+                    await self._emit("pipeline_progress",
+                        request_id=request_id,
+                        step={"index": step.index - 1, "total": step.total,
+                              "agent": step.display_name, "status": "failed",
+                              "elapsed_ms": int(elapsed * 1000)})
+
                 # Non-critical agents 可以跳过，critical 必须中断
                 if step.display_name in ("Data-Harvester",):  # critical
                     raise
@@ -188,6 +200,12 @@ class Orchestrator:
             
             state.current_step = step.index
             await self._emit("step_completed", step=step, state=state)
+            if request_id:
+                await self._emit("pipeline_progress",
+                    request_id=request_id,
+                    step={"index": step.index - 1, "total": step.total,
+                          "agent": step.display_name, "status": "completed",
+                          "elapsed_ms": int(elapsed * 1000)})
             logger.info(f"[{step.index}/{step.total}] {step.display_name} completed in {elapsed:.2f}s",
                        extra={"extra_fields": {"agent": step.display_name, "duration_s": elapsed}})
                        
