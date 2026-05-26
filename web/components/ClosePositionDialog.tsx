@@ -105,7 +105,7 @@ export default function ClosePositionDialog({ open, position, onClose, onConfirm
           <Typography
             variant="body2"
             fontWeight={700}
-            color={estimatedPnl >= 0 ? 'error.main' : 'success.main'}
+            color={estimatedPnl >= 0 ? 'success.main' : 'error.main'}
           >
             Estimated P&L: {estimatedPnl >= 0 ? '+' : ''}${estimatedPnl.toFixed(2)}
           </Typography>

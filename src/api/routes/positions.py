@@ -311,7 +311,8 @@ class _RoutePositionService:
         new_contract = OptionContract(
             symbol=position.symbol,
             underlying=position.symbol,
-            contract_symbol=f"{position.symbol}{req.new_expiry.replace('-', '')}C{int(req.new_strike * 1000):08d}",
+            option_flag = "C" if position.contract.option_type == OptionType.CALL else "P"
+            contract_symbol=f"{position.symbol}{req.new_expiry.replace('-', '')}{option_flag}{int(req.new_strike * 1000):08d}",
             strike=req.new_strike,
             expiry=date_type.fromisoformat(req.new_expiry),
             option_type=position.contract.option_type,
