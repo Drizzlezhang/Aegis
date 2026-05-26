@@ -10,9 +10,9 @@ describe('alerts panel component source checks', () => {
     expect(source).toContain('const resp = await getPositionAlerts()');
   });
 
-  it('keeps 30s polling with cleanup', () => {
+  it('keeps 60s polling with cleanup', () => {
     expect(source).toContain('const timer = setInterval(() =>');
-    expect(source).toContain('}, 30000);');
+    expect(source).toContain('}, 60000);');
     expect(source).toContain('clearInterval(timer)');
   });
 
@@ -27,5 +27,14 @@ describe('alerts panel component source checks', () => {
     expect(source).toContain("getMessage(locale, 'interaction.alerts_loading')");
     expect(source).toContain("getMessage(locale, 'interaction.alerts_empty')");
     expect(source).toContain("getMessage(locale, 'interaction.alerts_last_scanned')");
+  });
+
+  it('displays alertType chip with i18n labels', () => {
+    expect(source).toContain('alertTypeKeyMap');
+    expect(source).toContain('approaching_stop');
+    expect(source).toContain('approaching_target');
+    expect(source).toContain('holding_timeout');
+    expect(source).toContain('large_drawdown');
+    expect(source).toContain('alert.alertType');
   });
 });

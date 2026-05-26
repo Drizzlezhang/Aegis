@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint9-aegis-visual"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-25T00:00:00+08:00"
+updated_at: "2026-05-25T00:00:00+08:00"
+retry_count: 0
+last_tldr: "tasks.md 完成：10 个原子任务分 3 个 Wave（W1: alerts.py + API 类型 + 2 图表组件并行 → W2: positions.py 路由 + AlertsPanel + Backtest 集成 → W3: 测试 + 全量验证），每任务带 verify 命令"
+last_next: "进入 4-BUILD，按 Wave 1→2→3 顺序实现"
+last_risk: "T05 合并两套告警源需去重；T07 Backtest trades 数据格式需确认"
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""
