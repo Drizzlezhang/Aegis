@@ -308,10 +308,10 @@ class _RoutePositionService:
         if position.status != PositionStatus.ACTIVE:
             raise HTTPException(status_code=400, detail=f"Cannot roll non-active position (status={position.status.value})")
 
+        option_flag = "C" if position.contract.option_type == OptionType.CALL else "P"
         new_contract = OptionContract(
             symbol=position.symbol,
             underlying=position.symbol,
-            option_flag = "C" if position.contract.option_type == OptionType.CALL else "P"
             contract_symbol=f"{position.symbol}{req.new_expiry.replace('-', '')}{option_flag}{int(req.new_strike * 1000):08d}",
             strike=req.new_strike,
             expiry=date_type.fromisoformat(req.new_expiry),
