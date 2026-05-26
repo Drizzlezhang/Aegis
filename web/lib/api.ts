@@ -231,6 +231,99 @@ export async function getPositionChain(positionId: string): Promise<PositionChai
   return fetchApi<PositionChainItem[]>(`/api/positions/${encodeURIComponent(positionId)}/chain`);
 }
 
+// ─── Position CRUD API ──────────────────────────────────────────────────────
+
+export interface PositionItem {
+  id: string;
+  symbol: string;
+  status: 'planned' | 'active' | 'rolled' | 'closed' | 'expired';
+  strike: number;
+  expiry: string;
+  dte: number;
+  entryPrice: number;
+  currentPrice: number | null;
+  pnl: number | null;
+  pnlPct: number | null;
+  quantity: number;
+}
+
+export interface OpenPositionPayload {
+  symbol: string;
+  contractType: 'call' | 'put';
+  strike: number;
+  expiry: string;
+  entryPrice: number;
+  quantity?: number;
+  stopLossPct?: number;
+  targetPct?: number;
+  notes?: string;
+}
+
+export interface ClosePositionPayload {
+  closePrice: number;
+  reason?: string;
+}
+
+export interface RollPositionPayload {
+  newStrike: number;
+  newExpiry: string;
+  newEntryPrice: number;
+  newQuantity?: number;
+}
+
+export async function openPosition(payload: OpenPositionPayload): Promise<PositionItem> {
+  return fetchApi<PositionItem>('/api/positions', {
+    method: 'POST',
+    body: JSON.stringify({
+      symbol: payload.symbol,
+      contract_type: payload.contractType,
+      strike: payload.strike,
+      expiry: payload.expiry,
+      entry_price: payload.entryPrice,
+      quantity: payload.quantity ?? 1,
+      stop_loss_pct: payload.stopLossPct,
+      target_pct: payload.targetPct,
+      notes: payload.notes ?? '',
+    }),
+  });
+}
+
+export async function closePosition(positionId: string, payload: ClosePositionPayload): Promise<PositionItem> {
+  return fetchApi<PositionItem>(`/api/positions/${encodeURIComponent(positionId)}/close`, {
+    method: 'POST',
+    body: JSON.stringify({ close_price: payload.closePrice, reason: payload.reason ?? '' }),
+  });
+}
+
+export async function rollPosition(
+  positionId: string,
+  payload: RollPositionPayload
+): Promise<{ oldPosition: PositionItem; newPosition: PositionItem }> {
+  const resp = await fetchApi<{ old_position: PositionItem; new_position: PositionItem }>(
+    `/api/positions/${encodeURIComponent(positionId)}/roll`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        new_strike: payload.newStrike,
+        new_expiry: payload.newExpiry,
+        new_entry_price: payload.newEntryPrice,
+        new_quantity: payload.newQuantity,
+      }),
+    }
+  );
+  return { oldPosition: resp.old_position, newPosition: resp.new_position };
+}
+
+export async function updatePosition(
+  positionId: string,
+  data: { currentPrice?: number; notes?: string }
+): Promise<PositionItem> {
+  return fetchApi<PositionItem>(`/api/positions/${encodeURIComponent(positionId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ current_price: data.currentPrice, notes: data.notes }),
+  });
+}
+
 export async function getMarketIndices(): Promise<MarketIndicesResponse> {
   return fetchApi<MarketIndicesResponse>('/api/market/indices');
 }
