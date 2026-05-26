@@ -112,3 +112,9 @@ warn_no_return = true
 "Homepage" = "https://github.com/Drizzlezhang/Aegis-Trader"
 "Issues" = "https://github.com/Drizzlezhang/Aegis-Trader/issues"
 "Documentation" = "https://github.com/Drizzlezhang/Aegis-Trader#readme"
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e: End-to-end integration tests (no network required)",
+    "live: Live tests requiring network access (skip in CI)",
+]
