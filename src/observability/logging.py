@@ -1,5 +1,6 @@
 """Structured JSON logging for Aegis-Trader."""
 
+import contextvars
 import logging
 import json
 import sys
@@ -51,24 +52,22 @@ def setup_logging(level: str = "INFO", json_output: bool = True):
     root.addHandler(handler)
 
 
-class TraceContext:
-    """Pipeline trace context — 贯穿整个分析流程的 trace_id。
+_trace_var: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
+    "trace_context", default={}
+)
 
-    WARNING: 当前实现使用类变量存储，不支持并发 pipeline。
-    如需并发安全，应改为 contextvars.ContextVar。
-    Sprint 6 TODO: 迁移到 contextvars 实现。
-    """
-    
-    _current: dict[str, Any] = {}
+
+class TraceContext:
+    """Pipeline trace context — per-task isolation via contextvars."""
 
     @classmethod
-    def set(cls, trace_id: str, symbol: str):
-        cls._current = {"trace_id": trace_id, "symbol": symbol}
+    def set(cls, trace_id: str, symbol: str) -> None:
+        _trace_var.set({"trace_id": trace_id, "symbol": symbol})
 
     @classmethod
     def get(cls) -> dict[str, Any]:
-        return cls._current.copy()
+        return _trace_var.get().copy()
 
     @classmethod
-    def clear(cls):
-        cls._current = {}
+    def clear(cls) -> None:
+        _trace_var.set({})

@@ -15,6 +15,7 @@ from src.config import get_config
 from src.llm import TaskType, generate
 from src.models import AgentState
 from src.observability.logging import TraceContext
+from src.observability.metrics import PipelineMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,29 @@ DEFAULT_PIPELINE = [
     ("Aegis-Memory", "src.agents.aegis_memory.agent", "AegisMemoryAgent"),
     ("Position-Monitor", "src.agents.position_monitor.agent", "PositionMonitorAgent"),
 ]
+
+# ── Timeout / Retry Configuration ──────────────────────────────────────────
+DEFAULT_AGENT_TIMEOUT = 60  # seconds
+AGENT_TIMEOUTS: dict[str, int] = {
+    "Data-Harvester": 90,
+    "Quant-Brain": 120,
+    "Investment-Debate": 120,
+    "Strategy-Execution": 60,
+    "Aegis-Memory": 30,
+    "Position-Monitor": 30,
+}
+CRITICAL_AGENTS: set[str] = {"Data-Harvester"}
+MAX_RETRIES = 2
+RETRY_BACKOFF_BASE = 1.0  # seconds
+
+
+class AgentTimeoutError(Exception):
+    """Raised when an agent exceeds its execution timeout."""
+
+    def __init__(self, agent_name: str, timeout: float):
+        self.agent_name = agent_name
+        self.timeout = timeout
+        super().__init__(f"{agent_name} timed out after {timeout}s")
 
 
 @dataclass(frozen=True)
@@ -51,6 +75,7 @@ class Orchestrator:
             "pipeline_completed": [],
         }
         self._execution_history: list[dict[str, Any]] = []
+        self.metrics = PipelineMetrics()
 
         for agent_name, module_path, class_name in DEFAULT_PIPELINE:
             self.register_agent(agent_name, module_path, class_name)
@@ -148,6 +173,72 @@ class Orchestrator:
 
         return state
 
+    async def _execute_agent_with_timeout(self, agent: BaseAgent, state: AgentState, timeout: float) -> AgentState:
+        """Execute agent with timeout protection."""
+        try:
+            return await asyncio.wait_for(
+                agent.run(state),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            raise AgentTimeoutError(agent.name, timeout)
+
+    async def _run_agent_with_retry(self, step: PipelineStep, state: AgentState, request_id: str = "") -> AgentState:
+        """Run agent with retry for non-critical agents."""
+        agent = self._agents[step.agent_name]
+        timeout = AGENT_TIMEOUTS.get(step.agent_name, DEFAULT_AGENT_TIMEOUT)
+        is_critical = step.agent_name in CRITICAL_AGENTS
+
+        last_error: Exception | None = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                result = await self._execute_agent_with_timeout(agent, state, timeout)
+                return result
+            except AgentTimeoutError as e:
+                last_error = e
+                state.metadata.setdefault("agent_errors", {})[step.agent_name] = str(e)
+                if is_critical:
+                    raise
+                if attempt == MAX_RETRIES - 1:
+                    # Non-critical: exhausted retries, skip agent
+                    return state
+                backoff = RETRY_BACKOFF_BASE * (2 ** attempt)
+                state.metadata.setdefault("agent_retries", []).append({
+                    "agent": step.agent_name,
+                    "attempt": attempt + 1,
+                    "error": str(e),
+                })
+                if request_id:
+                    await self._emit("pipeline_progress",
+                        request_id=request_id,
+                        step={"index": step.index - 1, "total": step.total,
+                              "agent": step.agent_name, "status": "retrying",
+                              "attempt": attempt + 1})
+                await asyncio.sleep(backoff)
+            except Exception as e:
+                last_error = e
+                state.metadata.setdefault("agent_errors", {})[step.agent_name] = str(e)
+                if is_critical:
+                    raise
+                if attempt == MAX_RETRIES - 1:
+                    # Non-critical: exhausted retries, skip agent
+                    return state
+                backoff = RETRY_BACKOFF_BASE * (2 ** attempt)
+                state.metadata.setdefault("agent_retries", []).append({
+                    "agent": step.agent_name,
+                    "attempt": attempt + 1,
+                    "error": str(e),
+                })
+                if request_id:
+                    await self._emit("pipeline_progress",
+                        request_id=request_id,
+                        step={"index": step.index - 1, "total": step.total,
+                              "agent": step.agent_name, "status": "retrying",
+                              "attempt": attempt + 1})
+                await asyncio.sleep(backoff)
+
+        return state  # non-critical exhausted all retries
+
     async def _run_pipeline(self, state: AgentState, pipeline_steps: list[PipelineStep] | None = None, request_id: str = "") -> AgentState:
         """执行 pipeline，支持单 agent 失败时 graceful degradation。"""
         steps = pipeline_steps or self._build_pipeline_steps()
@@ -171,32 +262,47 @@ class Orchestrator:
                     request_id=request_id,
                     step={"index": step.index - 1, "total": step.total,
                           "agent": step.display_name, "status": "started"})
-            runner = self._agents[step.agent_name]
             
             try:
-                state = await runner.run(state)
-            except Exception as e:
+                state = await self._run_agent_with_retry(step, state, request_id)
+            except (AgentTimeoutError, Exception) as e:
                 elapsed = time.time() - step_start
+                elapsed_ms = elapsed * 1000
+                is_timeout = isinstance(e, AgentTimeoutError)
                 logger.error(f"Agent {step.display_name} failed: {e}",
                             extra={"extra_fields": {"agent": step.display_name, "error": str(e)}})
                 agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "error": str(e)}
+                
+                # Record metrics
+                self.metrics.record_agent_run(
+                    step.display_name, success=False, duration_ms=elapsed_ms,
+                    timeout=is_timeout,
+                    retried=bool(state.metadata.get("agent_retries")),
+                )
                 
                 if request_id:
                     await self._emit("pipeline_progress",
                         request_id=request_id,
                         step={"index": step.index - 1, "total": step.total,
                               "agent": step.display_name, "status": "failed",
-                              "elapsed_ms": int(elapsed * 1000)})
+                              "elapsed_ms": int(elapsed_ms)})
 
                 # Non-critical agents 可以跳过，critical 必须中断
-                if step.display_name in ("Data-Harvester",):  # critical
+                if step.agent_name in CRITICAL_AGENTS:
                     raise
                 # 其他 agent 失败 → 记录错误，继续 pipeline
                 state.metadata.setdefault("agent_errors", {})[step.display_name] = str(e)
                 continue
                 
             elapsed = time.time() - step_start
+            elapsed_ms = elapsed * 1000
             agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "status": "ok"}
+            
+            # Record metrics
+            self.metrics.record_agent_run(
+                step.display_name, success=True, duration_ms=elapsed_ms,
+                retried=bool(state.metadata.get("agent_retries")),
+            )
             
             state.current_step = step.index
             await self._emit("step_completed", step=step, state=state)
@@ -205,7 +311,7 @@ class Orchestrator:
                     request_id=request_id,
                     step={"index": step.index - 1, "total": step.total,
                           "agent": step.display_name, "status": "completed",
-                          "elapsed_ms": int(elapsed * 1000)})
+                          "elapsed_ms": int(elapsed_ms)})
             logger.info(f"[{step.index}/{step.total}] {step.display_name} completed in {elapsed:.2f}s",
                        extra={"extra_fields": {"agent": step.display_name, "duration_s": elapsed}})
                        
@@ -230,10 +336,17 @@ class Orchestrator:
         state.metadata["structured_report"] = build_structured_report(sections_data, FULL_ANALYSIS)
 
     async def analyze_symbols(self, symbols: list[str]) -> list[AgentState]:
-        """Run analysis pipeline for multiple symbols in parallel."""
+        """Run analysis pipeline for multiple symbols with concurrency control."""
         logger.info(f"Starting batch analysis for {len(symbols)} symbols: {symbols}")
 
-        tasks = [self.analyze_symbol(symbol) for symbol in symbols]
+        max_concurrent = self._config_dict.get("max_concurrent_agents", 4)
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def _throttled(symbol: str) -> AgentState:
+            async with semaphore:
+                return await self.analyze_symbol(symbol)
+
+        tasks = [_throttled(symbol) for symbol in symbols]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         states: list[AgentState] = []
