@@ -1,5 +1,8 @@
 """FastAPI application entry point."""
 
+import asyncio
+import logging
+import signal
 from contextlib import asynccontextmanager
 from typing import cast
 
@@ -28,12 +31,24 @@ from .routes import scheduler as scheduler_routes
 from .routes import tracking as tracking_routes
 from .routes import watchlist as watchlist_routes
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
-    """Application lifespan handler."""
+    """Application lifespan handler with graceful shutdown."""
     global _orchestrator
     config = get_config()
+
+    # Log config validation warnings
+    for warning in config.validation_warnings:
+        logger.warning(f"Config validation: {warning}")
+
+    if not config.is_production_ready:
+        if config.strict_validation:
+            logger.error("Config validation failed in strict mode. Exiting.")
+            raise SystemExit("Config validation failed in strict mode. See warnings above.")
+        logger.warning("Running with incomplete configuration. Some features may not work.")
 
     log_json = config.profile.upper() == "PRODUCTION" if hasattr(config, 'profile') else False
     setup_logging(level="INFO", json_output=log_json)
@@ -43,6 +58,7 @@ async def lifespan(app_: FastAPI):
     )
     position_manager = PositionManager()
     await position_manager.load()
+    app_.state.position_manager = position_manager
     app_.state.stats_service = StatsService(
         DecisionLog(),
         PositionService(position_manager),
@@ -66,14 +82,64 @@ async def lifespan(app_: FastAPI):
     # Tracking service
     app_.state.tracking_service = TrackingService()
 
-    yield
-    # Scheduler cleanup
-    app_.state.scheduler.stop()
-    await app_.state.scheduler.aclose()
+    # Register signal handlers for graceful shutdown
+    shutdown_event = asyncio.Event()
 
-    if hasattr(app_.state, "realtime_manager"):
-        app_.state.realtime_manager.shutdown()
-    _orchestrator = None
+    def _signal_handler(sig, frame):
+        logger.info(f"Received signal {sig}, initiating graceful shutdown...")
+        shutdown_event.set()
+
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    yield
+
+    # === SHUTDOWN ===
+    logger.info("Shutting down gracefully...")
+
+    async def _do_shutdown():
+        # 1. Stop scheduler (no new jobs)
+        if hasattr(app_.state, "scheduler"):
+            logger.info("Stopping scheduler...")
+            try:
+                app_.state.scheduler.stop()
+                await app_.state.scheduler.aclose()
+            except Exception as e:
+                logger.warning(f"Error stopping scheduler: {e}")
+
+        # 2. Close WebSocket connections
+        if hasattr(app_.state, "ws_connections"):
+            ws_conns = getattr(app_.state, "ws_connections", set())
+            if ws_conns:
+                logger.info(f"Closing {len(ws_conns)} WebSocket connections...")
+                for ws in list(ws_conns):
+                    try:
+                        await ws.close(code=1001, reason="Server shutting down")
+                    except Exception:
+                        pass
+
+        # 3. Save position state
+        if hasattr(app_.state, "position_manager"):
+            logger.info("Persisting position state...")
+            try:
+                await app_.state.position_manager.save()
+            except Exception as e:
+                logger.warning(f"Error saving positions: {e}")
+
+        # 4. Shutdown realtime manager
+        if hasattr(app_.state, "realtime_manager"):
+            app_.state.realtime_manager.shutdown()
+
+        _orchestrator = None
+
+    try:
+        await asyncio.wait_for(_do_shutdown(), timeout=30)
+    except asyncio.TimeoutError:
+        logger.error("Shutdown timed out after 30s, forcing exit.")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+    logger.info("Shutdown complete.")
 
 # Global orchestrator instance
 _orchestrator: Orchestrator | None = None

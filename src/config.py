@@ -163,6 +163,14 @@ class TelegramConfig(BaseModel):
     confidence_threshold: float = 0.7
 
 
+class ConfigValidationError(Exception):
+    """Raised when strict config validation fails."""
+
+    def __init__(self, issues: list[str]):
+        self.issues = issues
+        super().__init__(f"Config validation failed: {len(issues)} issue(s)")
+
+
 class Config(BaseSettings):
     """Main configuration."""
     model_config = SettingsConfigDict(
@@ -216,6 +224,9 @@ class Config(BaseSettings):
     call_delta_range: list[float] = Field(default=[0.6, 0.8])
     support_distance_threshold: float = 0.02  # 2%
 
+    # Validation
+    strict_validation: bool = False
+
     @field_validator("skill_dirs", "data_dir", "cache_dir", "log_dir", mode="before")
     @classmethod
     def resolve_paths(cls, value: Any) -> Any:
@@ -253,6 +264,48 @@ class Config(BaseSettings):
             if not os.environ.get("AEGIS_LLM__ENABLE_REQUEST_LOGGING"):
                 self.llm.enable_request_logging = True
         return self
+
+    @model_validator(mode="after")
+    def validate_required_secrets(self) -> "Config":
+        """Validate that critical secrets are configured."""
+        issues: list[str] = []
+
+        # JWT secret must be set and non-trivial
+        if not self.auth.jwt_secret or len(self.auth.jwt_secret) < 16:
+            issues.append(
+                "AUTH_JWT_SECRET must be set (min 16 chars). "
+                "Generate one: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+
+        # At least one LLM provider must have an API key
+        has_llm_key = bool(self.llm.api_key)
+        if not has_llm_key:
+            for cred in self.llm.providers.values():
+                if cred.api_key:
+                    has_llm_key = True
+                    break
+        if not has_llm_key:
+            issues.append(
+                "At least one LLM API key must be set: "
+                "LLM_API_KEY or a provider in LLM__PROVIDERS"
+            )
+
+        object.__setattr__(self, "_validation_warnings", issues)
+
+        if issues and self.strict_validation:
+            raise ConfigValidationError(issues)
+
+        return self
+
+    @property
+    def validation_warnings(self) -> list[str]:
+        """Return any startup validation warnings."""
+        return getattr(self, "_validation_warnings", [])
+
+    @property
+    def is_production_ready(self) -> bool:
+        """Check if all production requirements are met."""
+        return len(self.validation_warnings) == 0
 
 
 # Global config instance
