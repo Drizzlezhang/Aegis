@@ -86,6 +86,10 @@ COPY --chown=root:root deploy/supervisord.conf /etc/supervisor/conf.d/supervisor
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://127.0.0.1:8001/api/health || exit 1
 
+# Health check (Frontend)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3000/api/health || exit 1
+
 EXPOSE 3000 8001
 
 USER root

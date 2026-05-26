@@ -35,4 +35,16 @@ describe('position table component source checks', () => {
     expect(source).toContain('await getPositionChain(positionId)');
     expect(source).toContain('<Collapse in={expanded}');
   });
+
+  it('renders action buttons for active positions', () => {
+    expect(source).toContain('onClose?: (position: PositionData) => void');
+    expect(source).toContain('onRoll?: (position: PositionData) => void');
+    expect(source).toContain("position.status === 'active'");
+    expect(source).toContain('CloseRoundedIcon');
+    expect(source).toContain('AutorenewRoundedIcon');
+  });
+
+  it('hides action buttons for closed positions', () => {
+    expect(source).toContain("position.status === 'active' &&");
+  });
 });

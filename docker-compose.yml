@@ -1,12 +1,11 @@
 services:
-  aegis-trader:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
     image: aegis-trader:latest
-    container_name: aegis-trader
+    container_name: aegis-trader-backend
     ports:
-      - "3000:3000"
       - "8001:8001"
     volumes:
       - ./data:/app/data
@@ -19,12 +18,18 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    command: python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     deploy:
       resources:
         limits:
@@ -33,3 +38,32 @@ services:
         reservations:
           memory: 256M
           cpus: '0.25'
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aegis-trader:latest
+    container_name: aegis-trader-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./.env:/app/.env:ro
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8001
+    restart: unless-stopped
+    command: cd /app/web && npx next start -p 3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
