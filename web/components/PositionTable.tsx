@@ -3,6 +3,8 @@
 import { Fragment, useMemo, useState } from 'react';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
 import {
   Box,
   Chip,
@@ -16,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { getMessage } from '@/i18n/get-message';
@@ -26,6 +29,8 @@ import { useLocale } from './LocaleProvider';
 interface PositionTableProps {
   positions: PositionData[];
   summary: PositionSummaryData | null;
+  onClose?: (position: PositionData) => void;
+  onRoll?: (position: PositionData) => void;
 }
 
 function formatCurrency(value: number | null): string {
@@ -49,7 +54,7 @@ function formatDate(value: string | null): string {
   return value;
 }
 
-export default function PositionTable({ positions, summary }: PositionTableProps) {
+export default function PositionTable({ positions, summary, onClose, onRoll }: PositionTableProps) {
   const { locale } = useLocale();
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const [chainLoadingMap, setChainLoadingMap] = useState<Record<string, boolean>>({});
@@ -126,6 +131,7 @@ export default function PositionTable({ positions, summary }: PositionTableProps
                 <TableCell>{getMessage(locale, 'interaction.positions_pnl')}</TableCell>
                 <TableCell>{getMessage(locale, 'interaction.positions_pnl_pct')}</TableCell>
                 <TableCell>{getMessage(locale, 'interaction.positions_quantity')}</TableCell>
+                {(onClose || onRoll) && <TableCell width={96} />}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -169,9 +175,31 @@ export default function PositionTable({ positions, summary }: PositionTableProps
                         <span className={position.pnl_pct === null ? '' : pnlPctClass}>{formatPercent(position.pnl_pct)}</span>
                       </TableCell>
                       <TableCell>{position.quantity}</TableCell>
+                      {(onClose || onRoll) && (
+                        <TableCell>
+                          {position.status === 'active' && (
+                            <Stack direction="row" spacing={0.5}>
+                              {onRoll && (
+                                <Tooltip title="Roll">
+                                  <IconButton size="small" color="primary" onClick={() => onRoll(position)}>
+                                    <AutorenewRoundedIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              {onClose && (
+                                <Tooltip title="Close">
+                                  <IconButton size="small" color="error" onClick={() => onClose(position)}>
+                                    <CloseRoundedIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Stack>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                     <TableRow>
-                      <TableCell colSpan={11} sx={{ py: 0, borderBottom: 'none' }}>
+                      <TableCell colSpan={onClose || onRoll ? 12 : 11} sx={{ py: 0, borderBottom: 'none' }}>
                         <Collapse in={expanded} timeout="auto" unmountOnExit>
                           <Box sx={{ p: 2 }}>
                             {chainLoadingMap[position.id] ? (
