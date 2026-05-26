@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "aegis-deploy"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-26T00:00:00+08:00"
+updated_at: "2026-05-26T11:47:00+08:00"
+retry_count: 0
+last_tldr: "VERIFY pass：9/9 AC 通过，113 后端测试 0 failed，tsc 0 errors，7 个新测试全部通过"
+last_next: "进入 6-SHIP，commit 并 push"
+last_risk: "无阻塞风险"
+last_progress_note: "BUILD 完成 T1-T7，VERIFY 逐条 AC 对账全部通过"
+last_context_mode: "full"
+last_verified_at: "2026-05-26T11:47:00+08:00"
