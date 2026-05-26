@@ -1,9 +1,13 @@
 # Active Change State
 
-- active_change_id: sprint10-master-integration
-- current_stage: 4-BUILD
-- status: in_progress
+- active_change_id: sprint11-aegis-notify
+- current_stage: 5-VERIFY
+- status: completed
 - interrupted_reason: ""
-- unfinished_tasks: build wave 3-5, verify, ship
+- unfinished_tasks: ""
 - updated_at: 2026-05-26T00:00:00+08:00
 - recovery_mode: new
+
+## Recent Changes
+- 2026-05-26 0-CHANGE: Sprint 11 创建 — 通知架构抽象，Size=M
+- 2026-05-26 5-VERIFY: All 10 ACs pass, 13/13 notification tests, TS 0 errors, 667 Python passed

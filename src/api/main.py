@@ -23,7 +23,7 @@ from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from src.scheduler.engine import AnalysisScheduler
 
-from .routes import analysis, backtest, market, memory, metrics, positions, settings, stats, status, symbols, ws
+from .routes import analysis, backtest, market, memory, metrics, notifications, positions, settings, stats, status, symbols, ws
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 from .routes import auth
@@ -64,6 +64,19 @@ async def lifespan(app_: FastAPI):
         PositionService(position_manager),
     )
     app_.state.settings_service = SettingsService()
+
+    # Notification router
+    from src.services.notification.router import NotificationRouter, RoutingRule
+    from src.services.notification.telegram import TelegramNotifier
+    from src.services.notification.base import NotificationLevel
+
+    notification_router = NotificationRouter()
+    telegram = TelegramNotifier()
+    notification_router.register_channel(telegram)
+    notification_router.add_rule(RoutingRule("telegram", NotificationLevel.CRITICAL))
+    notification_router.add_rule(RoutingRule("telegram", NotificationLevel.ERROR))
+    app_.state.notification_router = notification_router
+
     _orchestrator = Orchestrator()
     await _orchestrator.initialize()
     analyze_routes.set_orchestrator(_orchestrator)
@@ -130,6 +143,13 @@ async def lifespan(app_: FastAPI):
         if hasattr(app_.state, "realtime_manager"):
             app_.state.realtime_manager.shutdown()
 
+        # 5. Close notification channels
+        if hasattr(app_.state, "notification_router"):
+            try:
+                await app_.state.notification_router.close()
+            except Exception as e:
+                logger.warning(f"Error closing notification router: {e}")
+
         _orchestrator = None
 
     try:
@@ -183,6 +203,7 @@ app.include_router(ws.router)
 app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 
 @app.get("/api/health")

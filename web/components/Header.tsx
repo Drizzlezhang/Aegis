@@ -9,6 +9,7 @@ import { getMessage } from '@/i18n/get-message';
 import { useThemeMode } from '@/components/theme/AppThemeProvider';
 import { useLocale } from './LocaleProvider';
 import LocaleSwitcher from './LocaleSwitcher';
+import NotificationCenter from './NotificationCenter';
 
 const NAV_ITEMS = [
   { href: '/', key: 'common.dashboard' as const },
@@ -87,6 +88,7 @@ export default function Header() {
         </Stack>
 
         <Stack direction="row" spacing={1} alignItems="center">
+          <NotificationCenter />
           <LocaleSwitcher />
           <Tooltip title={mode === 'dark' ? '切换到浅色模式' : '切换到深色模式'}>
             <IconButton
