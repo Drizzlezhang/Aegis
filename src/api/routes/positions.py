@@ -1,7 +1,8 @@
 """Position monitoring API routes."""
 
-from datetime import datetime, timezone
+from datetime import date as date_type, datetime, timezone
 from typing import Protocol
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -9,6 +10,8 @@ from pydantic import BaseModel
 from src.agents.position_monitor.alerts import generate_alerts
 from src.agents.position_monitor.monitor import PositionMonitor
 from src.agents.position_monitor.position_manager import PositionManager
+from src.models.options import OptionContract, OptionType
+from src.models.plan import ProfitTarget, StopLoss, TradePlan, StrategyMode
 from src.models.position import Position, PositionStatus
 
 router = APIRouter()
@@ -71,6 +74,46 @@ class AlertItem(BaseModel):
 class AlertResponse(BaseModel):
     alerts: list[AlertItem]
     scanned_at: str
+
+
+# ── CRUD Request Models ──────────────────────────────────────────────────────
+
+
+class OpenPositionRequest(BaseModel):
+    symbol: str
+    contract_type: str  # "call" | "put"
+    strike: float
+    expiry: str  # "YYYY-MM-DD"
+    entry_price: float
+    quantity: int = 1
+    stop_loss_pct: float | None = None
+    target_pct: float | None = None
+    notes: str = ""
+
+
+class ClosePositionRequest(BaseModel):
+    close_price: float
+    reason: str = ""
+
+
+class RollPositionRequest(BaseModel):
+    new_strike: float
+    new_expiry: str
+    new_entry_price: float
+    new_quantity: int | None = None
+
+
+class UpdatePositionRequest(BaseModel):
+    current_price: float | None = None
+    notes: str | None = None
+
+
+class RollPositionResponse(BaseModel):
+    old_position: dict
+    new_position: dict
+
+
+# ── Service ──────────────────────────────────────────────────────────────────
 
 
 class _PositionServiceProtocol(Protocol):
@@ -214,6 +257,86 @@ class _RoutePositionService:
     def _is_closed(self, status: PositionStatus) -> bool:
         return status in {PositionStatus.CLOSED, PositionStatus.ROLLED, PositionStatus.EXPIRED}
 
+    async def open_position(self, req: OpenPositionRequest) -> dict:
+        option_type = OptionType.CALL if req.contract_type == "call" else OptionType.PUT
+        contract = OptionContract(
+            symbol=req.symbol.upper(),
+            underlying=req.symbol.upper(),
+            contract_symbol=f"{req.symbol.upper()}{req.expiry.replace('-', '')}{'C' if req.contract_type == 'call' else 'P'}{int(req.strike * 1000):08d}",
+            strike=req.strike,
+            expiry=date_type.fromisoformat(req.expiry),
+            option_type=option_type,
+            last_price=req.entry_price,
+        )
+
+        stop_loss = StopLoss(type="percentage", value=req.stop_loss_pct) if req.stop_loss_pct else StopLoss()
+        profit_targets = [ProfitTarget(level=1, percentage=req.target_pct, action="trim", description="Target")] if req.target_pct else []
+
+        trade_plan = TradePlan(
+            strategy_mode=StrategyMode.LEFT_SIDE,
+            stop_loss=stop_loss,
+            profit_targets=profit_targets,
+        )
+
+        position = Position(
+            id=str(uuid4()),
+            symbol=req.symbol.upper(),
+            contract=contract,
+            entry_price=req.entry_price,
+            quantity=req.quantity,
+            entry_date=date_type.today(),
+            trade_plan=trade_plan,
+            notes=req.notes,
+        )
+
+        await self._manager.open_position(position)
+        return self._to_position_item(position)
+
+    async def close_position(self, position_id: str, req: ClosePositionRequest) -> dict:
+        position = await self._manager.get_position(position_id)
+        if position is None:
+            raise HTTPException(status_code=404, detail="Position not found")
+        if position.status != PositionStatus.ACTIVE:
+            raise HTTPException(status_code=400, detail=f"Cannot close non-active position (status={position.status.value})")
+        updated = await self._manager.close_position(position_id, req.close_price, req.reason)
+        return self._to_position_item(updated)
+
+    async def roll_position(self, position_id: str, req: RollPositionRequest) -> dict:
+        position = await self._manager.get_position(position_id)
+        if position is None:
+            raise HTTPException(status_code=404, detail="Position not found")
+        if position.status != PositionStatus.ACTIVE:
+            raise HTTPException(status_code=400, detail=f"Cannot roll non-active position (status={position.status.value})")
+
+        new_contract = OptionContract(
+            symbol=position.symbol,
+            underlying=position.symbol,
+            contract_symbol=f"{position.symbol}{req.new_expiry.replace('-', '')}C{int(req.new_strike * 1000):08d}",
+            strike=req.new_strike,
+            expiry=date_type.fromisoformat(req.new_expiry),
+            option_type=position.contract.option_type,
+            last_price=req.new_entry_price,
+        )
+
+        old_item = self._to_position_item(position)
+        new_position = await self._manager.roll_position(position_id, new_contract, req.new_entry_price)
+        if req.new_quantity is not None:
+            new_position.quantity = req.new_quantity
+            await self._manager.save()
+        return {"old_position": old_item, "new_position": self._to_position_item(new_position)}
+
+    async def update_position(self, position_id: str, req: UpdatePositionRequest) -> dict:
+        position = await self._manager.get_position(position_id)
+        if position is None:
+            raise HTTPException(status_code=404, detail="Position not found")
+        if req.current_price is not None:
+            await self._manager.update_price(position_id, req.current_price)
+        if req.notes is not None:
+            position.notes = req.notes
+            await self._manager.save()
+        updated = await self._manager.get_position(position_id)
+        return self._to_position_item(updated)
+
 
 async def _load_service() -> _PositionServiceProtocol:
     service = _RoutePositionService()
@@ -241,3 +364,30 @@ async def get_position_chain(position_id: str) -> list[PositionChainItem]:
 async def get_position_alerts() -> AlertResponse:
     service = await _load_service()
     return AlertResponse(**(await service.get_alerts()))
+
+
+# ── CRUD Endpoints ───────────────────────────────────────────────────────────
+
+
+@router.post("/positions", status_code=201)
+async def open_position(req: OpenPositionRequest) -> dict:
+    service = await _load_service()
+    return await service.open_position(req)
+
+
+@router.post("/positions/{position_id}/close")
+async def close_position(position_id: str, req: ClosePositionRequest) -> dict:
+    service = await _load_service()
+    return await service.close_position(position_id, req)
+
+
+@router.post("/positions/{position_id}/roll")
+async def roll_position(position_id: str, req: RollPositionRequest) -> dict:
+    service = await _load_service()
+    return await service.roll_position(position_id, req)
+
+
+@router.patch("/positions/{position_id}")
+async def update_position(position_id: str, req: UpdatePositionRequest) -> dict:
+    service = await _load_service()
+    return await service.update_position(position_id, req)
