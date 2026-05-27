@@ -30,8 +30,9 @@ class TrendPhaseResult(BaseModel):
     """Phase Predictor full output."""
 
     phase: WyckoffPhase
-    confidence: float = Field(ge=0, le=1)
+    confidence: float = Field(default=50.0, ge=0, le=100, description="Phase prediction confidence based on dimension agreement")
     composite_score: float = Field(ge=0, le=100, description="Composite score: >60 bullish, <40 bearish")
     dimension_scores: list[DimensionScore] = Field(default_factory=list)
     low_volatility_override: bool = Field(default=False, description="ATR/close < threshold triggers neutral override")
     phase_description: str = ""
+    transition: str | None = Field(default=None, description="Phase transition signal, e.g. 'accumulation→markup'")
