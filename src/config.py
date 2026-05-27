@@ -66,11 +66,13 @@ class PhaseConfig(BaseModel):
     enabled: bool = Field(default=True, description="Enable/disable PhasePredictor")
     weights: dict[str, float] = Field(
         default_factory=lambda: {
-            "trend_momentum": 0.25,
-            "volume": 0.25,
-            "mean_reversion": 0.20,
-            "macro": 0.15,
-            "valuation": 0.15,
+            "trend_momentum": 0.20,
+            "velocity": 0.15,
+            "acceleration": 0.12,
+            "volume": 0.18,
+            "mean_reversion": 0.15,
+            "macro": 0.10,
+            "valuation": 0.10,
         },
         description="Dimension weights (must sum to ~1.0)",
     )

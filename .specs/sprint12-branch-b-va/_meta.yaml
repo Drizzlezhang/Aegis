@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint12-branch-b-va"
+size: "S"
+stages: ["0-CHANGE", "1-SPEC", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-27T00:00:00+08:00"
+updated_at: "2026-05-27T00:00:00+08:00"
+retry_count: 0
+last_tldr: "All 6 ACs pass: weights OK, velocity=59.4, acceleration=52.7, sideways=43.9, short=50, 674 passed no regressions"
+last_next: "进入 6-SHIP 提交代码"
+last_risk: "无"
+last_progress_note: "phase_predictor.py: +_score_velocity, +_score_acceleration, +_ema_series, updated DEFAULT_WEIGHTS, dynamic routing in predict()"
+last_context_mode: "full"
+last_verified_at: "2026-05-27T00:00:00+08:00"
