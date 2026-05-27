@@ -23,11 +23,13 @@ class PhasePredictor:
     """
 
     DEFAULT_WEIGHTS: ClassVar[dict[str, float]] = {
-        "trend_momentum": 0.25,
-        "volume": 0.25,
-        "mean_reversion": 0.20,
-        "macro": 0.15,
-        "valuation": 0.15,
+        "trend_momentum": 0.20,
+        "velocity": 0.15,
+        "acceleration": 0.12,
+        "volume": 0.18,
+        "mean_reversion": 0.15,
+        "macro": 0.10,
+        "valuation": 0.10,
     }
 
     def __init__(self, low_vol_threshold: float = 0.015) -> None:
@@ -69,19 +71,31 @@ class PhasePredictor:
         # Check low volatility override
         low_vol = self._check_low_volatility(highs, lows, closes)
 
-        # Compute 5 dimension scores
+        # Compute dimension scores via dynamic routing
+        scorer_map: dict[str, object] = {
+            "trend_momentum": lambda: self._score_trend_momentum(closes),
+            "velocity": lambda: self._score_velocity(ohlcv_data),
+            "acceleration": lambda: self._score_acceleration(ohlcv_data),
+            "volume": lambda: self._score_volume(closes, volumes),
+            "mean_reversion": lambda: self._score_mean_reversion(closes),
+            "macro": lambda: self._score_macro(macro_regime),
+            "valuation": lambda: self._score_valuation(valuation_range, price),
+        }
+
         dims: list[DimensionScore] = []
-        dims.append(self._score_trend_momentum(closes))
-        dims.append(self._score_volume(closes, volumes))
-        dims.append(self._score_mean_reversion(closes))
-        dims.append(self._score_macro(macro_regime))
-        dims.append(self._score_valuation(valuation_range, price))
+        for dim_name in self.DEFAULT_WEIGHTS:
+            scorer = scorer_map.get(dim_name)
+            if scorer is not None:
+                dims.append(scorer())
+            else:
+                logger.warning(f"No scorer for dimension '{dim_name}', skipping")
 
         composite = sum(d.weighted_score for d in dims)
 
         # Determine trend direction for phase classification
         trend_rising = self._is_trend_rising(closes)
-        volume_score = dims[1].normalized_score
+        volume_dim = next((d for d in dims if d.name == "volume"), None)
+        volume_score = volume_dim.normalized_score if volume_dim else 50.0
 
         phase, confidence = self._determine_phase(composite, volume_score, trend_rising)
 
@@ -278,6 +292,137 @@ class PhasePredictor:
             weighted_score=normalized * w,
         )
 
+    def _score_velocity(self, ohlcv_data: list[OHLCV]) -> DimensionScore:
+        """Score velocity: EMA deviation slope + RSI change rate + MACD hist growth.
+
+        Requires >= 25 bars (20 for EMA20 + 5 for slope).
+        """
+        try:
+            if len(ohlcv_data) < 25:
+                normalized = 50.0
+            else:
+                closes = [bar.close for bar in ohlcv_data]
+
+                # 1. EMA5/EMA20 deviation slope (40%)
+                ema5_series = self._ema_series(closes, 5)
+                ema20_series = self._ema_series(closes, 20)
+                deviations = [
+                    (e5 / e20 - 1.0)
+                    for e5, e20 in zip(ema5_series[-6:], ema20_series[-6:])
+                ]
+                avg_dev = sum(deviations) / len(deviations)
+                slope = deviations[-1] - deviations[0]
+                # Blend absolute deviation level (speed) with slope (accel)
+                ema_normalized = max(0.0, min(100.0, 50 + avg_dev * 2000 + slope * 500))
+
+                # 2. RSI change rate (30%)
+                rsi_now = self._calculate_rsi(closes[-20:], 14)
+                rsi_5d = self._calculate_rsi(closes[-25:-5], 14) if len(closes) >= 25 else rsi_now
+                rsi_change = rsi_now - rsi_5d
+                rsi_normalized = max(0.0, min(100.0, 50 + rsi_change * (50 / 30)))
+
+                # 3. MACD histogram growth rate (30%)
+                _, _, hist_now = self._calculate_macd(closes)
+                _, _, hist_5d = self._calculate_macd(closes[:-5])
+                # Use average of absolute hist values as stable denominator
+                denominator = max((abs(hist_now) + abs(hist_5d)) / 2, 0.001)
+                growth_rate = (hist_now - hist_5d) / denominator
+                growth_rate = max(-1.0, min(1.0, growth_rate))
+                macd_normalized = max(0.0, min(100.0, 50 + growth_rate * 25))
+
+                normalized = (
+                    ema_normalized * 0.4
+                    + rsi_normalized * 0.3
+                    + macd_normalized * 0.3
+                )
+                normalized = max(0.0, min(100.0, normalized))
+        except Exception:
+            logger.warning("velocity scoring failed, returning neutral", exc_info=True)
+            normalized = 50.0
+
+        w = self.DEFAULT_WEIGHTS["velocity"]
+        return DimensionScore(
+            name="velocity",
+            raw_value=normalized,
+            normalized_score=normalized,
+            weight=w,
+            weighted_score=normalized * w,
+        )
+
+    def _score_acceleration(self, ohlcv_data: list[OHLCV]) -> DimensionScore:
+        """Score acceleration: price slope change + MACD hist 2nd deriv + RSI 2nd order.
+
+        Requires >= 30 bars.
+        """
+        try:
+            if len(ohlcv_data) < 30:
+                normalized = 50.0
+            else:
+                closes = [bar.close for bar in ohlcv_data]
+
+                # 1. Price slope acceleration (40%)
+                # Compute velocity as linear regression slope over 5-bar windows
+                def _slope(vals: list[float]) -> float:
+                    n = len(vals)
+                    if n < 2:
+                        return 0.0
+                    x_mean = (n - 1) / 2
+                    y_mean = sum(vals) / n
+                    num = sum((i - x_mean) * (v - y_mean) for i, v in enumerate(vals))
+                    den = sum((i - x_mean) ** 2 for i in range(n))
+                    return num / den if den != 0 else 0.0
+
+                vel_now = _slope(closes[-5:])
+                vel_prev = _slope(closes[-8:-3])
+                vel_older = _slope(closes[-11:-6])
+                accel = (vel_now - vel_prev) - (vel_prev - vel_older)
+                # accel range roughly [-0.5, 0.5] for typical daily data
+                vel_normalized = max(0.0, min(100.0, 50 + accel * 100))
+
+                # 2. MACD histogram 2nd derivative (30%)
+                hist_values: list[float] = []
+                for offset in [0, 1, 2]:
+                    subset = closes[: len(closes) - offset] if offset > 0 else closes
+                    _, _, h = self._calculate_macd(subset)
+                    hist_values.append(h)
+                second_deriv = hist_values[0] - 2 * hist_values[1] + hist_values[2]
+                macd_normalized = max(0.0, min(100.0, 50 + second_deriv * 500))
+
+                # 3. RSI 2nd order change (30%)
+                # Compute RSI series over rolling windows
+                rsi_values: list[float] = []
+                for i in range(14, len(closes) + 1):
+                    rsi_values.append(self._calculate_rsi(closes[:i], 14))
+                if len(rsi_values) >= 5:
+                    rsi_now = rsi_values[-1]
+                    rsi_2d = rsi_values[-3]
+                    rsi_4d = rsi_values[-5]
+                    delta1 = rsi_now - rsi_2d
+                    delta2 = rsi_2d - rsi_4d
+                    rsi_accel = delta1 - delta2
+                else:
+                    rsi_accel = 0.0
+                rsi_normalized = max(0.0, min(100.0, 50 + rsi_accel * 10))
+
+                normalized = (
+                    vel_normalized * 0.4
+                    + macd_normalized * 0.3
+                    + rsi_normalized * 0.3
+                )
+                normalized = max(0.0, min(100.0, normalized))
+        except Exception:
+            logger.warning("acceleration scoring failed, returning neutral", exc_info=True)
+            normalized = 50.0
+
+        w = self.DEFAULT_WEIGHTS["acceleration"]
+        return DimensionScore(
+            name="acceleration",
+            raw_value=normalized,
+            normalized_score=normalized,
+            weight=w,
+            weighted_score=normalized * w,
+        )
+
     # ── Phase determination ────────────────────────────────────────────────
 
     def _determine_phase(
@@ -364,6 +509,17 @@ class PhasePredictor:
         return ema
 
     @staticmethod
+    def _ema_series(data: list[float], period: int) -> list[float]:
+        """Compute EMA series for all values."""
+        if len(data) < period:
+            return [sum(data) / len(data)] * len(data) if data else []
+        multiplier = 2 / (period + 1)
+        result = [sum(data[:period]) / period]
+        for price in data[period:]:
+            result.append((price - result[-1]) * multiplier + result[-1])
+        return result
+
+    @staticmethod
     def _calculate_rsi(closes: list[float], period: int = 14) -> float:
         """Calculate RSI for the most recent value."""
         if len(closes) < period + 1:
@@ -382,24 +538,16 @@ class PhasePredictor:
     @staticmethod
     def _calculate_macd(closes: list[float]) -> tuple[float, float, float]:
         """Calculate MACD (12, 26, 9). Returns (macd_line, signal, histogram)."""
-
-        def _ema_series(data: list[float], period: int) -> list[float]:
-            multiplier = 2 / (period + 1)
-            result = [data[0]]
-            for price in data[1:]:
-                result.append((price - result[-1]) * multiplier + result[-1])
-            return result
-
         if len(closes) < 26:
             return 0.0, 0.0, 0.0
 
-        ema12 = _ema_series(closes, 12)
-        ema26 = _ema_series(closes, 26)
+        ema12 = PhasePredictor._ema_series(closes, 12)
+        ema26 = PhasePredictor._ema_series(closes, 26)
         macd_series = [e12 - e26 for e12, e26 in zip(ema12, ema26)]
 
         macd_line = macd_series[-1]
         if len(macd_series) >= 9:
-            signal_series = _ema_series(macd_series, 9)
+            signal_series = PhasePredictor._ema_series(macd_series, 9)
             signal = signal_series[-1]
         else:
             signal = macd_line
