@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint13-config-validator"
+size: "S"
+stages: ["0-CHANGE", "1-SPEC", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "5-VERIFY"
+status: "in_progress"
+created_at: "2026-05-27T15:00:00+08:00"
+updated_at: "2026-05-27T15:20:00+08:00"
+retry_count: 0
+last_tldr: "4-BUILD: added @model_validator enforce_weight_normalization, 6 new fields (velocity_sensitivity, acceleration_sensitivity, rsi_change_sensitivity, phase_transition_cooldown_bars, adx_period, rsi_period), deprecated validate_weights(). 11 new tests + 6 existing = 17/17 pass. Phase predictor regression 26/26 pass."
+last_next: "5-VERIFY: run full verification against requirements.md ACs"
+last_risk: ""
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""

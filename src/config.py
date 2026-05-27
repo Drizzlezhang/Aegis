@@ -2,9 +2,10 @@
 
 import os
 import threading
+import warnings
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -90,9 +91,55 @@ class PhaseConfig(BaseModel):
     )
     thresholds: PhaseThresholds = Field(default_factory=PhaseThresholds)
 
+    # Scoring sensitivity multipliers
+    velocity_sensitivity: float = Field(
+        default=2000.0, gt=0,
+        description="Multiplier for velocity EMA normalization",
+    )
+    acceleration_sensitivity: float = Field(
+        default=500.0, gt=0,
+        description="Multiplier for acceleration slope normalization",
+    )
+    rsi_change_sensitivity: float = Field(
+        default=1.667, gt=0,
+        description="Multiplier for RSI change normalization (default: 50/30)",
+    )
+
+    # Phase transition cooldown
+    phase_transition_cooldown_bars: int = Field(
+        default=3, ge=1, le=20,
+        description="Minimum bars between phase transitions to avoid whipsaw signals",
+    )
+
+    # Technical indicator periods
+    adx_period: int = Field(default=14, ge=7, le=30, description="ADX calculation period")
+    rsi_period: int = Field(default=14, ge=7, le=30, description="RSI calculation period")
+
+    @model_validator(mode="after")
+    def enforce_weight_normalization(self) -> Self:
+        """Validate that dimension weights sum to 1.0 (±0.01)."""
+        total = sum(self.weights.values())
+        if abs(total - 1.0) > 0.01:
+            raise ValueError(
+                f"weights must sum to 1.0 (±0.01), got {total:.4f}. "
+                f"Weights: {self.weights}"
+            )
+        return self
+
     def validate_weights(self) -> bool:
-        """验证权重之和 ≈ 1.0。"""
-        return abs(sum(self.weights.values()) - 1.0) < 0.001
+        """验证权重之和 ≈ 1.0。
+
+        .. deprecated::
+            Use the built-in @model_validator instead.
+            This method is kept for backward compatibility.
+        """
+        warnings.warn(
+            "validate_weights() is deprecated; weight validation is now enforced "
+            "automatically via @model_validator.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return abs(sum(self.weights.values()) - 1.0) < 0.01
 
 
 class AlgorithmConfig(BaseModel):
