@@ -200,7 +200,7 @@ class LLMRouter:
                 task_type = TaskType.REASONING
                 logger.warning(f"Unknown task type: {task_type}, falling back to {task_type}")
 
-        # 1. User override — highest priority, must be a known model
+        # 1. User override — highest priority, resolves via MODEL_REGISTRY or provider inference
         if task_type.value in self._user_overrides:
             model_name = self._user_overrides[task_type.value]
             if model_name in self.MODEL_REGISTRY:

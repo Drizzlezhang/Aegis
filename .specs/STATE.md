@@ -1,7 +1,7 @@
 # Active Change State
 
 - active_change_id: merge-sub-branches-to-master
-- current_stage: 0-CHANGE
+- current_stage: 4-BUILD
 - status: in_progress
 - interrupted_reason: ""
 - unfinished_tasks: ""

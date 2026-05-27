@@ -81,30 +81,32 @@ class SettingsService:
 
         self._settings = UserSettings(**current_data)
         self._save()
+        self.apply_to_runtime()
         return self._settings
 
-    def apply_to_runtime(self, app_state) -> None:
+    def apply_to_runtime(self, app_state=None) -> None:
         """Apply current settings to runtime services."""
         settings = self._settings
 
-        # 1. Update scheduler intervals if changed
-        if hasattr(app_state, 'scheduler'):
-            scheduler = app_state.scheduler
-            try:
-                tracking_time = getattr(settings.scheduler, 'daily_run_time', '16:30')
-                hour, minute = map(int, tracking_time.split(":"))
-                scheduler.reschedule_job("tracking_update",
-                                         hour=hour, minute=minute,
-                                         day_of_week="mon-fri")
-            except Exception as e:
-                logger.warning(f"Failed to reschedule tracking_update: {e}")
+        if app_state is not None:
+            # 1. Update scheduler intervals if changed
+            if hasattr(app_state, 'scheduler'):
+                scheduler = app_state.scheduler
+                try:
+                    tracking_time = getattr(settings.scheduler, 'daily_run_time', '16:30')
+                    hour, minute = map(int, tracking_time.split(":"))
+                    scheduler.reschedule_job("tracking_update",
+                                             hour=hour, minute=minute,
+                                             day_of_week="mon-fri")
+                except Exception as e:
+                    logger.warning(f"Failed to reschedule tracking_update: {e}")
 
-        # 2. Update notification settings
-        if hasattr(app_state, 'notification_settings'):
-            app_state.notification_settings = {
-                "notify_on_high_confidence": settings.notifications.notify_on_high_confidence,
-                "notify_on_completion": settings.notifications.notify_on_completion,
-                "notify_on_error": settings.notifications.notify_on_error,
-            }
+            # 2. Update notification settings
+            if hasattr(app_state, 'notification_settings'):
+                app_state.notification_settings = {
+                    "notify_on_high_confidence": settings.notifications.notify_on_high_confidence,
+                    "notify_on_completion": settings.notifications.notify_on_completion,
+                    "notify_on_error": settings.notifications.notify_on_error,
+                }
 
         logger.info("Settings applied to runtime")
