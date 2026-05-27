@@ -1,7 +1,7 @@
 # Active Change State
 
 - active_change_id: sprint12-branch-d-tests
-- current_stage: 5-VERIFY
+- current_stage: 6-SHIP
 - status: completed
 - interrupted_reason: ""
 - unfinished_tasks: ""
