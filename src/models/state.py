@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from .analysis import GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
 from .market import MarketIndex, OHLCV
 from .options import OptionChain
+from .trend_phase import TrendPhaseResult
 
 if TYPE_CHECKING:
     from .trade import RecommendedOption
@@ -59,6 +60,7 @@ class AgentState(BaseModel):
 
     quant_result: QuantResult = Field(default_factory=QuantResult)
     strategy_result: StrategyResult = Field(default_factory=StrategyResult)
+    trend_phase_result: TrendPhaseResult | None = None
 
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     agent_sequence: list[str] = Field(default_factory=list)

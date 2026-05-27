@@ -44,6 +44,7 @@ from .technical import (
 )
 from .strategy_decision import DecisionRating, StrategyDecision
 from .trade import RecommendedOption
+from .trend_phase import DimensionScore, TrendPhaseResult, WyckoffPhase
 
 __all__ = [
     "GEXWall",
@@ -94,4 +95,7 @@ __all__ = [
     "JudgeVerdict",
     "DecisionRating",
     "StrategyDecision",
+    "DimensionScore",
+    "TrendPhaseResult",
+    "WyckoffPhase",
 ]
