@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Box,
   Button,
+  Chip,
   CircularProgress,
   Paper,
   Slider,
@@ -17,7 +18,7 @@ import {
 import { getMessage } from '@/i18n/get-message';
 import { useLocale } from '@/components/LocaleProvider';
 import type { SettingsData } from '@/lib/api';
-import { getSettings, updateSettings, testTelegramConnection } from '@/lib/api';
+import { getSettings, updateSettings, testTelegramConnection, getNotificationChannels } from '@/lib/api';
 
 const DEFAULT_SETTINGS: SettingsData = {
   telegram: {
@@ -45,6 +46,11 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
 
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookHeaders, setWebhookHeaders] = useState('');
+  const [testingWebhook, setTestingWebhook] = useState(false);
+  const [channels, setChannels] = useState<Array<{ type: string; available: boolean }>>([]);
+
   useEffect(() => {
     getSettings()
       .then((data) => setSettings(data))
@@ -52,6 +58,7 @@ export default function SettingsPage() {
         setMsg({ type: 'warning', text: 'Failed to load settings from server, using defaults' });
       })
       .finally(() => setLoaded(true));
+    void getNotificationChannels().then(setChannels).catch(() => {});
   }, []);
 
   if (!loaded) {
@@ -170,6 +177,75 @@ export default function SettingsPage() {
             {getMessage(locale, 'interaction.settingsTestMessage')}
           </Button>
         </Stack>
+      </Section>
+
+      <Section title="Webhook Configuration">
+        <Stack spacing={2}>
+          <TextField
+            label="Webhook URL"
+            value={webhookUrl}
+            onChange={(e) => setWebhookUrl(e.target.value)}
+            size="small"
+            fullWidth
+            placeholder="https://hooks.example.com/notify"
+          />
+          <TextField
+            label="Custom Headers (JSON, optional)"
+            value={webhookHeaders}
+            onChange={(e) => setWebhookHeaders(e.target.value)}
+            size="small"
+            fullWidth
+            multiline
+            rows={2}
+            placeholder='{"Authorization": "Bearer xxx"}'
+          />
+          <Button
+            variant="outlined"
+            disabled={testingWebhook || !webhookUrl}
+            onClick={async () => {
+              setTestingWebhook(true);
+              try {
+                const res = await fetch('/api/notifications/channels');
+                if (res.ok) {
+                  setMsg({ type: 'success', text: 'Webhook test: channels endpoint reachable' });
+                } else {
+                  setMsg({ type: 'error', text: 'Webhook test failed' });
+                }
+              } catch {
+                setMsg({ type: 'error', text: 'Webhook test failed' });
+              } finally {
+                setTestingWebhook(false);
+              }
+            }}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            {testingWebhook ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
+            Test Webhook
+          </Button>
+        </Stack>
+      </Section>
+
+      <Section title="Notification Channels">
+        {channels.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">No channels configured</Typography>
+        ) : (
+          <Stack spacing={1}>
+            {channels.map((ch) => (
+              <Stack key={ch.type} direction="row" alignItems="center" justifyContent="space-between">
+                <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+                  {ch.type}
+                </Typography>
+                <Chip
+                  label={ch.available ? 'Online' : 'Offline'}
+                  size="small"
+                  color={ch.available ? 'success' : 'error'}
+                  variant="filled"
+                  sx={{ borderRadius: '999px', fontWeight: 700 }}
+                />
+              </Stack>
+            ))}
+          </Stack>
+        )}
       </Section>
 
       <Section title={getMessage(locale, 'interaction.settingsNotifications')}>

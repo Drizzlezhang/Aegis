@@ -1137,3 +1137,72 @@ export async function testTelegramConnection(token: string, chatId: string): Pro
   });
   return res.ok;
 }
+
+// ─── Notification API ───────────────────────────────────────────────────────
+
+export interface NotificationItem {
+  id: string;
+  level: 'info' | 'warning' | 'critical' | 'error';
+  category: 'analysis' | 'position' | 'system' | 'tracking';
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export async function getNotifications(limit?: number, category?: string): Promise<{
+  notifications: NotificationItem[];
+  unreadCount: number;
+}> {
+  const params = new URLSearchParams();
+  if (limit) params.set('limit', String(limit));
+  if (category) params.set('category', category);
+  const res = await fetch(buildApiUrl(`/api/notifications?${params}`), {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) return { notifications: [], unreadCount: 0 };
+  const data = await res.json();
+  return {
+    notifications: (data.notifications ?? []).map(mapNotification),
+    unreadCount: data.unread_count ?? 0,
+  };
+}
+
+function mapNotification(item: Record<string, unknown>): NotificationItem {
+  return {
+    id: item.id as string,
+    level: item.level as NotificationItem['level'],
+    category: item.category as NotificationItem['category'],
+    title: item.title as string,
+    message: item.message as string,
+    createdAt: item.created_at as string,
+    read: (item.read as boolean) ?? false,
+    metadata: item.metadata as Record<string, unknown> | undefined,
+  };
+}
+
+export async function markNotificationRead(id: string): Promise<boolean> {
+  const res = await fetch(buildApiUrl(`/api/notifications/${encodeURIComponent(id)}/read`), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  return res.ok;
+}
+
+export async function markAllNotificationsRead(): Promise<boolean> {
+  const res = await fetch(buildApiUrl('/api/notifications/mark-all-read'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  return res.ok;
+}
+
+export async function getNotificationChannels(): Promise<Array<{ type: string; available: boolean }>> {
+  const res = await fetch(buildApiUrl('/api/notifications/channels'), {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.channels ?? [];
+}

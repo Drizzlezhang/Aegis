@@ -19,7 +19,7 @@ class TestTelegramNotifier:
         assert notifier.enabled is False
 
         import asyncio
-        result = asyncio.run(notifier.send("test"))
+        result = asyncio.run(notifier.send_message("test"))
         assert result is False
 
     def test_silent_hours_blocks_send(self, monkeypatch):
@@ -45,7 +45,7 @@ class TestTelegramNotifier:
         monkeypatch.setattr(notifier, "_in_silent_hours", lambda: True)
 
         import asyncio
-        result = asyncio.run(notifier.send("test", force=False))
+        result = asyncio.run(notifier.send_message("test", force=False))
         assert result is False
 
     def test_silent_hours_cross_midnight(self, monkeypatch):
@@ -90,14 +90,14 @@ class TestTelegramNotifier:
         notifier = TelegramNotifier()
         # Mock _in_silent_hours to avoid silent hours blocking
         monkeypatch.setattr(notifier, "_in_silent_hours", lambda: False)
-        # Mock send to capture the message (must be async since send_tracking_summary awaits it)
+        # Mock _send_text to capture the message
         sent_messages = []
 
-        async def mock_send(msg, force=False):
+        async def mock_send_text(msg, force=False):
             sent_messages.append(msg)
             return True
 
-        monkeypatch.setattr(notifier, "send", mock_send)
+        monkeypatch.setattr(notifier, "_send_text", mock_send_text)
 
         import asyncio
         stats = {"total": 10, "hit_rate": 0.6, "avg_pnl_pct": 2.5, "pending": 3}

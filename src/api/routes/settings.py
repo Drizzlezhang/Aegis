@@ -40,8 +40,8 @@ async def test_telegram(request: Request):
         from src.services.notification.telegram import TelegramNotifier
 
         notifier = TelegramNotifier()
-        success = await notifier.send("Aegis-Trader: Test notification — configuration is working!", force=True)
-        await notifier.aclose()
+        success = await notifier.send_message("Aegis-Trader: Test notification — configuration is working!", force=True)
+        await notifier.close()
         return {"success": success}
     except (ImportError, ModuleNotFoundError):
         return {"success": False, "reason": "Telegram notifier not available"}

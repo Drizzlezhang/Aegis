@@ -64,7 +64,7 @@ class AnalysisScheduler:
 
     async def aclose(self):
         """Async cleanup — close notifier client."""
-        await self._notifier.aclose()
+        await self._notifier.close()
 
     @property
     def is_running(self) -> bool:
