@@ -3,20 +3,21 @@
 ## Current
 - **change_id**: sprint12-phase-predictor-core
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
+- **current_stage**: 6-SHIP
+- **status**: completed
 - **updated_at**: 2026-05-27T00:00:00+08:00
 
 ## Next Action
-进入 6-SHIP，提交代码
+Push 到 origin 或创建 PR
 
 ## Open Questions
-- [ ] 无
+- [x] 无
 
 ## Risks
 - 无阻塞风险
 
 ## Recent Changes
+- [2026-05-27T00:00:00+08:00] 6-SHIP → 4 commits, sprint12 complete
 - [2026-05-27T00:00:00+08:00] 5-VERIFY → pass: 8/8 AC, 588 tests, 0 regressions
 - [2026-05-27T00:00:00+08:00] 4-BUILD → 6/6 tasks done, 588 tests pass, 0 regressions
 - [2026-05-27T00:00:00+08:00] 3-PLAN → created tasks.md (6 tasks / 4 waves)
