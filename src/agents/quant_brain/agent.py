@@ -6,6 +6,7 @@ from typing import Any
 from src.agents.base import BaseAgent
 from src.config import get_config
 from src.models import AgentState
+from src.models.scoring import MacroRegime
 from src.skills import get_global_registry
 
 from .core import (
@@ -115,6 +116,9 @@ class QuantBrainAgent(BaseAgent):
         # Run macro regime step
         await self._run_macro_regime(state)
 
+        # Run phase predictor
+        await self._run_phase_predictor(state)
+
         # Generate enhanced LLM report with market context
         try:
             enhanced_report = await generate_llm_enhanced_report(
@@ -210,8 +214,57 @@ class QuantBrainAgent(BaseAgent):
                 f"Factors: {regime.factors}\n"
             )
             logger.info(f"Macro regime: {regime.regime} (confidence: {regime.confidence:.2f})")
+            state.metadata["macro_regime"] = regime.model_dump()
         except Exception as e:
             logger.warning(f"Macro regime analysis failed: {e}")
+
+    async def _run_phase_predictor(self, state: AgentState) -> None:
+        """Run Wyckoff phase prediction and append to report."""
+        try:
+            from .phase_predictor import PhasePredictor
+
+            if not state.ohlcv_data or len(state.ohlcv_data) < 20:
+                logger.warning("Insufficient OHLCV data for phase prediction, skipping")
+                return
+
+            predictor = PhasePredictor()
+
+            current_price = None
+            if state.options_chain:
+                current_price = state.options_chain.spot_price
+            elif state.ohlcv_data:
+                current_price = state.ohlcv_data[-1].close
+
+            # Restore macro regime from metadata
+            macro_regime_data = state.metadata.get("macro_regime")
+            macro_regime = MacroRegime(**macro_regime_data) if macro_regime_data else None
+
+            result = await predictor.predict(
+                ohlcv_data=state.ohlcv_data,
+                macro_regime=macro_regime,
+                valuation_range=state.valuation_range,
+                current_price=current_price,
+            )
+
+            state.trend_phase_result = result
+            state.add_agent_step("phase_predictor")
+
+            dim_summary = ", ".join(
+                f"{d.name}={d.normalized_score:.0f}" for d in result.dimension_scores
+            )
+            override_note = " [LOW-VOL OVERRIDE]" if result.low_volatility_override else ""
+            state.analysis_report += (
+                f"\n## Trend Phase (Wyckoff)\n"
+                f"Phase: {result.phase.value} (confidence: {result.confidence:.2f}){override_note}\n"
+                f"Composite Score: {result.composite_score:.1f}/100\n"
+                f"Dimensions: {dim_summary}\n"
+            )
+            logger.info(
+                f"Phase prediction: {result.phase.value} "
+                f"(score={result.composite_score:.1f}, confidence={result.confidence:.2f})"
+            )
+        except Exception as e:
+            logger.warning(f"Phase predictor failed: {e}")
 
     def _build_technical_indicators(self, state: AgentState) -> dict:
         """从 OHLCV 数据中计算基础技术指标。"""
