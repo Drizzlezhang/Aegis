@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint11-aegis-backtest-v2"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "active"
+created_at: "2026-05-26T00:00:00+08:00"
+updated_at: "2026-05-26T00:00:00+08:00"
+retry_count: 0
+last_tldr: "5-VERIFY pass：127 tests pass (53 backtest + 74 API/orch)，TypeScript 0 errors，全部 AC 通过"
+last_next: ""
+last_risk: "期权定价精度（简化模型）、covered_call 股票收益计算、回测引擎交易日历处理"
+last_progress_note: "准备提交：6 个 conventional commits，按模块拆分"
+last_context_mode: "full"
+last_verified_at: ""
