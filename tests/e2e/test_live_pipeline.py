@@ -13,7 +13,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.e2e
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_full_pipeline_single_symbol():
     """跑一个 symbol 的完整 pipeline，验证不 crash 且产出 recommendations。"""
@@ -32,7 +32,7 @@ async def test_full_pipeline_single_symbol():
     assert state.analysis_report or state.metadata.get("technical_summary")
 
 
-@pytest.mark.e2e
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_pipeline_graceful_degradation():
     """验证非 critical agent 失败时 pipeline 不中断。"""

@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "aegis-e2e"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "in_progress"
+created_at: "2026-05-26T16:41:00+08:00"
+updated_at: "2026-05-26T17:45:00+08:00"
+retry_count: 0
+last_tldr: "5-VERIFY通过：8/8 E2E tests pass, 679 existing tests 0 failed。AC全部满足。"
+last_next: "进入6-SHIP，提交代码并推送"
+last_risk: "无"
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""
