@@ -1,9 +1,9 @@
 # Active Change State
 
-- active_change_id: sprint13-config-validator
-- current_stage: 1-SPEC
-- status: in_progress
+- active_change_id: sprint13-branch-A-phase-hardening
+- current_stage: 6-SHIP
+- status: completed
 - interrupted_reason: ""
-- unfinished_tasks: complete 1-SPEC, then 4-BUILD → 5-VERIFY → 6-SHIP
-- updated_at: 2026-05-27T15:10:00+08:00
+- unfinished_tasks: ""
+- updated_at: 2026-05-28T09:00:00+08:00
 - recovery_mode: new

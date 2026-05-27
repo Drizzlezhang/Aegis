@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import statistics
+from collections.abc import Callable
 from typing import ClassVar
 
 from src.config import PhaseConfig, get_config
@@ -37,6 +39,15 @@ class PhasePredictor:
         "valuation": 0.10,
     }
 
+    # Sensitivity multipliers for velocity/acceleration scoring
+    VELOCITY_SENSITIVITY: ClassVar[float] = 2000.0
+    ACCELERATION_SENSITIVITY: ClassVar[float] = 500.0
+    RSI_CHANGE_SENSITIVITY: ClassVar[float] = 50.0 / 30.0
+    MACD_GROWTH_SENSITIVITY: ClassVar[float] = 25.0
+    PRICE_ACCEL_SENSITIVITY: ClassVar[float] = 100.0
+    MACD_ACCEL_SENSITIVITY: ClassVar[float] = 500.0
+    RSI_ACCEL_SENSITIVITY: ClassVar[float] = 10.0
+
     def __init__(
         self,
         weights: dict[str, float] | None = None,
@@ -53,6 +64,8 @@ class PhasePredictor:
         self._config = config
         self._weights = weights if weights is not None else dict(config.weights)
         self._thresholds = config.thresholds
+        self._rsi_state: dict[str, float] = {}
+        self._last_phase: WyckoffPhase | None = None
 
     async def predict(
         self,
@@ -106,7 +119,7 @@ class PhasePredictor:
         if low_vol:
             return TrendPhaseResult(
                 phase=WyckoffPhase.ACCUMULATION,
-                confidence=0.3,
+                confidence=30.0,
                 composite_score=self._config.low_volatility_neutral_score,
                 dimension_scores=dims,
                 low_volatility_override=True,
@@ -115,12 +128,29 @@ class PhasePredictor:
 
         composite = sum(d.weighted_score for d in dims)
 
+        # Compute confidence from dimension score dispersion
+        dim_scores = [d.normalized_score for d in dims]
+        if len(dim_scores) >= 2:
+            stdev = statistics.stdev(dim_scores)
+            dim_confidence = max(0.0, min(100.0, 100.0 - stdev * 2.5))
+        else:
+            dim_confidence = 50.0
+
         # Determine trend direction for phase classification
         trend_rising = self._is_trend_rising(closes)
         volume_dim = next((d for d in dims if d.name == "volume"), None)
         volume_score = volume_dim.normalized_score if volume_dim else 50.0
 
-        phase, confidence = self._determine_phase(composite, volume_score, trend_rising)
+        phase, phase_conf = self._determine_phase(composite, volume_score, trend_rising)
+
+        # Blend phase confidence with dimension agreement confidence
+        confidence = (dim_confidence + phase_conf) / 2.0
+
+        # Detect phase transition
+        transition: str | None = None
+        if self._last_phase is not None and phase != self._last_phase:
+            transition = f"{self._last_phase.value}→{phase.value}"
+        self._last_phase = phase
 
         return TrendPhaseResult(
             phase=phase,
@@ -129,17 +159,25 @@ class PhasePredictor:
             dimension_scores=dims,
             low_volatility_override=False,
             phase_description=self._describe_phase(phase, composite, confidence),
+            transition=transition,
         )
 
     # ── Dimension scorers ──────────────────────────────────────────────────
 
-    def _score_trend_momentum(self, closes: list[float]) -> DimensionScore:
+    def _score_trend_momentum(
+        self, closes: list[float], highs: list[float], lows: list[float]
+    ) -> DimensionScore:
         """Score trend momentum: EMA cross + SMA200 + ADX."""
         try:
             ema20 = self._ema(closes, 20)
             ema50 = self._ema(closes, 50)
             sma200 = sum(closes[-200:]) / 200 if len(closes) >= 200 else sum(closes) / len(closes)
-            adx = self._estimate_adx(closes, period=14)
+
+            # Use standard ADX if enough data, fallback to proxy
+            if len(closes) >= 28:
+                adx = self._calculate_adx(highs, lows, closes, period=14)
+            else:
+                adx = self._estimate_adx(closes, period=14)
 
             raw = 50.0
 
@@ -328,18 +366,19 @@ class PhasePredictor:
                 ema20_series = self._ema_series(closes, 20)
                 deviations = [
                     (e5 / e20 - 1.0)
-                    for e5, e20 in zip(ema5_series[-6:], ema20_series[-6:])
+                    for e5, e20 in zip(ema5_series[-6:], ema20_series[-6:], strict=False)
                 ]
                 avg_dev = sum(deviations) / len(deviations)
                 slope = deviations[-1] - deviations[0]
                 # Blend absolute deviation level (speed) with slope (accel)
-                ema_normalized = max(0.0, min(100.0, 50 + avg_dev * 2000 + slope * 500))
+                ema_normalized = max(0.0, min(100.0, 50 + avg_dev * self.VELOCITY_SENSITIVITY + slope * self.ACCELERATION_SENSITIVITY))
 
                 # 2. RSI change rate (30%)
-                rsi_now = self._calculate_rsi(closes[-20:], 14)
+                self._init_rsi_state(closes[:-1], 14)
+                rsi_now = self._calculate_rsi_incremental(closes[-1], 14)
                 rsi_5d = self._calculate_rsi(closes[-25:-5], 14) if len(closes) >= 25 else rsi_now
                 rsi_change = rsi_now - rsi_5d
-                rsi_normalized = max(0.0, min(100.0, 50 + rsi_change * (50 / 30)))
+                rsi_normalized = max(0.0, min(100.0, 50 + rsi_change * self.RSI_CHANGE_SENSITIVITY))
 
                 # 3. MACD histogram growth rate (30%)
                 _, _, hist_now = self._calculate_macd(closes)
@@ -348,7 +387,7 @@ class PhasePredictor:
                 denominator = max((abs(hist_now) + abs(hist_5d)) / 2, 0.001)
                 growth_rate = (hist_now - hist_5d) / denominator
                 growth_rate = max(-1.0, min(1.0, growth_rate))
-                macd_normalized = max(0.0, min(100.0, 50 + growth_rate * 25))
+                macd_normalized = max(0.0, min(100.0, 50 + growth_rate * self.MACD_GROWTH_SENSITIVITY))
 
                 normalized = (
                     ema_normalized * 0.4
@@ -397,7 +436,7 @@ class PhasePredictor:
                 vel_older = _slope(closes[-11:-6])
                 accel = (vel_now - vel_prev) - (vel_prev - vel_older)
                 # accel range roughly [-0.5, 0.5] for typical daily data
-                vel_normalized = max(0.0, min(100.0, 50 + accel * 100))
+                vel_normalized = max(0.0, min(100.0, 50 + accel * self.PRICE_ACCEL_SENSITIVITY))
 
                 # 2. MACD histogram 2nd derivative (30%)
                 hist_values: list[float] = []
@@ -406,7 +445,7 @@ class PhasePredictor:
                     _, _, h = self._calculate_macd(subset)
                     hist_values.append(h)
                 second_deriv = hist_values[0] - 2 * hist_values[1] + hist_values[2]
-                macd_normalized = max(0.0, min(100.0, 50 + second_deriv * 500))
+                macd_normalized = max(0.0, min(100.0, 50 + second_deriv * self.MACD_ACCEL_SENSITIVITY))
 
                 # 3. RSI 2nd order change (30%)
                 # Compute RSI series over rolling windows
@@ -422,7 +461,7 @@ class PhasePredictor:
                     rsi_accel = delta1 - delta2
                 else:
                     rsi_accel = 0.0
-                rsi_normalized = max(0.0, min(100.0, 50 + rsi_accel * 10))
+                rsi_normalized = max(0.0, min(100.0, 50 + rsi_accel * self.RSI_ACCEL_SENSITIVITY))
 
                 normalized = (
                     vel_normalized * 0.4
@@ -455,14 +494,17 @@ class PhasePredictor:
         current_price: float | None,
     ) -> list[DimensionScore]:
         """Compute all dimension scores using configured weights."""
-        scorer_map: dict[str, object] = {
-            "trend_momentum": lambda: self._score_trend_momentum(closes),
+        highs = [bar.high for bar in ohlcv_data]
+        lows = [bar.low for bar in ohlcv_data]
+
+        scorer_map: dict[str, Callable[[], DimensionScore]] = {
+            "trend_momentum": lambda: self._score_trend_momentum(closes, highs, lows),
             "velocity": lambda: self._score_velocity(ohlcv_data),
             "acceleration": lambda: self._score_acceleration(ohlcv_data),
             "volume": lambda: self._score_volume(closes, volumes),
             "mean_reversion": lambda: self._score_mean_reversion(closes),
             "macro": lambda: self._score_macro(macro_regime),
-            "valuation": lambda: self._score_valuation(valuation_range, current_price),
+            "valuation": lambda: self._score_valuation(valuation_range, current_price or 0.0),
         }
 
         dimension_scores: list[DimensionScore] = []
@@ -500,21 +542,21 @@ class PhasePredictor:
         t = self._thresholds
 
         if composite_score > t.markup_threshold and volume_score > t.volume_confirm_threshold:
-            return WyckoffPhase.MARKUP, min(0.9, 0.7 + (composite_score - t.markup_threshold) / 100)
+            return WyckoffPhase.MARKUP, min(90.0, 70.0 + (composite_score - t.markup_threshold))
         if composite_score > t.bullish_boundary and volume_score <= t.volume_confirm_threshold:
-            return WyckoffPhase.RE_ACCUMULATION, 0.6
+            return WyckoffPhase.RE_ACCUMULATION, 60.0
         if composite_score < t.markdown_threshold and volume_score > t.volume_confirm_threshold:
-            return WyckoffPhase.MARKDOWN, min(0.9, 0.7 + (t.markdown_threshold - composite_score) / 100)
+            return WyckoffPhase.MARKDOWN, min(90.0, 70.0 + (t.markdown_threshold - composite_score))
         if composite_score < t.bearish_boundary and volume_score <= t.volume_confirm_threshold:
-            return WyckoffPhase.RE_DISTRIBUTION, 0.6
+            return WyckoffPhase.RE_DISTRIBUTION, 60.0
         if t.bearish_boundary <= composite_score <= t.bullish_boundary:
             if trend_rising:
-                return WyckoffPhase.ACCUMULATION, 0.5
-            return WyckoffPhase.DISTRIBUTION, 0.5
+                return WyckoffPhase.ACCUMULATION, 50.0
+            return WyckoffPhase.DISTRIBUTION, 50.0
         # Fallback for edge cases
         if trend_rising:
-            return WyckoffPhase.ACCUMULATION, 0.4
-        return WyckoffPhase.DISTRIBUTION, 0.4
+            return WyckoffPhase.ACCUMULATION, 40.0
+        return WyckoffPhase.DISTRIBUTION, 40.0
 
     # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -596,6 +638,66 @@ class PhasePredictor:
         rs = avg_gain / avg_loss
         return 100 - (100 / (1 + rs))
 
+    def _calculate_rsi_incremental(self, close: float, period: int = 14) -> float:
+        """Calculate RSI incrementally using Wilder's smoothing.
+
+        On first call (empty _rsi_state), falls back to full calculation
+        using the provided close as the only data point (returns 50.0).
+        Call _init_rsi_state() first to seed with historical data.
+
+        Args:
+            close: Current closing price.
+            period: RSI period (default 14).
+
+        Returns:
+            RSI value in [0, 100].
+        """
+        state = self._rsi_state
+        if not state or "avg_gain" not in state:
+            return 50.0
+
+        last_close = state["last_close"]
+        delta = close - last_close
+        gain = max(delta, 0.0)
+        loss = max(-delta, 0.0)
+
+        alpha = 1.0 / period
+        avg_gain = state["avg_gain"] * (1 - alpha) + gain * alpha
+        avg_loss = state["avg_loss"] * (1 - alpha) + loss * alpha
+
+        state["avg_gain"] = avg_gain
+        state["avg_loss"] = avg_loss
+        state["last_close"] = close
+
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return 100.0 - (100.0 / (1.0 + rs))
+
+    def _init_rsi_state(self, closes: list[float], period: int = 14) -> None:
+        """Initialize RSI state from historical close prices.
+
+        Args:
+            closes: Historical close prices (at least period + 1).
+            period: RSI period (default 14).
+        """
+        if len(closes) < period + 1:
+            self._rsi_state = {}
+            return
+
+        deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+        recent = deltas[-period:]
+        gains = [d for d in recent if d > 0]
+        losses = [-d for d in recent if d < 0]
+        avg_gain = sum(gains) / period if gains else 0.0
+        avg_loss = sum(losses) / period if losses else 0.0
+
+        self._rsi_state = {
+            "avg_gain": avg_gain,
+            "avg_loss": avg_loss,
+            "last_close": closes[-1],
+        }
+
     @staticmethod
     def _calculate_macd(closes: list[float]) -> tuple[float, float, float]:
         """Calculate MACD (12, 26, 9). Returns (macd_line, signal, histogram)."""
@@ -604,7 +706,7 @@ class PhasePredictor:
 
         ema12 = PhasePredictor._ema_series(closes, 12)
         ema26 = PhasePredictor._ema_series(closes, 26)
-        macd_series = [e12 - e26 for e12, e26 in zip(ema12, ema26)]
+        macd_series = [e12 - e26 for e12, e26 in zip(ema12, ema26, strict=False)]
 
         macd_line = macd_series[-1]
         if len(macd_series) >= 9:
@@ -632,8 +734,92 @@ class PhasePredictor:
         return middle + std_dev * std, middle, middle - std_dev * std
 
     @staticmethod
+    def _calculate_adx(
+        highs: list[float], lows: list[float], closes: list[float], period: int = 14
+    ) -> float:
+        """Calculate Wilder's standard ADX (Average Directional Index).
+
+        Implements: TR → +DM/-DM → Wilder smoothed → +DI/-DI → DX → ADX.
+        Returns 0.0 if insufficient data (< period * 2 bars).
+        """
+        n = len(closes)
+        if n < period * 2:
+            return 0.0
+
+        # True Range and Directional Movement
+        tr_list: list[float] = []
+        plus_dm_list: list[float] = []
+        minus_dm_list: list[float] = []
+
+        for i in range(1, n):
+            high = highs[i]
+            low = lows[i]
+            prev_high = highs[i - 1]
+            prev_low = lows[i - 1]
+            prev_close = closes[i - 1]
+
+            tr = max(
+                high - low,
+                abs(high - prev_close),
+                abs(low - prev_close),
+            )
+            tr_list.append(tr)
+
+            up_move = high - prev_high
+            down_move = prev_low - low
+
+            if up_move > down_move and up_move > 0:
+                plus_dm = up_move
+            else:
+                plus_dm = 0.0
+
+            if down_move > up_move and down_move > 0:
+                minus_dm = down_move
+            else:
+                minus_dm = 0.0
+
+            plus_dm_list.append(plus_dm)
+            minus_dm_list.append(minus_dm)
+
+        # Wilder's smoothing: first value is simple average, then EMA with alpha = 1/period
+        smooth_tr = sum(tr_list[:period]) / period
+        smooth_plus_dm = sum(plus_dm_list[:period]) / period
+        smooth_minus_dm = sum(minus_dm_list[:period]) / period
+
+        dx_values: list[float] = []
+        alpha = 1.0 / period
+
+        for i in range(period, len(tr_list)):
+            smooth_tr = smooth_tr + alpha * (tr_list[i] - smooth_tr)
+            smooth_plus_dm = smooth_plus_dm + alpha * (plus_dm_list[i] - smooth_plus_dm)
+            smooth_minus_dm = smooth_minus_dm + alpha * (minus_dm_list[i] - smooth_minus_dm)
+
+            if smooth_tr == 0:
+                continue
+
+            plus_di = 100.0 * smooth_plus_dm / smooth_tr
+            minus_di = 100.0 * smooth_minus_dm / smooth_tr
+
+            di_sum = plus_di + minus_di
+            if di_sum == 0:
+                continue
+
+            dx = 100.0 * abs(plus_di - minus_di) / di_sum
+            dx_values.append(dx)
+
+        if not dx_values:
+            return 0.0
+
+        # ADX = Wilder's smoothed average of DX
+        adx = sum(dx_values[:period]) / min(period, len(dx_values))
+        for i in range(period, len(dx_values)):
+            adx = adx + alpha * (dx_values[i] - adx)
+
+        return adx
+
+    @staticmethod
     def _estimate_adx(closes: list[float], period: int = 14) -> float:
-        """Estimate ADX from price range volatility."""
+        """Estimate ADX from price range volatility (fallback proxy)."""
         if len(closes) < period + 1:
             return 0.0
         recent = closes[-period:]

@@ -114,6 +114,7 @@ warn_no_return = true
 "Documentation" = "https://github.com/Drizzlezhang/Aegis-Trader#readme"
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "e2e: End-to-end integration tests (no network required)",
     "live: Live tests requiring network access (skip in CI)",

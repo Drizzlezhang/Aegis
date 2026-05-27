@@ -1,6 +1,5 @@
 """Integration tests for PhasePredictor in QuantBrainAgent pipeline."""
 
-import asyncio
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -41,17 +40,17 @@ def _make_state(n_bars: int = 60) -> AgentState:
 class TestPhaseInPipeline:
     """PhasePredictor integration within the agent pipeline."""
 
-    def test_phase_predictor_standalone_integration(self):
+    async def test_phase_predictor_standalone_integration(self):
         """state → predict → result stored on state."""
         state = _make_state(60)
         predictor = PhasePredictor()
 
-        result = asyncio.run(predictor.predict(
+        result = await predictor.predict(
             ohlcv_data=state.ohlcv_data,
             macro_regime=None,
             valuation_range=state.valuation_range,
             current_price=state.ohlcv_data[-1].close,
-        ))
+        )
 
         state.trend_phase_result = result
 
@@ -62,18 +61,18 @@ class TestPhaseInPipeline:
         ]
         assert len(state.trend_phase_result.dimension_scores) == 7
 
-    def test_phase_predictor_report_append(self):
+    async def test_phase_predictor_report_append(self):
         """Phase result is correctly appended to analysis_report."""
         state = _make_state(60)
         state.analysis_report = "## Existing Report\nSome content\n"
 
         predictor = PhasePredictor()
-        result = asyncio.run(predictor.predict(
+        result = await predictor.predict(
             ohlcv_data=state.ohlcv_data,
             macro_regime=None,
             valuation_range=None,
             current_price=state.ohlcv_data[-1].close,
-        ))
+        )
 
         state.trend_phase_result = result
 
@@ -93,7 +92,7 @@ class TestPhaseInPipeline:
         assert "velocity=" in state.analysis_report
         assert "acceleration=" in state.analysis_report
 
-    def test_phase_predictor_with_macro_regime(self):
+    async def test_phase_predictor_with_macro_regime(self):
         """MacroRegime risk_on → macro dimension > 50."""
         state = _make_state(60)
 
@@ -105,12 +104,12 @@ class TestPhaseInPipeline:
         )
 
         predictor = PhasePredictor()
-        result = asyncio.run(predictor.predict(
+        result = await predictor.predict(
             ohlcv_data=state.ohlcv_data,
             macro_regime=regime,
             valuation_range=None,
             current_price=state.ohlcv_data[-1].close,
-        ))
+        )
 
         macro_dim = next(d for d in result.dimension_scores if d.name == "macro")
         assert macro_dim.normalized_score > 50
