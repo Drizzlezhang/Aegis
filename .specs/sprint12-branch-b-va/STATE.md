@@ -3,8 +3,8 @@
 ## Current
 - **change_id**: sprint12-branch-b-va
 - **size**: S
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
+- **current_stage**: 6-SHIP
+- **status**: completed
 - **updated_at**: 2026-05-27T00:00:00+08:00
 
 ## Next Action
