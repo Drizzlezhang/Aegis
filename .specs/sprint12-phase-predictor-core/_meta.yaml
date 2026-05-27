@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint12-phase-predictor-core"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-27T00:00:00+08:00"
+updated_at: "2026-05-27T00:00:00+08:00"
+retry_count: 0
+last_tldr: "5-VERIFY pass：8/8 AC 通过，588 tests pass，0 regressions"
+last_next: "进入 6-SHIP，提交代码"
+last_risk: "无阻塞风险"
+last_progress_note: "全部 AC 逐条验证通过，py_compile 5/5 文件通过，588 tests 0 failures"
+last_context_mode: "full"
+last_verified_at: "2026-05-27T00:00:00+08:00"
