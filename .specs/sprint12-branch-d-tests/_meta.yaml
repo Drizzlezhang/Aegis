@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint12-branch-d-tests"
+size: "S"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY"]
+current_stage: "5-VERIFY"
+status: "completed"
+created_at: "2026-05-27T14:00:00+08:00"
+updated_at: "2026-05-27T14:20:00+08:00"
+retry_count: 0
+last_tldr: "29 个测试全部通过，覆盖 7 维评分、6 种 Phase 判定、低波动过滤、配置覆盖、数据不足、Pipeline 集成"
+last_next: "进入 6-SHIP，commit 并 push"
+last_risk: ""
+last_progress_note: "29/29 tests passed, 0 regressions"
+last_context_mode: "full"
+last_verified_at: "2026-05-27T14:20:00+08:00"
