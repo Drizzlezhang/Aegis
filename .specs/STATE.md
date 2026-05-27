@@ -1,9 +1,9 @@
 # Active Change State
 
-- active_change_id: sprint10-master-integration
-- current_stage: 4-BUILD
+- active_change_id: merge-sub-branches-to-master
+- current_stage: 0-CHANGE
 - status: in_progress
 - interrupted_reason: ""
-- unfinished_tasks: build wave 3-5, verify, ship
-- updated_at: 2026-05-26T00:00:00+08:00
+- unfinished_tasks: ""
+- updated_at: 2026-05-27T00:00:00+08:00
 - recovery_mode: new
