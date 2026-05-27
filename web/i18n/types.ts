@@ -309,8 +309,25 @@ export type MessageTree = {
     title: string;
     subtitle: string;
   };
+  backtestHistoryPage: {
+    title: string;
+    subtitle: string;
+    noHistory: string;
+    filterSymbol: string;
+    view: string;
+    delete: string;
+    deleteConfirm: string;
+    symbol: string;
+    strategy: string;
+    dateRange: string;
+    return: string;
+    maxDrawdown: string;
+    trades: string;
+    createdAt: string;
+  };
 };
 
 export type CommonMessageKey = `common.${keyof CommonMessages}`;
 export type InteractionMessageKey = `interaction.${keyof InteractionMessages}`;
-export type MessageKey = CommonMessageKey | InteractionMessageKey;
+export type BacktestHistoryMessageKey = `backtestHistoryPage.${keyof MessageTree['backtestHistoryPage']}`;
+export type MessageKey = CommonMessageKey | InteractionMessageKey | BacktestHistoryMessageKey;

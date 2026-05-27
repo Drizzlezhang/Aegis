@@ -1,10 +1,12 @@
 """Backtest API routes."""
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -167,6 +169,36 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
     # Convert metrics to camelCase
     camel_metrics = _to_camel_case_metrics(result.metrics)
 
+    # Auto-save to storage
+    try:
+        from src.backtest.storage import BacktestStorage
+        storage = BacktestStorage()
+        storage.save({
+            "symbol": result.symbol,
+            "strategy": request.strategy,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
+            "initial_capital": request.initial_capital,
+            "final_capital": equity_curve[-1]["value"] if equity_curve else request.initial_capital,
+            "metrics": result.metrics,
+            "trades": [
+                {
+                    "date": t.date,
+                    "type": t.type,
+                    "price": t.price,
+                    "pnl": t.pnl,
+                    "pnlPercent": t.pnlPercent,
+                }
+                for t in trades_resp
+            ],
+            "equity_curve": [
+                {"date": p.date, "value": p.value, "benchmark": p.benchmark}
+                for p in equity_curve
+            ],
+        })
+    except Exception:
+        logger.warning("Failed to save backtest result to storage", exc_info=True)
+
     return BacktestResponse(
         symbol=result.symbol,
         strategy=request.strategy,
@@ -175,3 +207,36 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
         metrics=BacktestMetrics(**camel_metrics),
         monthlyReturns=monthly_returns,
     )
+
+
+# ─── Backtest History ────────────────────────────────────────────────────────
+
+
+@router.get("/backtest/history")
+async def list_backtest_runs(symbol: str | None = None, limit: int = 50) -> dict:
+    """List saved backtest runs, optionally filtered by symbol."""
+    from src.backtest.storage import BacktestStorage
+    storage = BacktestStorage()
+    runs = storage.list_runs(symbol=symbol, limit=limit)
+    return {"runs": runs}
+
+
+@router.get("/backtest/history/{run_id}")
+async def get_backtest_run(run_id: str) -> dict:
+    """Get full backtest result by run ID."""
+    from src.backtest.storage import BacktestStorage
+    storage = BacktestStorage()
+    result = storage.get_run(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Backtest run not found")
+    return result
+
+
+@router.delete("/backtest/history/{run_id}")
+async def delete_backtest_run(run_id: str) -> dict:
+    """Delete a backtest run."""
+    from src.backtest.storage import BacktestStorage
+    storage = BacktestStorage()
+    if not storage.delete_run(run_id):
+        raise HTTPException(status_code=404, detail="Backtest run not found")
+    return {"deleted": True}
