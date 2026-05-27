@@ -662,6 +662,71 @@ export async function runBacktest(config: BacktestConfigPayload): Promise<Backte
   });
 }
 
+// ─── Backtest History API ───────────────────────────────────────────────────
+
+export interface BacktestRunSummary {
+  id: string;
+  symbol: string;
+  strategy: string;
+  startDate: string;
+  endDate: string;
+  initialCapital: number;
+  finalCapital: number;
+  totalReturn: number;
+  maxDrawdown: number;
+  totalTrades: number;
+  createdAt: string;
+}
+
+interface BackendBacktestRun {
+  id: string;
+  symbol: string;
+  strategy: string;
+  start_date: string;
+  end_date: string;
+  initial_capital: number;
+  final_capital: number;
+  total_return: number;
+  max_drawdown: number;
+  total_trades: number;
+  created_at: string;
+}
+
+function mapBacktestRun(run: BackendBacktestRun): BacktestRunSummary {
+  return {
+    id: run.id,
+    symbol: run.symbol,
+    strategy: run.strategy,
+    startDate: run.start_date,
+    endDate: run.end_date,
+    initialCapital: run.initial_capital,
+    finalCapital: run.final_capital,
+    totalReturn: run.total_return,
+    maxDrawdown: run.max_drawdown,
+    totalTrades: run.total_trades,
+    createdAt: run.created_at,
+  };
+}
+
+export async function getBacktestHistory(symbol?: string): Promise<BacktestRunSummary[]> {
+  const params = symbol ? `?symbol=${encodeURIComponent(symbol)}` : '';
+  const res = await fetch(buildApiUrl(`/api/backtest/history${params}`));
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.runs ?? []).map(mapBacktestRun);
+}
+
+export async function getBacktestRunDetail(runId: string): Promise<any> {
+  const res = await fetch(buildApiUrl(`/api/backtest/history/${runId}`));
+  if (!res.ok) throw new Error('Backtest run not found');
+  return res.json();
+}
+
+export async function deleteBacktestRun(runId: string): Promise<boolean> {
+  const res = await fetch(buildApiUrl(`/api/backtest/history/${runId}`), { method: 'DELETE' });
+  return res.ok;
+}
+
 export interface TradingStatsData {
   total_decisions: number;
   total_positions: number;

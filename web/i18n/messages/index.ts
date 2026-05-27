@@ -1,5 +1,6 @@
 import type { Locale, MessageTree } from '../types';
 import { backtestMessages } from './backtest';
+import { backtestHistoryMessages } from './backtest-history';
 import { commonMessages } from './common';
 import { historyMessages } from './history';
 import { homeMessages } from './home';
@@ -18,6 +19,7 @@ export const messages: Record<Locale, MessageTree> = {
     historyPage: historyMessages['zh-CN'],
     memoryPage: memoryMessages['zh-CN'],
     backtestPage: backtestMessages['zh-CN'],
+    backtestHistoryPage: backtestHistoryMessages['zh-CN'],
   },
   en: {
     common: commonMessages.en,
@@ -28,5 +30,6 @@ export const messages: Record<Locale, MessageTree> = {
     historyPage: historyMessages.en,
     memoryPage: memoryMessages.en,
     backtestPage: backtestMessages.en,
+    backtestHistoryPage: backtestHistoryMessages.en,
   },
 };
