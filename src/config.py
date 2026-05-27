@@ -52,12 +52,54 @@ class LLMConfig(BaseModel):
     enable_request_logging: bool = False
 
 
+class PhaseThresholds(BaseModel):
+    """Phase 判定阈值。"""
+    markup_threshold: float = Field(default=70.0, description="Composite score above this + volume confirm → Markup")
+    markdown_threshold: float = Field(default=30.0, description="Composite score below this + volume confirm → Markdown")
+    bullish_boundary: float = Field(default=60.0, description="Composite score above this → Re-Accumulation (if volume not confirmed)")
+    bearish_boundary: float = Field(default=40.0, description="Composite score below this → Re-Distribution (if volume not confirmed)")
+    volume_confirm_threshold: float = Field(default=60.0, description="Volume score above this confirms Markup/Markdown")
+
+
+class PhaseConfig(BaseModel):
+    """Phase Predictor 配置。"""
+    enabled: bool = Field(default=True, description="Enable/disable PhasePredictor")
+    weights: dict[str, float] = Field(
+        default_factory=lambda: {
+            "trend_momentum": 0.25,
+            "volume": 0.25,
+            "mean_reversion": 0.20,
+            "macro": 0.15,
+            "valuation": 0.15,
+        },
+        description="Dimension weights (must sum to ~1.0)",
+    )
+    low_volatility_threshold: float = Field(
+        default=0.005,
+        description="ATR(14)/close below this triggers neutral override",
+    )
+    low_volatility_neutral_score: float = Field(
+        default=50.0,
+        description="Composite score when low volatility is detected",
+    )
+    min_ohlcv_bars: int = Field(
+        default=50,
+        description="Minimum OHLCV bars required for PhasePredictor",
+    )
+    thresholds: PhaseThresholds = Field(default_factory=PhaseThresholds)
+
+    def validate_weights(self) -> bool:
+        """验证权重之和 ≈ 1.0。"""
+        return abs(sum(self.weights.values()) - 1.0) < 0.001
+
+
 class AlgorithmConfig(BaseModel):
     """Algorithm configuration."""
     volume_profile_bins: int = 100
     value_area_percentage: float = 0.7  # 70%
     gex_calculation_method: str = "simplified"  # simplified | black_scholes
     pe_band_percentiles: list[float] = Field(default=[0.1, 0.25, 0.5, 0.75, 0.9])
+    phase: PhaseConfig = Field(default_factory=PhaseConfig)
 
 
 class MemoryConfig(BaseModel):

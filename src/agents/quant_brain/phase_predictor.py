@@ -1,8 +1,11 @@
 """Wyckoff Phase Predictor — 5-dimension market phase classification engine."""
 
+from __future__ import annotations
+
 import logging
 from typing import ClassVar
 
+from src.config import PhaseConfig, get_config
 from src.models.analysis import ValuationRange
 from src.models.market import OHLCV
 from src.models.scoring import MacroRegime
@@ -30,8 +33,22 @@ class PhasePredictor:
         "valuation": 0.15,
     }
 
-    def __init__(self, low_vol_threshold: float = 0.015) -> None:
-        self._low_vol_threshold = low_vol_threshold
+    def __init__(
+        self,
+        weights: dict[str, float] | None = None,
+        config: PhaseConfig | None = None,
+    ) -> None:
+        """Initialize PhasePredictor.
+
+        Args:
+            weights: Custom dimension weights (overrides config weights).
+            config: PhaseConfig instance. If None, reads from get_config().
+        """
+        if config is None:
+            config = get_config().algorithm.phase
+        self._config = config
+        self._weights = weights if weights is not None else dict(config.weights)
+        self._thresholds = config.thresholds
 
     async def predict(
         self,
@@ -43,7 +60,7 @@ class PhasePredictor:
         """Run full 5-dimension phase prediction.
 
         Args:
-            ohlcv_data: OHLCV bars (need >= 50 for reliable results).
+            ohlcv_data: OHLCV bars (need >= min_ohlcv_bars for reliable results).
             macro_regime: Optional macro regime from prior pipeline step.
             valuation_range: Optional valuation range from prior pipeline step.
             current_price: Current price override (falls back to last close).
@@ -51,12 +68,22 @@ class PhasePredictor:
         Returns:
             TrendPhaseResult with phase classification and dimension scores.
         """
-        if not ohlcv_data or len(ohlcv_data) < 50:
+        # Enabled check
+        if not self._config.enabled:
             return TrendPhaseResult(
                 phase=WyckoffPhase.ACCUMULATION,
                 confidence=0.0,
                 composite_score=50.0,
-                phase_description="Insufficient data (< 50 bars)",
+                phase_description="Phase predictor disabled",
+            )
+
+        # Data sufficiency check
+        if not ohlcv_data or len(ohlcv_data) < self._config.min_ohlcv_bars:
+            return TrendPhaseResult(
+                phase=WyckoffPhase.ACCUMULATION,
+                confidence=0.0,
+                composite_score=50.0,
+                phase_description=f"Insufficient data (< {self._config.min_ohlcv_bars} bars)",
             )
 
         closes = [bar.close for bar in ohlcv_data]
@@ -66,16 +93,21 @@ class PhasePredictor:
 
         price = current_price if current_price is not None else closes[-1]
 
-        # Check low volatility override
+        # Low volatility check
         low_vol = self._check_low_volatility(highs, lows, closes)
 
-        # Compute 5 dimension scores
-        dims: list[DimensionScore] = []
-        dims.append(self._score_trend_momentum(closes))
-        dims.append(self._score_volume(closes, volumes))
-        dims.append(self._score_mean_reversion(closes))
-        dims.append(self._score_macro(macro_regime))
-        dims.append(self._score_valuation(valuation_range, price))
+        # Compute dimension scores
+        dims = self._compute_all_dimensions(closes, volumes, macro_regime, valuation_range, price)
+
+        if low_vol:
+            return TrendPhaseResult(
+                phase=WyckoffPhase.ACCUMULATION,
+                confidence=0.3,
+                composite_score=self._config.low_volatility_neutral_score,
+                dimension_scores=dims,
+                low_volatility_override=True,
+                phase_description="Low volatility detected — neutral override",
+            )
 
         composite = sum(d.weighted_score for d in dims)
 
@@ -85,15 +117,12 @@ class PhasePredictor:
 
         phase, confidence = self._determine_phase(composite, volume_score, trend_rising)
 
-        if low_vol:
-            confidence = min(confidence, 0.4)
-
         return TrendPhaseResult(
             phase=phase,
             confidence=confidence,
             composite_score=composite,
             dimension_scores=dims,
-            low_volatility_override=low_vol,
+            low_volatility_override=False,
             phase_description=self._describe_phase(phase, composite, confidence),
         )
 
@@ -132,7 +161,7 @@ class PhasePredictor:
             logger.warning("trend_momentum scoring failed, returning neutral", exc_info=True)
             normalized = 50.0
 
-        w = self.DEFAULT_WEIGHTS["trend_momentum"]
+        w = self._weights.get("trend_momentum", 0.0)
         return DimensionScore(
             name="trend_momentum",
             raw_value=normalized,
@@ -177,7 +206,7 @@ class PhasePredictor:
             logger.warning("volume scoring failed, returning neutral", exc_info=True)
             normalized = 50.0
 
-        w = self.DEFAULT_WEIGHTS["volume"]
+        w = self._weights.get("volume", 0.0)
         return DimensionScore(
             name="volume",
             raw_value=normalized,
@@ -216,7 +245,7 @@ class PhasePredictor:
             logger.warning("mean_reversion scoring failed, returning neutral", exc_info=True)
             normalized = 50.0
 
-        w = self.DEFAULT_WEIGHTS["mean_reversion"]
+        w = self._weights.get("mean_reversion", 0.0)
         return DimensionScore(
             name="mean_reversion",
             raw_value=normalized,
@@ -240,7 +269,7 @@ class PhasePredictor:
             logger.warning("macro scoring failed, returning neutral", exc_info=True)
             normalized = 50.0
 
-        w = self.DEFAULT_WEIGHTS["macro"]
+        w = self._weights.get("macro", 0.0)
         return DimensionScore(
             name="macro",
             raw_value=normalized,
@@ -269,7 +298,7 @@ class PhasePredictor:
             logger.warning("valuation scoring failed, returning neutral", exc_info=True)
             normalized = 50.0
 
-        w = self.DEFAULT_WEIGHTS["valuation"]
+        w = self._weights.get("valuation", 0.0)
         return DimensionScore(
             name="valuation",
             raw_value=normalized,
@@ -278,6 +307,48 @@ class PhasePredictor:
             weighted_score=normalized * w,
         )
 
+    # ── Dimension computation ───────────────────────────────────────────────
+
+    def _compute_all_dimensions(
+        self,
+        closes: list[float],
+        volumes: list[int],
+        macro_regime: MacroRegime | None,
+        valuation_range: ValuationRange | None,
+        current_price: float | None,
+    ) -> list[DimensionScore]:
+        """Compute all dimension scores using configured weights."""
+        scorer_map: dict[str, object] = {
+            "trend_momentum": lambda: self._score_trend_momentum(closes),
+            "volume": lambda: self._score_volume(closes, volumes),
+            "mean_reversion": lambda: self._score_mean_reversion(closes),
+            "macro": lambda: self._score_macro(macro_regime),
+            "valuation": lambda: self._score_valuation(valuation_range, current_price),
+        }
+
+        dimension_scores: list[DimensionScore] = []
+        for dim_name, weight in self._weights.items():
+            scorer = scorer_map.get(dim_name)
+            if scorer is None:
+                continue
+            try:
+                dim_score = scorer()
+            except Exception:
+                dim_score = DimensionScore(
+                    name=dim_name,
+                    raw_value=50.0,
+                    normalized_score=50.0,
+                    weight=weight,
+                    weighted_score=50.0 * weight,
+                )
+            # Override weight from config (scorer methods use self._weights already,
+            # but this ensures consistency if weights differ)
+            dim_score.weight = weight
+            dim_score.weighted_score = dim_score.normalized_score * weight
+            dimension_scores.append(dim_score)
+
+        return dimension_scores
+
     # ── Phase determination ────────────────────────────────────────────────
 
     def _determine_phase(
@@ -285,23 +356,19 @@ class PhasePredictor:
     ) -> tuple[WyckoffPhase, float]:
         """Determine Wyckoff phase from composite score, volume, and trend.
 
-        Rules:
-        - composite > 70 AND volume > 60: Markup (confidence 0.8+)
-        - composite > 60 AND volume <= 60: Re-Accumulation (confidence 0.6)
-        - composite < 30 AND volume > 60: Markdown (confidence 0.8+)
-        - composite < 40 AND volume <= 60: Re-Distribution (confidence 0.6)
-        - 40 <= composite <= 60 AND trend_rising: Accumulation (confidence 0.5)
-        - 40 <= composite <= 60 AND NOT trend_rising: Distribution (confidence 0.5)
+        Uses thresholds from PhaseConfig.thresholds.
         """
-        if composite_score > 70 and volume_score > 60:
-            return WyckoffPhase.MARKUP, 0.8 + (composite_score - 70) / 30 * 0.2
-        if composite_score > 60 and volume_score <= 60:
+        t = self._thresholds
+
+        if composite_score > t.markup_threshold and volume_score > t.volume_confirm_threshold:
+            return WyckoffPhase.MARKUP, min(0.9, 0.7 + (composite_score - t.markup_threshold) / 100)
+        if composite_score > t.bullish_boundary and volume_score <= t.volume_confirm_threshold:
             return WyckoffPhase.RE_ACCUMULATION, 0.6
-        if composite_score < 30 and volume_score > 60:
-            return WyckoffPhase.MARKDOWN, 0.8 + (30 - composite_score) / 30 * 0.2
-        if composite_score < 40 and volume_score <= 60:
+        if composite_score < t.markdown_threshold and volume_score > t.volume_confirm_threshold:
+            return WyckoffPhase.MARKDOWN, min(0.9, 0.7 + (t.markdown_threshold - composite_score) / 100)
+        if composite_score < t.bearish_boundary and volume_score <= t.volume_confirm_threshold:
             return WyckoffPhase.RE_DISTRIBUTION, 0.6
-        if 40 <= composite_score <= 60:
+        if t.bearish_boundary <= composite_score <= t.bullish_boundary:
             if trend_rising:
                 return WyckoffPhase.ACCUMULATION, 0.5
             return WyckoffPhase.DISTRIBUTION, 0.5
@@ -327,7 +394,7 @@ class PhasePredictor:
             )
             tr_list.append(tr)
         atr = sum(tr_list) / len(tr_list) if tr_list else 0
-        return (atr / closes[-1]) < self._low_vol_threshold if closes[-1] > 0 else False
+        return (atr / closes[-1]) < self._config.low_volatility_threshold if closes[-1] > 0 else False
 
     def _is_trend_rising(self, closes: list[float]) -> bool:
         """Check if short-term trend is rising (EMA5 > EMA20)."""

@@ -221,13 +221,20 @@ class QuantBrainAgent(BaseAgent):
     async def _run_phase_predictor(self, state: AgentState) -> None:
         """Run Wyckoff phase prediction and append to report."""
         try:
+            from src.config import get_config
+
+            phase_config = get_config().algorithm.phase
+            if not phase_config.enabled:
+                logger.info("Phase predictor disabled by config, skipping")
+                return
+
             from .phase_predictor import PhasePredictor
 
-            if not state.ohlcv_data or len(state.ohlcv_data) < 20:
+            if not state.ohlcv_data or len(state.ohlcv_data) < phase_config.min_ohlcv_bars:
                 logger.warning("Insufficient OHLCV data for phase prediction, skipping")
                 return
 
-            predictor = PhasePredictor()
+            predictor = PhasePredictor(config=phase_config)
 
             current_price = None
             if state.options_chain:
