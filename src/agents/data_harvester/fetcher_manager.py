@@ -50,6 +50,16 @@ class FetcherMetrics:
     last_error: datetime | None = None
 
 
+@dataclass
+class BreakerState:
+    """Circuit breaker state exposed for observability."""
+    provider: str
+    state: str  # "open" | "half_open" | "closed"
+    failure_count: int
+    last_failure_at: float | None  # unix timestamp, None if never
+    next_retry_at: float | None    # unix timestamp, None if closed
+
+
 class DataFetchError(Exception):
     """所有 fetcher 均失败时抛出。"""
     pass
@@ -248,6 +258,21 @@ class DataFetcherManager:
     def get_fetcher_metrics(self) -> dict[str, FetcherMetrics]:
         """返回各 fetcher 的运行指标副本。"""
         return dict(self._fetcher_metrics)
+
+    def get_breaker_states(self) -> dict[str, BreakerState]:
+        """返回各 fetcher 的断路器状态，用于可观测性。"""
+        result: dict[str, BreakerState] = {}
+        for name, circuit in self._circuits.items():
+            last_failure = circuit.last_failure_at if circuit.last_failure_at > 0 else None
+            next_retry = circuit.open_until if circuit.status == CircuitStatus.OPEN else None
+            result[name] = BreakerState(
+                provider=name,
+                state=circuit.status.value,
+                failure_count=circuit.failure_count,
+                last_failure_at=last_failure,
+                next_retry_at=next_retry,
+            )
+        return result
 
     async def health_report(self) -> dict[str, FetcherHealth]:
         """所有 fetcher 的健康状态。"""
