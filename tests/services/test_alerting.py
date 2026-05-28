@@ -10,13 +10,13 @@ from src.services.alerting import (
     AlertEngine,
     AlertRule,
     _evaluate_condition,
+    _tokenize,
     load_rules_from_yaml,
 )
 from src.services.event_bus import (
     AlertEvent,
     DataEvent,
     EventBus,
-    EventSeverity,
     PhaseEvent,
 )
 
@@ -62,6 +62,72 @@ class TestConditionEvaluator:
     def test_unparseable(self):
         evt = PhaseEvent()
         assert _evaluate_condition(evt, "garbage") is False
+
+
+class TestCompoundExpressions:
+    """Tests for compound condition expressions (AND/OR/IN/nested fields)."""
+
+    def test_and_both_true(self):
+        evt = PhaseEvent(confidence=20, composite_score=40)
+        assert _evaluate_condition(evt, ".confidence < 30 AND .composite_score < 50") is True
+
+    def test_and_one_false(self):
+        evt = PhaseEvent(confidence=20, composite_score=80)
+        assert _evaluate_condition(evt, ".confidence < 30 AND .composite_score < 50") is False
+
+    def test_or_one_true(self):
+        evt = PhaseEvent(confidence=80, composite_score=40)
+        assert _evaluate_condition(evt, ".confidence < 30 OR .composite_score < 50") is True
+
+    def test_or_both_false(self):
+        evt = PhaseEvent(confidence=80, composite_score=80)
+        assert _evaluate_condition(evt, ".confidence < 30 OR .composite_score < 50") is False
+
+    def test_parentheses_change_precedence(self):
+        """AND has higher precedence than OR, but parentheses override."""
+        # Without parens: a AND b OR c  →  (a AND b) OR c
+        evt = PhaseEvent(confidence=80, composite_score=40, transition="markup")
+        # (80<30)=F AND (40<50)=T → F, then F OR (transition!=None)=T → T
+        assert _evaluate_condition(
+            evt, ".confidence < 30 AND .composite_score < 50 OR .transition != None"
+        ) is True
+
+    def test_in_operator_match(self):
+        evt = PhaseEvent(transition="markup")
+        assert _evaluate_condition(evt, ".transition IN [markup, distribution]") is True
+
+    def test_in_operator_no_match(self):
+        evt = PhaseEvent(transition="accumulation")
+        assert _evaluate_condition(evt, ".transition IN [markup, distribution]") is False
+
+    def test_empty_expression(self):
+        evt = PhaseEvent(confidence=20)
+        assert _evaluate_condition(evt, "") is False
+
+    def test_backward_compat_simple(self):
+        """Existing simple conditions still work."""
+        evt = PhaseEvent(confidence=20)
+        assert _evaluate_condition(evt, ".confidence < 30") is True
+
+    def test_backward_compat_equals(self):
+        evt = DataEvent(success=False)
+        assert _evaluate_condition(evt, ".success == False") is True
+
+    def test_tokenizer_simple(self):
+        tokens = _tokenize(".confidence < 30")
+        assert tokens == [".confidence", "<", "30"]
+
+    def test_tokenizer_compound(self):
+        tokens = _tokenize(".a < 10 AND .b > 20")
+        assert tokens == [".a", "<", "10", "AND", ".b", ">", "20"]
+
+    def test_tokenizer_in(self):
+        tokens = _tokenize(".x IN [a, b]")
+        assert tokens == [".x", "IN", "[a, b]"]
+
+    def test_tokenizer_parens(self):
+        tokens = _tokenize("(.a < 10 OR .b > 20) AND .c == 5")
+        assert tokens == ["(", ".a", "<", "10", "OR", ".b", ">", "20", ")", "AND", ".c", "==", "5"]
 
 
 class TestAlertEngine:

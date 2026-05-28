@@ -76,6 +76,8 @@ class Orchestrator:
         }
         self._execution_history: list[dict[str, Any]] = []
         self.metrics = PipelineMetrics()
+        self.historical_mode: bool = False
+        self._historical_data: dict[str, list[Any]] = {}
 
         for agent_name, module_path, class_name in DEFAULT_PIPELINE:
             self.register_agent(agent_name, module_path, class_name)
@@ -107,6 +109,18 @@ class Orchestrator:
 
     def get_agent(self, agent_name: str) -> BaseAgent | None:
         return self._agents.get(agent_name)
+
+    def set_historical_data(self, symbol: str, ohlcv_window: list[Any]) -> None:
+        """Inject historical OHLCV data for backtest mode.
+
+        When historical_mode is True, DataHarvester reads from this
+        cache instead of making HTTP calls.
+        """
+        self._historical_data[symbol.upper()] = ohlcv_window
+
+    def get_historical_data(self, symbol: str) -> list[Any]:
+        """Get injected historical data for a symbol."""
+        return self._historical_data.get(symbol.upper(), [])
 
     def _build_pipeline_steps(self) -> list[PipelineStep]:
         total = len(self._pipeline_order)

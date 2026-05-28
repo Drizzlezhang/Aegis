@@ -2,7 +2,15 @@
 
 import pytest
 
-from src.backtest.metrics import calculate_metrics, calculate_monthly_returns
+from src.backtest.metrics import (
+    calculate_calmar_ratio,
+    calculate_max_drawdown_duration,
+    calculate_metrics,
+    calculate_monthly_returns,
+    calculate_performance_report,
+    calculate_sortino_ratio,
+)
+from src.models.backtest import PerformanceReport, PipelineBacktestTrade
 
 
 class TestCalculateMetrics:
@@ -200,3 +208,96 @@ class TestCalculateMonthlyReturns:
         ]
         result = calculate_monthly_returns(equity)
         assert len(result) == 2
+
+
+def _make_equity_curve(values: list[float]) -> list[dict]:
+    return [{"date": f"2024-01-{i + 1:02d}", "value": v} for i, v in enumerate(values)]
+
+
+def _make_trade(entry_price: float, exit_price: float, shares: int = 100) -> PipelineBacktestTrade:
+    pnl = (exit_price - entry_price) * shares
+    pnl_percent = (pnl / (entry_price * shares)) * 100
+    return PipelineBacktestTrade(
+        entry_date="2024-01-01", exit_date="2024-01-15",
+        entry_price=entry_price, exit_price=exit_price,
+        shares=shares, pnl=pnl, pnl_percent=pnl_percent, status="closed",
+    )
+
+
+class TestPerformanceReport:
+    """Tests for calculate_performance_report."""
+
+    def test_flat_equity(self):
+        curve = _make_equity_curve([100000, 100000, 100000])
+        report = calculate_performance_report(curve, [])
+        assert isinstance(report, PerformanceReport)
+        assert report.total_return == 0.0
+        assert report.max_drawdown == 0.0
+
+    def test_profitable_trades(self):
+        curve = _make_equity_curve([100000, 101000, 102000])
+        trades = [_make_trade(100, 102, 100)]
+        report = calculate_performance_report(curve, trades)
+        assert report.total_return > 0
+        assert report.total_trades == 1
+        assert report.win_rate == 100.0
+
+    def test_losing_trades(self):
+        curve = _make_equity_curve([100000, 99000, 98000])
+        trades = [_make_trade(100, 98, 100)]
+        report = calculate_performance_report(curve, trades)
+        assert report.total_return < 0
+        assert report.total_trades == 1
+        assert report.win_rate == 0.0
+
+    def test_mixed_trades(self):
+        curve = _make_equity_curve([100000, 101000, 100500])
+        trades = [_make_trade(100, 102, 100), _make_trade(100, 98, 100)]
+        report = calculate_performance_report(curve, trades)
+        assert report.total_trades == 2
+        assert report.win_rate == 50.0
+
+    def test_empty_curve(self):
+        report = calculate_performance_report([], [])
+        assert report.total_return == 0.0
+        assert report.total_trades == 0
+
+
+class TestSortinoRatio:
+    """Tests for Sortino ratio."""
+
+    def test_positive_returns(self):
+        curve = _make_equity_curve([100000, 100100, 100200, 100300])
+        ratio = calculate_sortino_ratio(curve)
+        assert ratio > 0
+
+    def test_negative_returns(self):
+        curve = _make_equity_curve([100000, 99900, 99800, 99700])
+        ratio = calculate_sortino_ratio(curve)
+        assert ratio < 0
+
+    def test_short_curve(self):
+        ratio = calculate_sortino_ratio(_make_equity_curve([100000]))
+        assert ratio == 0.0
+
+
+class TestCalmarRatio:
+    """Tests for Calmar ratio."""
+
+    def test_positive(self):
+        assert calculate_calmar_ratio(0.15, 0.10) == pytest.approx(1.5)
+
+    def test_zero_drawdown(self):
+        assert calculate_calmar_ratio(0.15, 0.0) == 0.0
+
+
+class TestMaxDrawdownDuration:
+    """Tests for max drawdown duration."""
+
+    def test_no_drawdown(self):
+        curve = _make_equity_curve([100, 101, 102, 103])
+        assert calculate_max_drawdown_duration(curve) == 0
+
+    def test_with_drawdown(self):
+        curve = _make_equity_curve([100, 99, 98, 97, 100, 101])
+        assert calculate_max_drawdown_duration(curve) == 3

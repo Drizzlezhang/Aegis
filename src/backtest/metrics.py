@@ -3,6 +3,8 @@
 import math
 from typing import Any
 
+from src.models.backtest import PerformanceReport, PipelineBacktestTrade
+
 from .engine import TradeRecord
 
 
@@ -71,6 +73,131 @@ def calculate_metrics(
         "best_trade": best_trade,
         "worst_trade": worst_trade,
     }
+
+
+def calculate_performance_report(
+    equity_curve: list[dict[str, Any]],
+    trades: list[Any],
+    risk_free_rate: float = 0.04,
+) -> PerformanceReport:
+    """Calculate a full PerformanceReport from equity curve and trades."""
+    if not equity_curve:
+        return PerformanceReport()
+
+    initial_value = equity_curve[0]["value"]
+    final_value = equity_curve[-1]["value"]
+
+    total_return = (final_value - initial_value) / initial_value if initial_value > 0 else 0.0
+    days = len(equity_curve)
+    years = days / 365.0
+    annualized_return = (
+        math.pow(1 + total_return, 1 / years) - 1 if years > 0 and total_return > -1 else total_return
+    )
+
+    closed_trades = [t for t in trades if getattr(t, "status", None) == "closed" and getattr(t, "pnl", None) is not None]
+    total_trades = len(closed_trades)
+    wins = [t for t in closed_trades if t.pnl and t.pnl > 0]
+    losses = [t for t in closed_trades if t.pnl and t.pnl <= 0]
+
+    win_rate = len(wins) / total_trades if total_trades > 0 else 0.0
+    total_win = sum(t.pnl for t in wins if t.pnl is not None)
+    total_loss = sum(abs(t.pnl) for t in losses if t.pnl is not None)
+    profit_factor = total_win / total_loss if total_loss > 0 else (999.0 if total_win > 0 else 0.0)
+
+    max_dd = _calculate_max_drawdown(equity_curve)
+    max_dd_duration = calculate_max_drawdown_duration(equity_curve)
+    sharpe = _calculate_sharpe_ratio(equity_curve, risk_free_rate)
+    sortino = calculate_sortino_ratio(equity_curve, risk_free_rate)
+    calmar = annualized_return / max_dd if max_dd > 0 else 0.0
+
+    avg_win = total_win / len(wins) if wins else 0.0
+    avg_loss = total_loss / len(losses) if losses else 0.0
+
+    return PerformanceReport(
+        total_return=total_return * 100,
+        annualized_return=annualized_return * 100,
+        sharpe_ratio=sharpe,
+        sortino_ratio=sortino,
+        max_drawdown=max_dd * 100,
+        max_drawdown_duration_days=max_dd_duration,
+        win_rate=win_rate * 100,
+        profit_factor=profit_factor,
+        calmar_ratio=calmar,
+        total_trades=total_trades,
+        avg_win=avg_win,
+        avg_loss=avg_loss,
+    )
+
+
+def calculate_sortino_ratio(
+    equity_curve: list[dict[str, Any]],
+    risk_free_rate: float = 0.04,
+) -> float:
+    """Calculate annualized Sortino ratio (uses downside deviation only)."""
+    if len(equity_curve) < 2:
+        return 0.0
+
+    daily_returns: list[float] = []
+    for i in range(1, len(equity_curve)):
+        prev = equity_curve[i - 1]["value"]
+        curr = equity_curve[i]["value"]
+        if prev > 0:
+            daily_returns.append((curr - prev) / prev)
+
+    if not daily_returns:
+        return 0.0
+
+    avg_return = sum(daily_returns) / len(daily_returns)
+    daily_rf = risk_free_rate / 252
+
+    # Downside deviation: only negative returns
+    downside_returns = [r - daily_rf for r in daily_returns if r < daily_rf]
+    if not downside_returns:
+        return 999.0 if avg_return > daily_rf else 0.0
+
+    downside_variance = sum(r ** 2 for r in downside_returns) / len(daily_returns)
+    downside_dev = math.sqrt(downside_variance)
+
+    if downside_dev == 0:
+        return 0.0
+
+    return ((avg_return - daily_rf) / downside_dev) * math.sqrt(252)
+
+
+def calculate_calmar_ratio(
+    annualized_return: float,
+    max_drawdown: float,
+) -> float:
+    """Calculate Calmar ratio = annualized return / max drawdown."""
+    if max_drawdown <= 0:
+        return 0.0
+    return annualized_return / max_drawdown
+
+
+def calculate_max_drawdown_duration(
+    equity_curve: list[dict[str, Any]],
+) -> int:
+    """Calculate the maximum drawdown duration in days."""
+    if not equity_curve:
+        return 0
+
+    peak_idx = 0
+    max_duration = 0
+    current_duration = 0
+
+    for i in range(len(equity_curve)):
+        value = equity_curve[i]["value"]
+        peak_value = equity_curve[peak_idx]["value"]
+
+        if value >= peak_value:
+            peak_idx = i
+            current_duration = 0
+        else:
+            current_duration = i - peak_idx
+            if current_duration > max_duration:
+                max_duration = current_duration
+
+    return max_duration
 
 
 def calculate_monthly_returns(

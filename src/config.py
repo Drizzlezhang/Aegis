@@ -249,6 +249,12 @@ class WatchlistConfig(BaseModel):
     storage_path: str = "~/.aegis-trader/watchlist.json"
 
 
+class AlertingConfig(BaseModel):
+    """Alerting engine configuration."""
+    rules_file: str = "config/alerting_rules.yaml"
+    watch_rules_file: bool = False
+
+
 class SchedulerConfig(BaseModel):
     """Scheduler configuration."""
     enabled: bool = True
@@ -323,6 +329,7 @@ class Config(BaseSettings):
     watchlist: WatchlistConfig = Field(default_factory=WatchlistConfig)
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
+    alerting: AlertingConfig = Field(default_factory=AlertingConfig)
 
     # Core symbols
     core_symbols: list[str] = Field(default=[

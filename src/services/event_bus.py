@@ -67,6 +67,13 @@ class AlertEvent(BaseEvent):
     severity: EventSeverity = EventSeverity.WARNING
 
 
+@dataclass
+class AlertingRulesReloaded(BaseEvent):
+    """Emitted when alerting rules are hot-reloaded."""
+
+    rule_count: int = 0
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 

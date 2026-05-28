@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backtest Report — {{ symbol }} | {{ start_date }} → {{ end_date }}</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --card-bg: #16213e;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0b0;
+            --accent: #00d4aa;
+            --accent-red: #ff6b6b;
+            --border: #2a2a4a;
+            --positive: #00d4aa;
+            --negative: #ff6b6b;
+        }
+        [data-theme="light"] {
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --text-secondary: #666666;
+            --accent: #00a878;
+            --accent-red: #e74c3c;
+            --border: #e0e0e0;
+            --positive: #00a878;
+            --negative: #e74c3c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        header h1 { font-size: 2rem; color: var(--accent); }
+        header .subtitle { color: var(--text-secondary); margin-top: 0.5rem; }
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .metric-card .label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .metric-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 0.25rem;
+        }
+        .metric-card .value.positive { color: var(--positive); }
+        .metric-card .value.negative { color: var(--negative); }
+        .chart-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-container h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        tr:hover { background: var(--card-bg); }
+        .section-title {
+            font-size: 1.3rem;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+        }
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+    <div class="container">
+        <header>
+            <h1>Backtest Report</h1>
+            <div class="subtitle">{{ symbol }} | {{ start_date }} → {{ end_date }} | Strategy: {{ strategy }}</div>
+        </header>
+
+        <h2 class="section-title">Performance Metrics</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="label">Total Return</div>
+                <div class="value {{ 'positive' if metrics.total_return >= 0 else 'negative' }}">{{ "%.2f"|format(metrics.total_return) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Annualized Return</div>
+                <div class="value {{ 'positive' if metrics.annualized_return >= 0 else 'negative' }}">{{ "%.2f"|format(metrics.annualized_return) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Sharpe Ratio</div>
+                <div class="value">{{ "%.2f"|format(metrics.sharpe_ratio) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Sortino Ratio</div>
+                <div class="value">{{ "%.2f"|format(metrics.sortino_ratio) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Max Drawdown</div>
+                <div class="value negative">{{ "%.2f"|format(metrics.max_drawdown) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Max DD Duration</div>
+                <div class="value">{{ metrics.max_drawdown_duration_days }} days</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Win Rate</div>
+                <div class="value">{{ "%.1f"|format(metrics.win_rate) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Profit Factor</div>
+                <div class="value">{{ "%.2f"|format(metrics.profit_factor) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Calmar Ratio</div>
+                <div class="value">{{ "%.2f"|format(metrics.calmar_ratio) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Total Trades</div>
+                <div class="value">{{ metrics.total_trades }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Win</div>
+                <div class="value positive">{{ "%.2f"|format(metrics.avg_win) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Loss</div>
+                <div class="value negative">{{ "%.2f"|format(metrics.avg_loss) }}</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>Equity Curve</h2>
+            {{ equity_chart | safe }}
+        </div>
+
+        {% if phase_attribution %}
+        <h2 class="section-title">Phase Attribution</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>Trades</th>
+                    <th>Avg Return</th>
+                    <th>Win Rate</th>
+                    <th>Contribution</th>
+                    <th>Transition Alpha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in phase_attribution %}
+                <tr>
+                    <td>{{ row.phase }}</td>
+                    <td>{{ row.trades_count }}</td>
+                    <td class="{{ 'positive' if row.avg_return >= 0 else 'negative' }}">{{ "%.2f"|format(row.avg_return) }}%</td>
+                    <td>{{ "%.1f"|format(row.win_rate) }}%</td>
+                    <td>{{ "%.1f"|format(row.contribution_to_total) }}%</td>
+                    <td>{{ "%.2f"|format(row.transition_alpha) if row.transition_alpha is not none else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if trades %}
+        <h2 class="section-title">Trade List</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Entry</th>
+                    <th>Exit</th>
+                    <th>Entry Price</th>
+                    <th>Exit Price</th>
+                    <th>P&L</th>
+                    <th>P&L %</th>
+                    <th>Entry Phase</th>
+                    <th>Exit Phase</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trades %}
+                <tr>
+                    <td>{{ t.entry_date }}</td>
+                    <td>{{ t.exit_date or 'Open' }}</td>
+                    <td>{{ "%.2f"|format(t.entry_price) }}</td>
+                    <td>{{ "%.2f"|format(t.exit_price) if t.exit_price else '-' }}</td>
+                    <td class="{{ 'positive' if t.pnl and t.pnl > 0 else 'negative' }}">{{ "%.2f"|format(t.pnl) if t.pnl else '-' }}</td>
+                    <td class="{{ 'positive' if t.pnl_percent and t.pnl_percent > 0 else 'negative' }}">{{ "%.2f"|format(t.pnl_percent) if t.pnl_percent else '-' }}%</td>
+                    <td>{{ t.entry_phase or '-' }}</td>
+                    <td>{{ t.exit_phase or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <footer>
+            Generated by Aegis Backtest Engine | {{ generated_at }}
+        </footer>
+    </div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+        }
+    </script>
+</body>
+</html>

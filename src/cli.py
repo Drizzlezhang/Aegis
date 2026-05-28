@@ -250,6 +250,139 @@ async def run_health_check(args: argparse.Namespace) -> None:
     sys.exit(report.exit_code)
 
 
+async def run_backtest(args: argparse.Namespace) -> None:
+    """运行回测."""
+    from datetime import date as dt_date
+
+    from src.backtest.report import render_multi_report, render_report
+    from src.backtest.runner import BacktestRunner, MultiSymbolRunner
+
+    start_date = dt_date.fromisoformat(args.from_date)
+    end_date = dt_date.fromisoformat(args.to_date)
+    output_dir = args.output or Path("reports/backtest")
+
+    # Determine symbols
+    if args.symbols:
+        symbols = args.symbols
+    elif args.symbol:
+        symbols = [args.symbol]
+    else:
+        print("Error: --symbol or --symbols is required")
+        sys.exit(1)
+
+    # Generate mock OHLCV data for demo
+    import random
+    random.seed(42)
+
+    def _make_demo_data(sym: str, n_days: int = 60) -> list:
+        from dataclasses import dataclass
+        from datetime import datetime, timedelta
+
+        @dataclass
+        class _Bar:
+            timestamp: datetime
+            open: float
+            high: float
+            low: float
+            close: float
+            volume: int
+
+        price = 100.0 + hash(sym) % 200
+        bars = []
+        for i in range(n_days):
+            change = random.uniform(-2, 2)
+            price += change
+            if price < 1:
+                price = 1
+            ts = datetime(start_date.year, start_date.month, 1) + timedelta(days=i)
+            bars.append(_Bar(timestamp=ts, open=price - 0.5, high=price + 1, low=price - 1, close=price, volume=10000))
+        return bars
+
+    if len(symbols) == 1:
+        # Single symbol
+        symbol = symbols[0]
+        print(f"Running backtest for {symbol} ({start_date} → {end_date})...")
+
+        data = _make_demo_data(symbol)
+        runner = BacktestRunner(symbol, start_date, end_date, {"strategy": args.strategy})
+
+        # Progress bar
+        try:
+            from rich.progress import Progress
+            with Progress() as progress:
+                task = progress.add_task(f"[cyan]Backtesting {symbol}...", total=len(data))
+
+                def progress_cb(current: int, total: int) -> None:
+                    progress.update(task, completed=current)
+
+                result = await runner.run(data, progress_callback=progress_cb)
+        except ImportError:
+            result = await runner.run(data)
+
+        # Phase attribution
+        from src.backtest.phase_attribution import PhaseAttribution
+        result.phase_attribution = PhaseAttribution.analyze(result.trades, result.daily_decisions)
+
+        # Render report
+        output_path = output_dir / f"{symbol}_{start_date.isoformat()}_{end_date.isoformat()}.html"
+        render_report(result, output_path)
+        print(f"Report saved to {output_path}")
+
+        # Print summary
+        m = result.metrics
+        print(f"\n  Total Return: {m.total_return:.2f}%")
+        print(f"  Sharpe Ratio: {m.sharpe_ratio:.2f}")
+        print(f"  Max Drawdown: {m.max_drawdown:.2f}%")
+        print(f"  Win Rate:     {m.win_rate:.1f}%")
+        print(f"  Total Trades: {m.total_trades}")
+
+        if not args.no_open:
+            import webbrowser
+            webbrowser.open(f"file://{output_path.absolute()}")
+
+    else:
+        # Multi-symbol
+        print(f"Running backtest for {len(symbols)} symbols ({start_date} → {end_date})...")
+
+        data_map = {s: _make_demo_data(s) for s in symbols}
+        multi = MultiSymbolRunner(symbols, start_date, end_date, max_concurrent=3)
+
+        try:
+            from rich.progress import Progress
+            with Progress() as progress:
+                task = progress.add_task("[cyan]Backtesting...", total=len(symbols))
+
+                def progress_cb(sym: str, current: int, total: int) -> None:
+                    pass  # Multi-symbol progress handled by task completion
+
+                results = await multi.run(data_map)
+                progress.update(task, completed=len(symbols))
+        except ImportError:
+            results = await multi.run(data_map)
+
+        # Add phase attribution to each result
+        from src.backtest.phase_attribution import PhaseAttribution
+        for _sym, r in results.items():
+            r.phase_attribution = PhaseAttribution.analyze(r.trades, r.daily_decisions)
+
+        # Render reports
+        render_multi_report(results, output_dir)
+        print(f"Reports saved to {output_dir}/")
+
+        # Print summary table
+        print(f"\n{'Symbol':<8} {'Return':>10} {'Sharpe':>8} {'Max DD':>8} {'Win Rate':>9} {'Trades':>7}")
+        print("-" * 55)
+        for sym, r in results.items():
+            m = r.metrics
+            print(f"{sym:<8} {m.total_return:>9.2f}% {m.sharpe_ratio:>7.2f} {m.max_drawdown:>7.2f}% {m.win_rate:>8.1f}% {m.total_trades:>6}")
+
+        if not args.no_open:
+            import webbrowser
+            first_sym = symbols[0]
+            first_path = output_dir / f"{first_sym}_{start_date.isoformat()}_{end_date.isoformat()}.html"
+            webbrowser.open(f"file://{first_path.absolute()}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Aegis-Trader - Multi-Agent quant trading system",
@@ -367,6 +500,46 @@ def build_parser() -> argparse.ArgumentParser:
 
     scheduler_sub.add_parser("history", help="显示最近执行历史")
 
+    # backtest 命令
+    backtest_parser = subparsers.add_parser("backtest", help="运行回测")
+    backtest_parser.add_argument(
+        "--symbol",
+        help="单个标的代码 (如 QQQ)",
+    )
+    backtest_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        help="多个标的代码 (如 QQQ SPY NVDA)",
+    )
+    backtest_parser.add_argument(
+        "--from",
+        dest="from_date",
+        required=True,
+        help="回测起始日期 (YYYY-MM-DD)",
+    )
+    backtest_parser.add_argument(
+        "--to",
+        dest="to_date",
+        required=True,
+        help="回测结束日期 (YYYY-MM-DD)",
+    )
+    backtest_parser.add_argument(
+        "--strategy",
+        default="pipeline",
+        help="策略名称 (默认: pipeline)",
+    )
+    backtest_parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        help="报告输出目录 (默认: reports/backtest/)",
+    )
+    backtest_parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="不自动打开 HTML 报告",
+    )
+
     return parser
 
 
@@ -464,6 +637,9 @@ async def main_async() -> None:
             await scheduler_trigger(args.job_id)
         elif args.scheduler_action == "history":
             await scheduler_history()
+
+    elif args.command == "backtest":
+        await run_backtest(args)
 
 
 def main() -> None:
