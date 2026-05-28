@@ -2,16 +2,27 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import statistics
+import uuid
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import ClassVar
 
+from src.agents.quant_brain.phase_events import PhaseDimensionFailure
+from src.agents.quant_brain.phase_i18n import get_phase_description
 from src.config import PhaseConfig, get_config
 from src.models.analysis import ValuationRange
 from src.models.market import OHLCV
 from src.models.scoring import MacroRegime
-from src.models.trend_phase import DimensionScore, TrendPhaseResult, WyckoffPhase
+from src.models.trend_phase import (
+    DimensionScore,
+    PhaseHistoryRecord,
+    PhaseTrendSummary,
+    TrendPhaseResult,
+    WyckoffPhase,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +78,9 @@ class PhasePredictor:
         self._rsi_state: dict[str, float] = {}
         self._last_phase: WyckoffPhase | None = None
         self._bars_since_last_transition: int = 0
+        self._adx_proxy_used: bool = False
+        self._events: list[PhaseDimensionFailure] = []
+        self._smoothed_score: float | None = None
 
     async def predict(
         self,
@@ -74,6 +88,7 @@ class PhasePredictor:
         macro_regime: MacroRegime | None = None,
         valuation_range: ValuationRange | None = None,
         current_price: float | None = None,
+        locale: str = "en",
     ) -> TrendPhaseResult:
         """Run full 7-dimension phase prediction.
 
@@ -82,6 +97,7 @@ class PhasePredictor:
             macro_regime: Optional macro regime from prior pipeline step.
             valuation_range: Optional valuation range from prior pipeline step.
             current_price: Current price override (falls back to last close).
+            locale: Language for phase_description (\"en\" or \"zh-CN\").
 
         Returns:
             TrendPhaseResult with phase classification and dimension scores.
@@ -115,7 +131,14 @@ class PhasePredictor:
         low_vol = self._check_low_volatility(highs, lows, closes)
 
         # Compute dimension scores via dynamic routing
-        dims = self._compute_all_dimensions(closes, volumes, ohlcv_data, macro_regime, valuation_range, price)
+        dims, degraded_dimensions = self._compute_all_dimensions(closes, volumes, ohlcv_data, macro_regime, valuation_range, price)
+
+        # Rebalance weights if any dimensions degraded
+        if degraded_dimensions:
+            rebalanced = self._rebalance_weights(set(degraded_dimensions))
+            for d in dims:
+                d.weight = rebalanced.get(d.name, d.weight)
+                d.weighted_score = d.normalized_score * d.weight
 
         if low_vol:
             return TrendPhaseResult(
@@ -128,6 +151,15 @@ class PhasePredictor:
             )
 
         composite = sum(d.weighted_score for d in dims)
+
+        # EMA smoothing (A7)
+        alpha = self._config.composite_smoothing_alpha
+        if alpha > 0:
+            if self._smoothed_score is None:
+                self._smoothed_score = composite
+            else:
+                self._smoothed_score = alpha * composite + (1 - alpha) * self._smoothed_score
+            composite = self._smoothed_score
 
         # Compute confidence from dimension score dispersion
         dim_scores = [d.normalized_score for d in dims]
@@ -164,15 +196,23 @@ class PhasePredictor:
             self._last_phase = phase
             self._bars_since_last_transition = 0
 
-        return TrendPhaseResult(
+        result = TrendPhaseResult(
             phase=phase,
             confidence=confidence,
             composite_score=composite,
             dimension_scores=dims,
             low_volatility_override=False,
-            phase_description=self._describe_phase(phase, composite, confidence),
+            phase_description=self._describe_phase(phase, composite, confidence, self._adx_proxy_used, locale),
             transition=transition,
+            adx_proxy_used=self._adx_proxy_used,
+            degraded_dimensions=degraded_dimensions,
         )
+
+        # Fire-and-forget history write (A5)
+        symbol = ohlcv_data[0].symbol if ohlcv_data else "UNKNOWN"
+        asyncio.create_task(self._write_phase_history(symbol, result))
+
+        return result
 
     # ── Dimension scorers ──────────────────────────────────────────────────
 
@@ -186,10 +226,8 @@ class PhasePredictor:
             sma200 = sum(closes[-200:]) / 200 if len(closes) >= 200 else sum(closes) / len(closes)
 
             # Use standard ADX if enough data, fallback to proxy
-            if len(closes) >= 28:
-                adx = self._calculate_adx(highs, lows, closes, period=14)
-            else:
-                adx = self._estimate_adx(closes, period=14)
+            adx, proxy_used = self._calculate_adx(highs, lows, closes, period=14)
+            self._adx_proxy_used = proxy_used
 
             raw = 50.0
 
@@ -215,6 +253,7 @@ class PhasePredictor:
         except Exception:
             logger.warning("trend_momentum scoring failed, returning neutral", exc_info=True)
             normalized = 50.0
+            self._adx_proxy_used = False
 
         w = self._weights.get("trend_momentum", 0.0)
         return DimensionScore(
@@ -504,8 +543,13 @@ class PhasePredictor:
         macro_regime: MacroRegime | None,
         valuation_range: ValuationRange | None,
         current_price: float | None,
-    ) -> list[DimensionScore]:
-        """Compute all dimension scores using configured weights."""
+    ) -> tuple[list[DimensionScore], list[str]]:
+        """Compute all dimension scores using configured weights.
+
+        Returns:
+            (dimension_scores, degraded_dimensions) — degraded_dimensions lists
+            names of dimensions that failed and were replaced with neutral scores.
+        """
         highs = [bar.high for bar in ohlcv_data]
         lows = [bar.low for bar in ohlcv_data]
 
@@ -520,13 +564,19 @@ class PhasePredictor:
         }
 
         dimension_scores: list[DimensionScore] = []
+        degraded: list[str] = []
         for dim_name, weight in self._weights.items():
             scorer = scorer_map.get(dim_name)
             if scorer is None:
                 continue
             try:
                 dim_score = scorer()
-            except Exception:
+            except Exception as exc:
+                self._events.append(PhaseDimensionFailure(
+                    dim_name=dim_name,
+                    error_message=str(exc),
+                ))
+                degraded.append(dim_name)
                 dim_score = DimensionScore(
                     name=dim_name,
                     raw_value=50.0,
@@ -540,7 +590,38 @@ class PhasePredictor:
             dim_score.weighted_score = dim_score.normalized_score * weight
             dimension_scores.append(dim_score)
 
-        return dimension_scores
+        return dimension_scores, degraded
+
+    # ── Phase determination ────────────────────────────────────────────────
+
+    def _rebalance_weights(self, failed: set[str]) -> dict[str, float]:
+        """Redistribute weights of failed dimensions evenly among active ones.
+
+        Args:
+            failed: Set of dimension names that failed.
+
+        Returns:
+            Rebalanced weight dict where active dims absorb failed dims' weights.
+            Total sum is guaranteed to be 1.0 (±0.001).
+        """
+        if not failed:
+            return dict(self._weights)
+
+        active = {k: v for k, v in self._weights.items() if k not in failed}
+        if not active:
+            return dict(self._weights)
+
+        failed_weight = sum(self._weights.get(f, 0.0) for f in failed)
+        redistribution = failed_weight / len(active)
+
+        rebalanced = {}
+        for dim_name, weight in self._weights.items():
+            if dim_name in failed:
+                rebalanced[dim_name] = 0.0
+            else:
+                rebalanced[dim_name] = weight + redistribution
+
+        return rebalanced
 
     # ── Phase determination ────────────────────────────────────────────────
 
@@ -597,18 +678,122 @@ class PhasePredictor:
         ema20 = self._ema(closes, 20)
         return ema5 > ema20
 
+    async def _write_phase_history(
+        self, symbol: str, result: TrendPhaseResult
+    ) -> None:
+        """Write phase prediction to phase_history table (fire-and-forget).
+
+        Uses asyncio.create_task in predict() — never awaited directly.
+        Failures are logged as warnings and never raised.
+        """
+        try:
+            from src.db import get_session
+
+            record = PhaseHistoryRecord(
+                id=str(uuid.uuid4()),
+                symbol=symbol,
+                timestamp=datetime.now(UTC),
+                phase=result.phase.value,
+                composite_score=result.composite_score,
+                confidence=result.confidence,
+            )
+
+            async with get_session() as session:
+                from sqlalchemy import text
+
+                await session.execute(
+                    text(
+                        "INSERT INTO phase_history (id, symbol, timestamp, phase, "
+                        "composite_score, confidence, created_at) "
+                        "VALUES (:id, :symbol, :timestamp, :phase, :composite_score, "
+                        ":confidence, :created_at)"
+                    ),
+                    {
+                        "id": record.id,
+                        "symbol": record.symbol,
+                        "timestamp": record.timestamp,
+                        "phase": record.phase,
+                        "composite_score": record.composite_score,
+                        "confidence": record.confidence,
+                        "created_at": datetime.now(UTC),
+                    },
+                )
+                await session.commit()
+        except Exception:
+            logger.warning("Failed to write phase history for %s", symbol, exc_info=True)
+
+    async def _analyze_recent_phases(
+        self, symbol: str, lookback: int = 20
+    ) -> PhaseTrendSummary:
+        """Analyze recent phase trend from phase_history table.
+
+        Args:
+            symbol: Trading symbol to query.
+            lookback: Number of recent records to analyze.
+
+        Returns:
+            PhaseTrendSummary with dominant_phase, transition_count, stability_score.
+        """
+        try:
+            from sqlalchemy import text
+
+            from src.db import get_session
+
+            async with get_session() as session:
+                result = await session.execute(
+                    text(
+                        "SELECT phase FROM phase_history "
+                        "WHERE symbol = :symbol "
+                        "ORDER BY timestamp DESC "
+                        "LIMIT :limit"
+                    ),
+                    {"symbol": symbol, "limit": lookback},
+                )
+                rows = result.fetchall()
+
+            if not rows:
+                return PhaseTrendSummary(
+                    dominant_phase="unknown",
+                    transition_count=0,
+                    stability_score=1.0,
+                )
+
+            phases = [row[0] for row in reversed(rows)]
+
+            # Dominant phase = mode
+            from collections import Counter
+            counter = Counter(phases)
+            dominant = counter.most_common(1)[0][0]
+
+            # Count transitions
+            transitions = sum(
+                1 for i in range(1, len(phases)) if phases[i] != phases[i - 1]
+            )
+
+            # Stability score
+            max_transitions = max(len(phases) - 1, 1)
+            stability = 1.0 - (transitions / max_transitions)
+
+            return PhaseTrendSummary(
+                dominant_phase=dominant,
+                transition_count=transitions,
+                stability_score=stability,
+            )
+        except Exception:
+            logger.warning("Failed to analyze recent phases for %s", symbol, exc_info=True)
+            return PhaseTrendSummary(
+                dominant_phase="unknown",
+                transition_count=0,
+                stability_score=1.0,
+            )
+
     @staticmethod
-    def _describe_phase(phase: WyckoffPhase, score: float, confidence: float) -> str:
-        descriptions = {
-            WyckoffPhase.ACCUMULATION: "Smart money accumulating at range lows",
-            WyckoffPhase.MARKUP: "Uptrend in progress with strong momentum",
-            WyckoffPhase.DISTRIBUTION: "Smart money distributing at range highs",
-            WyckoffPhase.MARKDOWN: "Downtrend in progress with selling pressure",
-            WyckoffPhase.RE_ACCUMULATION: "Pause in uptrend, likely continuation",
-            WyckoffPhase.RE_DISTRIBUTION: "Pause in downtrend, likely continuation",
-        }
-        base = descriptions.get(phase, "Unknown phase")
-        return f"{base} (score={score:.1f}, conf={confidence:.2f})"
+    def _describe_phase(phase: WyckoffPhase, score: float, confidence: float, adx_proxy_used: bool = False, locale: str = "en") -> str:
+        base = get_phase_description(phase, locale)
+        desc = f"{base} (score={score:.1f}, conf={confidence:.2f})"
+        if adx_proxy_used:
+            desc += " [ADX proxy mode]"
+        return desc
 
     # ── Static technical helpers ───────────────────────────────────────────
 
@@ -748,15 +933,17 @@ class PhasePredictor:
     @staticmethod
     def _calculate_adx(
         highs: list[float], lows: list[float], closes: list[float], period: int = 14
-    ) -> float:
+    ) -> tuple[float, bool]:
         """Calculate Wilder's standard ADX (Average Directional Index).
 
         Implements: TR → +DM/-DM → Wilder smoothed → +DI/-DI → DX → ADX.
-        Returns 0.0 if insufficient data (< period * 2 bars).
+        Returns (adx_value, proxy_used). Falls back to _estimate_adx when
+        data < period * 2 bars, setting proxy_used=True.
         """
         n = len(closes)
-        if n < period * 2:
-            return 0.0
+        # Need period*2 for TR/DM + period for DX + period for ADX smoothing
+        if n < period * 3:
+            return PhasePredictor._estimate_adx(closes, period), True
 
         # True Range and Directional Movement
         tr_list: list[float] = []
@@ -820,14 +1007,14 @@ class PhasePredictor:
             dx_values.append(dx)
 
         if not dx_values:
-            return 0.0
+            return 0.0, False
 
         # ADX = Wilder's smoothed average of DX
         adx = sum(dx_values[:period]) / min(period, len(dx_values))
         for i in range(period, len(dx_values)):
             adx = adx + alpha * (dx_values[i] - adx)
 
-        return adx
+        return adx, False
 
     @staticmethod
     def _estimate_adx(closes: list[float], period: int = 14) -> float:

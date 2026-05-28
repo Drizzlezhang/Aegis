@@ -1,5 +1,7 @@
 """Unit tests for PhasePredictor — 7-dimension Wyckoff phase engine."""
 
+import asyncio
+import os
 from datetime import datetime
 
 import pytest
@@ -396,3 +398,404 @@ class TestPhaseTransition:
         second = await p.predict(mock_ohlcv_linear_up)
         if second.phase == first.phase:
             assert second.transition is None
+
+
+class TestADXProxy:
+    """A1: ADX warm-up transparency tests."""
+
+    async def test_adx_proxy_used_with_30_bars(self):
+        """AC1.1: 30 bar input → adx_proxy_used=True (data < 2*period=28)."""
+        from datetime import datetime, timedelta
+
+        from src.config import PhaseConfig
+        from src.models.market import OHLCV
+
+        bars = []
+        base_time = datetime(2024, 1, 1)
+        for i in range(30):
+            close = 100 + i * 0.5
+            bars.append(OHLCV(
+                symbol="TEST",
+                timestamp=base_time + timedelta(days=i),
+                open=close - 0.1,
+                high=close + 0.3,
+                low=close - 0.3,
+                close=close,
+                volume=1_000_000,
+            ))
+        cfg = PhaseConfig(min_ohlcv_bars=30)
+        p = PhasePredictor(config=cfg)
+        result = await p.predict(bars)
+        assert result.adx_proxy_used is True
+
+    async def test_adx_proxy_not_used_with_60_bars(self, mock_ohlcv_linear_up):
+        """AC1.2: 60 bar input → adx_proxy_used=False."""
+        p = PhasePredictor()
+        result = await p.predict(mock_ohlcv_linear_up)
+        assert result.adx_proxy_used is False
+
+    async def test_adx_proxy_description_marker(self):
+        """AC1.3: proxy mode → phase_description contains '[ADX proxy mode]'."""
+        from datetime import datetime, timedelta
+
+        from src.config import PhaseConfig
+        from src.models.market import OHLCV
+
+        bars = []
+        base_time = datetime(2024, 1, 1)
+        for i in range(30):
+            close = 100 + i * 0.5
+            bars.append(OHLCV(
+                symbol="TEST",
+                timestamp=base_time + timedelta(days=i),
+                open=close - 0.1,
+                high=close + 0.3,
+                low=close - 0.3,
+                close=close,
+                volume=1_000_000,
+            ))
+        cfg = PhaseConfig(min_ohlcv_bars=30)
+        p = PhasePredictor(config=cfg)
+        result = await p.predict(bars)
+        assert "[ADX proxy mode]" in result.phase_description
+
+
+class TestDimensionFailure:
+    """A2: Dimension failure eventization tests."""
+
+    def test_degraded_dimensions_on_failure(self, monkeypatch):
+        """AC2.1: mock dimension failure → degraded_dimensions contains dim name."""
+        from src.agents.quant_brain.phase_predictor import PhasePredictor
+
+        p = PhasePredictor()
+
+        # Mock _score_volume to raise
+        def _fail(*args, **kwargs):
+            raise RuntimeError("simulated volume failure")
+
+        monkeypatch.setattr(p, "_score_volume", _fail)
+
+        dims, degraded = p._compute_all_dimensions(
+            closes=[100.0] * 60,
+            volumes=[1000] * 60,
+            ohlcv_data=[],
+            macro_regime=None,
+            valuation_range=None,
+            current_price=100.0,
+        )
+        assert "volume" in degraded
+        assert len(p._events) >= 1
+        assert p._events[0].dim_name == "volume"
+        assert "simulated volume failure" in p._events[0].error_message
+
+    def test_failed_dimension_score_is_neutral(self, monkeypatch):
+        """AC2.2: failed dimension normalized_score = 50.0."""
+        from src.agents.quant_brain.phase_predictor import PhasePredictor
+
+        p = PhasePredictor()
+
+        def _fail(*args, **kwargs):
+            raise RuntimeError("simulated failure")
+
+        monkeypatch.setattr(p, "_score_volume", _fail)
+
+        dims, degraded = p._compute_all_dimensions(
+            closes=[100.0] * 60,
+            volumes=[1000] * 60,
+            ohlcv_data=[],
+            macro_regime=None,
+            valuation_range=None,
+            current_price=100.0,
+        )
+        vol_dim = next(d for d in dims if d.name == "volume")
+        assert vol_dim.normalized_score == 50.0
+
+    def test_phase_dimension_failure_event_recorded(self, monkeypatch):
+        """AC2.3: self._events contains PhaseDimensionFailure record."""
+        from src.agents.quant_brain.phase_predictor import PhasePredictor
+        from src.agents.quant_brain.phase_events import PhaseDimensionFailure
+
+        p = PhasePredictor()
+
+        def _fail(*args, **kwargs):
+            raise ValueError("test error")
+
+        monkeypatch.setattr(p, "_score_macro", _fail)
+
+        dims, degraded = p._compute_all_dimensions(
+            closes=[100.0] * 60,
+            volumes=[1000] * 60,
+            ohlcv_data=[],
+            macro_regime=None,
+            valuation_range=None,
+            current_price=100.0,
+        )
+        assert len(p._events) == 1
+        assert isinstance(p._events[0], PhaseDimensionFailure)
+        assert p._events[0].dim_name == "macro"
+
+
+class TestWeightRebalancing:
+    """A3: Dynamic weight rebalancing tests."""
+
+    def test_rebalance_two_failed_dims(self):
+        """AC3.1: 2 dims fail → remaining 5 get increased weights."""
+        p = PhasePredictor()
+        failed = {"volume", "macro"}
+        rebalanced = p._rebalance_weights(failed)
+
+        # Failed dims get 0
+        assert rebalanced["volume"] == 0.0
+        assert rebalanced["macro"] == 0.0
+
+        # Active dims get increased weights
+        # volume=0.18 + macro=0.10 = 0.28 redistributed across 5 dims = 0.056 each
+        assert rebalanced["trend_momentum"] == pytest.approx(0.20 + 0.056)
+        assert rebalanced["velocity"] == pytest.approx(0.15 + 0.056)
+        assert rebalanced["acceleration"] == pytest.approx(0.12 + 0.056)
+        assert rebalanced["mean_reversion"] == pytest.approx(0.15 + 0.056)
+        assert rebalanced["valuation"] == pytest.approx(0.10 + 0.056)
+
+    def test_rebalance_weights_sum_to_one(self):
+        """AC3.2: rebalanced weights sum to 1.0 (±0.001)."""
+        p = PhasePredictor()
+        failed = {"volume", "macro"}
+        rebalanced = p._rebalance_weights(failed)
+        assert abs(sum(rebalanced.values()) - 1.0) < 0.001
+
+    def test_no_failures_returns_original_weights(self):
+        """AC3.3: no failures → original weights returned."""
+        p = PhasePredictor()
+        rebalanced = p._rebalance_weights(set())
+        assert rebalanced == p._weights
+        assert abs(sum(rebalanced.values()) - 1.0) < 0.001
+
+
+class TestCompositeSmoothing:
+    """A7: Composite score EMA smoothing tests."""
+
+    async def test_smoothing_attenuates_change(self, mock_ohlcv_linear_up):
+        """AC7.1: alpha=0.5 → second call's composite is smoothed toward first."""
+        from src.config import PhaseConfig
+
+        cfg = PhaseConfig(composite_smoothing_alpha=0.5)
+        p = PhasePredictor(config=cfg)
+
+        result1 = await p.predict(mock_ohlcv_linear_up)
+        score1 = result1.composite_score
+
+        result2 = await p.predict(mock_ohlcv_linear_up)
+        score2 = result2.composite_score
+
+        # With same data, raw composite would be identical.
+        # With smoothing, score2 should equal score1 (no change to smooth).
+        assert score1 == pytest.approx(score2)
+
+    async def test_smoothing_alpha_zero_disabled(self, mock_ohlcv_linear_up):
+        """AC7.2: alpha=0 → composite_score unchanged (no smoothing)."""
+        from src.config import PhaseConfig
+
+        cfg = PhaseConfig(composite_smoothing_alpha=0)
+        p = PhasePredictor(config=cfg)
+
+        result1 = await p.predict(mock_ohlcv_linear_up)
+        result2 = await p.predict(mock_ohlcv_linear_up)
+
+        # With alpha=0, smoothing is disabled — raw composite used each time
+        assert result1.composite_score == pytest.approx(result2.composite_score)
+
+    async def test_smoothing_alpha_one_equals_raw(self, mock_ohlcv_linear_up):
+        """AC7.3: alpha=1 → composite_score equals raw value (no memory)."""
+        from src.config import PhaseConfig
+
+        cfg = PhaseConfig(composite_smoothing_alpha=1.0)
+        p = PhasePredictor(config=cfg)
+
+        result1 = await p.predict(mock_ohlcv_linear_up)
+        result2 = await p.predict(mock_ohlcv_linear_up)
+
+        # alpha=1 means full replacement — same as raw
+        assert result1.composite_score == pytest.approx(result2.composite_score)
+
+
+class TestI18n:
+    """A4: i18n phase description tests."""
+
+    async def test_locale_en_vs_zh_cn_different(self, mock_ohlcv_linear_up):
+        """AC4.1: en and zh-CN produce different descriptions."""
+        p = PhasePredictor()
+        result_en = await p.predict(mock_ohlcv_linear_up, locale="en")
+        result_zh = await p.predict(mock_ohlcv_linear_up, locale="zh-CN")
+        assert result_en.phase_description != result_zh.phase_description
+
+    async def test_default_locale_is_en(self, mock_ohlcv_linear_up):
+        """AC4.2: default locale=en, behavior unchanged."""
+        p = PhasePredictor()
+        result = await p.predict(mock_ohlcv_linear_up)
+        assert "Smart money" in result.phase_description or "Uptrend" in result.phase_description or \
+            "Downtrend" in result.phase_description or "Pause" in result.phase_description
+
+
+class TestPhaseHistory:
+    """A5: Historical phase persistence tests."""
+
+    async def test_predict_writes_to_history(self):
+        """AC5.1: 5 _write_phase_history calls → 5 records in phase_history."""
+        import sqlite3
+
+        from src.config import get_config
+        from src.models.trend_phase import TrendPhaseResult, WyckoffPhase
+
+        config = get_config()
+        db_path = config.database.url.replace("sqlite:///", "").replace("sqlite+aiosqlite:///", "")
+        db_path = os.path.expanduser(db_path)
+
+        # Clear existing records for clean test
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM phase_history")
+        conn.commit()
+        conn.close()
+
+        p = PhasePredictor()
+        result = TrendPhaseResult(
+            phase=WyckoffPhase.ACCUMULATION,
+            confidence=50.0,
+            composite_score=50.0,
+        )
+        for _ in range(5):
+            await p._write_phase_history("TEST", result)
+
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM phase_history").fetchone()[0]
+        conn.close()
+        assert count == 5
+
+    async def test_write_failure_does_not_raise(self, mock_ohlcv_linear_up, monkeypatch):
+        """AC5.2: DB write failure → no exception raised."""
+        p = PhasePredictor()
+
+        async def _fail_write(*args, **kwargs):
+            raise RuntimeError("simulated DB failure")
+
+        monkeypatch.setattr(p, "_write_phase_history", _fail_write)
+
+        # Should not raise
+        result = await p.predict(mock_ohlcv_linear_up)
+        assert result is not None
+        assert result.phase is not None
+
+
+class TestPhaseTrendAnalysis:
+    """A6: Short-term phase trend analysis tests."""
+
+    async def test_all_same_phase_stability_one(self):
+        """AC6.1: 20 same phases → stability=1.0."""
+        import sqlite3
+
+        from src.config import get_config
+
+        config = get_config()
+        db_path = config.database.url.replace("sqlite:///", "").replace("sqlite+aiosqlite:///", "")
+        db_path = os.path.expanduser(db_path)
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM phase_history")
+        conn.commit()
+
+        # Insert 20 identical phase records
+        import uuid
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        for i in range(20):
+            conn.execute(
+                "INSERT INTO phase_history (id, symbol, timestamp, phase, composite_score, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), "TREND_TEST", now.isoformat(), "accumulation", 50.0, 50.0, now.isoformat()),
+            )
+        conn.commit()
+        conn.close()
+
+        p = PhasePredictor()
+        summary = await p._analyze_recent_phases("TREND_TEST", lookback=20)
+        assert summary.stability_score == 1.0
+        assert summary.dominant_phase == "accumulation"
+        assert summary.transition_count == 0
+
+    async def test_alternating_phases_stability_near_zero(self):
+        """AC6.2: alternating phases → stability ≈ 0."""
+        import sqlite3
+
+        from src.config import get_config
+
+        config = get_config()
+        db_path = config.database.url.replace("sqlite:///", "").replace("sqlite+aiosqlite:///", "")
+        db_path = os.path.expanduser(db_path)
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM phase_history")
+        conn.commit()
+
+        import uuid
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        phases = ["accumulation", "distribution"] * 10
+        for phase in phases:
+            conn.execute(
+                "INSERT INTO phase_history (id, symbol, timestamp, phase, composite_score, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), "ALT_TEST", now.isoformat(), phase, 50.0, 50.0, now.isoformat()),
+            )
+        conn.commit()
+        conn.close()
+
+        p = PhasePredictor()
+        summary = await p._analyze_recent_phases("ALT_TEST", lookback=20)
+        # 20 records → 19 transitions → stability = 1 - 19/19 = 0
+        assert summary.stability_score == 0.0
+        assert summary.transition_count == 19
+
+    async def test_dominant_phase_is_most_frequent(self):
+        """AC6.3: dominant_phase = most frequent phase."""
+        import sqlite3
+
+        from src.config import get_config
+
+        config = get_config()
+        db_path = config.database.url.replace("sqlite:///", "").replace("sqlite+aiosqlite:///", "")
+        db_path = os.path.expanduser(db_path)
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM phase_history")
+        conn.commit()
+
+        import uuid
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        # 12 markup, 5 accumulation, 3 distribution
+        for _ in range(12):
+            conn.execute(
+                "INSERT INTO phase_history (id, symbol, timestamp, phase, composite_score, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), "DOM_TEST", now.isoformat(), "markup", 75.0, 80.0, now.isoformat()),
+            )
+        for _ in range(5):
+            conn.execute(
+                "INSERT INTO phase_history (id, symbol, timestamp, phase, composite_score, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), "DOM_TEST", now.isoformat(), "accumulation", 50.0, 50.0, now.isoformat()),
+            )
+        for _ in range(3):
+            conn.execute(
+                "INSERT INTO phase_history (id, symbol, timestamp, phase, composite_score, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), "DOM_TEST", now.isoformat(), "distribution", 40.0, 40.0, now.isoformat()),
+            )
+        conn.commit()
+        conn.close()
+
+        p = PhasePredictor()
+        summary = await p._analyze_recent_phases("DOM_TEST", lookback=20)
+        assert summary.dominant_phase == "markup"

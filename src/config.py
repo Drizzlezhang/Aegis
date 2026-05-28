@@ -111,6 +111,12 @@ class PhaseConfig(BaseModel):
         description="Minimum bars between phase transitions to avoid whipsaw signals",
     )
 
+    # Composite score smoothing
+    composite_smoothing_alpha: float = Field(
+        default=0.3, ge=0, le=1,
+        description="EMA smoothing alpha for composite_score. 0=disabled (keep raw), 1=no smoothing",
+    )
+
     # Technical indicator periods
     adx_period: int = Field(default=14, ge=7, le=30, description="ADX calculation period")
     rsi_period: int = Field(default=14, ge=7, le=30, description="RSI calculation period")
