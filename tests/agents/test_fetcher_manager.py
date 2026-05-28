@@ -13,6 +13,7 @@ from src.agents.data_harvester.base_fetcher import BaseFetcher, FetcherHealth, F
 from src.agents.data_harvester.fetcher_manager import (
     BACKOFF_INITIAL,
     CIRCUIT_FAILURE_THRESHOLD,
+    BreakerState,
     CircuitStatus,
     DataFetcherManager,
 )
@@ -270,3 +271,47 @@ async def test_cache_ttl_expiry(config, healthy_fetcher):
 
     result2 = await manager.fetch_ohlcv("AAPL")
     assert healthy_fetcher.ohlcv_calls == 2
+
+
+# --- Breaker States (B2) ---
+
+def test_get_breaker_states_initial(config, healthy_fetcher):
+    """初始状态所有断路器为 closed。"""
+    manager = DataFetcherManager([healthy_fetcher], config)
+    states = manager.get_breaker_states()
+
+    assert "healthy" in states
+    bs = states["healthy"]
+    assert isinstance(bs, BreakerState)
+    assert bs.provider == "healthy"
+    assert bs.state == "closed"
+    assert bs.failure_count == 0
+    assert bs.last_failure_at is None
+    assert bs.next_retry_at is None
+
+
+@pytest.mark.asyncio
+async def test_get_breaker_states_open(config):
+    """触发 3 次失败后断路器状态变 open。"""
+    fetcher = MockFetcher(name="flaky", priority=10, should_fail=True)
+    manager = DataFetcherManager([fetcher], config)
+
+    for _ in range(CIRCUIT_FAILURE_THRESHOLD):
+        await manager.fetch_ohlcv("QQQ")
+
+    states = manager.get_breaker_states()
+    bs = states["flaky"]
+    assert bs.state == "open"
+    assert bs.failure_count == CIRCUIT_FAILURE_THRESHOLD
+    assert bs.last_failure_at is not None
+    assert bs.next_retry_at is not None
+
+
+def test_get_breaker_states_multiple_fetchers(config, healthy_fetcher, failing_fetcher):
+    """多个 fetcher 各自返回独立状态。"""
+    manager = DataFetcherManager([healthy_fetcher, failing_fetcher], config)
+    states = manager.get_breaker_states()
+
+    assert len(states) == 2
+    assert "healthy" in states
+    assert "failing" in states

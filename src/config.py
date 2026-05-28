@@ -28,6 +28,10 @@ class DataSourceConfig(BaseModel):
     tiger_enabled: bool = False
     cache_ttl_seconds: int = 300  # 5 minutes
     circuit_breaker_threshold: int = 3
+    cross_validation_threshold: float = 0.005  # B1: 0.5% max close deviation
+    gap_threshold_bars: int = 1                # B3: min gap bars to flag
+    historical_cache_max_mb: int = 500         # B4: max cache size in MB
+    health_score_window_size: int = 100        # B5: sliding window for health scoring
 
 
 class ProviderCredential(BaseModel):

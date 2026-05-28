@@ -27,6 +27,7 @@ from .routes import analysis, backtest, market, memory, metrics, notifications, 
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
 from .routes import auth
+from .routes import data_routes
 from .routes import scheduler as scheduler_routes
 from .routes import tracking as tracking_routes
 from .routes import watchlist as watchlist_routes
@@ -204,6 +205,7 @@ app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(data_routes.router)
 
 
 @app.get("/api/health")

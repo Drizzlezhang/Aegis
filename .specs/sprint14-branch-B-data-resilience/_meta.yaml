@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint14-branch-B-data-resilience"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-05-28T12:00:00+08:00"
+updated_at: "2026-05-28T12:45:00+08:00"
+retry_count: 0
+last_tldr: "6-SHIP: 5 commits, 79 tests pass, 16/16 AC met, ready to push"
+last_next: "push to remote + merge to master"
+last_risk: "ruff/mypy not installed (consistent with project state)"
+last_progress_note: "6-SHIP: committed in 5 logical commits, all tests green"
+last_context_mode: "full"
+last_verified_at: "2026-05-28T12:40:00+08:00"

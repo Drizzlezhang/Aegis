@@ -131,6 +131,22 @@ async def reload_config_cmd() -> None:
     print(f"配置已重新加载，环境: {config.environment}")
 
 
+async def run_health_check(args: argparse.Namespace) -> None:
+    """运行数据健康自检."""
+    from src.cli.health_check import HealthCheckRunner
+
+    config = get_config()
+    runner = HealthCheckRunner(config)
+    report = await runner.run_all()
+
+    if args.json:
+        print(HealthCheckRunner.format_json(report))
+    else:
+        print(HealthCheckRunner.format_table(report))
+
+    sys.exit(report.exit_code)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Aegis-Trader - Multi-Agent quant trading system",
@@ -189,6 +205,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     # health 命令
     subparsers.add_parser("health", help="检查系统健康状态")
+
+    # health-check 命令
+    health_check_parser = subparsers.add_parser("health-check", help="数据健康自检")
+    health_check_parser.add_argument(
+        "target",
+        choices=["data"],
+        help="检查目标: data (数据层健康)",
+    )
+    health_check_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="以 JSON 格式输出",
+    )
 
     # status 命令
     subparsers.add_parser("status", help="显示系统状态")
@@ -277,6 +306,9 @@ async def main_async() -> None:
 
     elif args.command == "health":
         await check_health()
+
+    elif args.command == "health-check":
+        await run_health_check(args)
 
     elif args.command == "status":
         await show_status()
