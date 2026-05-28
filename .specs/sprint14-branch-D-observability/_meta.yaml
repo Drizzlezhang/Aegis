@@ -1,9 +1,9 @@
 schema_version: 2
 change_id: "sprint14-branch-D-observability"
 size: "S"
-stages: ["0-CHANGE", "1-SPEC", "4-BUILD", "5-VERIFY"]
-current_stage: "5-VERIFY"
-status: "active"
+stages: ["0-CHANGE", "1-SPEC", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "completed"
 created_at: "2026-05-28T11:10:00+08:00"
 updated_at: "2026-05-28T11:35:00+08:00"
 retry_count: 0
