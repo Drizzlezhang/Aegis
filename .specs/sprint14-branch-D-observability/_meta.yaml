@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint14-branch-D-observability"
+size: "S"
+stages: ["0-CHANGE", "1-SPEC", "4-BUILD", "5-VERIFY"]
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-05-28T11:10:00+08:00"
+updated_at: "2026-05-28T11:35:00+08:00"
+retry_count: 0
+last_tldr: "5-VERIFY: 33/33 新增测试通过，11/11 AC 全部通过，ruff clean，mypy 无新增错误"
+last_next: "进入 6-SHIP，commit + push + merge to master"
+last_risk: "prometheus_client 为 optional dependency，CI 需安装 metrics extra"
+last_progress_note: "5-VERIFY: 33 new tests pass, 852 collected 0 errors, all ACs met"
+last_context_mode: "full"
+last_verified_at: "2026-05-28T11:35:00+08:00"

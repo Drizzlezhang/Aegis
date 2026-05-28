@@ -1,0 +1,42 @@
+rules:
+  - name: low_phase_confidence
+    event_type: PhaseEvent
+    condition: ".confidence < 30"
+    cooldown_seconds: 300
+    severity: warning
+    channels: [telegram]
+
+  - name: critical_phase_confidence
+    event_type: PhaseEvent
+    condition: ".confidence < 15"
+    cooldown_seconds: 120
+    severity: critical
+    channels: [telegram]
+
+  - name: phase_transition_detected
+    event_type: PhaseEvent
+    condition: ".transition != None"
+    cooldown_seconds: 600
+    severity: info
+    channels: [telegram]
+
+  - name: data_fetch_failure
+    event_type: DataEvent
+    condition: ".success == False"
+    cooldown_seconds: 180
+    severity: error
+    channels: [telegram]
+
+  - name: high_composite_score
+    event_type: PhaseEvent
+    condition: ".composite_score > 80"
+    cooldown_seconds: 900
+    severity: info
+    channels: [telegram]
+
+  - name: data_fetch_slow
+    event_type: DataEvent
+    condition: ".duration_ms > 5000"
+    cooldown_seconds: 300
+    severity: warning
+    channels: [telegram]

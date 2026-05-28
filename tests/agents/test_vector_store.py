@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("chromadb")
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.aegis_memory.vector_store import VectorStore

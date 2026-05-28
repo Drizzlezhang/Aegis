@@ -1,6 +1,8 @@
 """Metrics API endpoint."""
 
 from fastapi import APIRouter, Request
+from fastapi.responses import PlainTextResponse
+
 from src.llm.gateway import get_gateway
 from src.observability.metrics import get_pipeline_metrics
 
@@ -17,6 +19,16 @@ async def get_metrics(request: Request) -> dict:
         "llm": gateway._metrics.snapshot() if gateway else {},
         "pipeline": pipeline_data,
     }
+
+
+@router.get("/metrics/prometheus", response_class=PlainTextResponse)
+async def get_prometheus_metrics() -> str:
+    """返回 Prometheus 文本格式指标（供 Prometheus 抓取）。"""
+    try:
+        from src.services.metrics import get_metrics_text
+        return get_metrics_text()
+    except ImportError:
+        return "# prometheus_client not installed\n"
 
 
 @router.get("/metrics/health")

@@ -65,6 +65,9 @@ memory = [
     "chromadb>=0.4.22",
     "sentence-transformers>=2.2.0",
 ]
+metrics = [
+    "prometheus-client>=0.16.0",
+]
 
 [project.scripts]
 aegis-trader = "src.cli:main"
