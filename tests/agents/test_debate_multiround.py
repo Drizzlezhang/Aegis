@@ -37,7 +37,7 @@ class FakeJudge:
     def __init__(self):
         self.rounds = None
 
-    async def evaluate_rounds(self, rounds, symbol):
+    async def evaluate_rounds(self, rounds, symbol, state=None):
         self.rounds = rounds
         return JudgeVerdict(
             rating=InvestmentRating.BUY,

@@ -1,8 +1,12 @@
 """Market context integration for Strategy-Execution Agent."""
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from src.models import MarketIndex
+
+if TYPE_CHECKING:
+    from src.agents.debate.phase_evidence import PhaseEvidence
 
 
 @dataclass
@@ -139,3 +143,34 @@ def format_strategy_market_summary(ctx: StrategyMarketContext) -> str:
         lines.append(f"\nWARNING: {ctx.risk_warning}")
 
     return "\n".join(lines)
+
+
+def adjust_position_for_phase(
+    base_position_size: float,
+    phase_evidence: "PhaseEvidence | None",
+) -> float:
+    """Adjust position size based on Wyckoff phase signal.
+
+    Args:
+        base_position_size: Original position size from strategy.
+        phase_evidence: PhaseEvidence from PhasePredictor, or None.
+
+    Returns:
+        Adjusted position size.
+    """
+    if phase_evidence is None:
+        return base_position_size
+
+    multipliers = {
+        "long": 1.2,
+        "reduce": 0.5,
+        "short": 0.3,
+        "neutral": 0.8,
+    }
+    multiplier = multipliers.get(phase_evidence.position_bias, 1.0)
+
+    # Confidence modulation: low confidence → multiplier closer to 1.0
+    confidence_mod = phase_evidence.confidence / 100.0
+    adjusted_multiplier = 1.0 + (multiplier - 1.0) * confidence_mod
+
+    return base_position_size * adjusted_multiplier

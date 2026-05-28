@@ -1,10 +1,11 @@
 """InvestmentJudge — 辩论仲裁。纯规则引擎。"""
 
+from src.models import AgentState
 from src.models.debate import (
     DebateArgument,
     DebateRound,
-    JudgeVerdict,
     InvestmentRating,
+    JudgeVerdict,
 )
 
 POSITIVE_KEYWORDS = ["估值便宜", "估值低于"]
@@ -18,11 +19,12 @@ class InvestmentJudge:
         self,
         rounds: list[DebateRound],
         symbol: str,
+        state: AgentState | None = None,
     ) -> JudgeVerdict:
         if not rounds:
             raise ValueError("rounds must not be empty")
         if len(rounds) == 1:
-            return await self.evaluate(rounds[0].bull_argument, rounds[0].bear_argument, symbol)
+            return await self.evaluate(rounds[0].bull_argument, rounds[0].bear_argument, symbol, state=state)
 
         scores = self._score_debate_quality(rounds)
         return self._derive_verdict(scores, rounds, symbol)
@@ -32,8 +34,14 @@ class InvestmentJudge:
         bull: DebateArgument,
         bear: DebateArgument,
         symbol: str,
+        state: AgentState | None = None,
     ) -> JudgeVerdict:
         delta = bull.confidence - bear.confidence
+
+        # Phase weight bonus
+        if state is not None:
+            bonus = self._calculate_phase_weight_bonus(state)
+            delta += bonus["bull_bonus"] - bonus["bear_bonus"]
 
         # Bonus/penalty
         for kw in POSITIVE_KEYWORDS:
@@ -158,3 +166,35 @@ class InvestmentJudge:
         if rating in (InvestmentRating.SELL, InvestmentRating.STRONG_SELL):
             return ["Consider reducing or exiting position", "Review risk exposure"]
         return []
+
+    def _calculate_phase_weight_bonus(self, state: AgentState) -> dict[str, float]:
+        """Calculate bonus weight for bull/bear based on phase confidence.
+
+        Only applies when confidence >= 40. Max bonus is ±10% for bull/bear.
+        Transition signal adds extra +5% if direction matches.
+        """
+        if not state.trend_phase_result:
+            return {"bull_bonus": 0.0, "bear_bonus": 0.0}
+
+        result = state.trend_phase_result
+        if result.confidence < 40:
+            return {"bull_bonus": 0.0, "bear_bonus": 0.0}
+
+        confidence_factor = (result.confidence - 40) / 60  # 0-1 scale
+
+        bull_bonus = 0.0
+        bear_bonus = 0.0
+
+        if result.composite_score > 60:
+            bull_bonus = confidence_factor * 0.10
+        elif result.composite_score < 40:
+            bear_bonus = confidence_factor * 0.10
+
+        # Transition signal bonus
+        if result.transition:
+            if "markup" in result.transition or "accumulation" in result.transition:
+                bull_bonus += 0.05
+            elif "markdown" in result.transition or "distribution" in result.transition:
+                bear_bonus += 0.05
+
+        return {"bull_bonus": bull_bonus, "bear_bonus": bear_bonus}

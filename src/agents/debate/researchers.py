@@ -5,7 +5,8 @@ import logging
 from src.models import AgentState
 from src.models.debate import DebateArgument, DebateRole
 
-from .report_parser import extract_technical_grade, extract_macro_regime
+from .phase_evidence import generate_phase_evidence
+from .report_parser import extract_macro_regime, extract_technical_grade
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,24 @@ class BullResearcher:
             count = len(state.recommended_options)
             evidence.append(f"存在 {count} 个推荐策略，多策略共振")
             confidence += 0.05 * min(count, 3)
+
+        # 6. Wyckoff Phase Evidence
+        if state.trend_phase_result:
+            pe = generate_phase_evidence(state.trend_phase_result)
+            if pe.bull_factors:
+                evidence.extend(pe.bull_factors)
+                confidence += 0.03 * len(pe.bull_factors)
+            if pe.position_bias == "long":
+                evidence.append(f"Wyckoff Phase: {pe.phase.value} (score={pe.composite_score:.0f}, bias={pe.position_bias})")
+                confidence += 0.08
+            elif pe.position_bias == "reduce":
+                risks.append(f"Wyckoff Phase: {pe.phase.value} — distribution warning")
+                confidence -= 0.05
+            elif pe.position_bias == "short":
+                risks.append(f"Wyckoff Phase: {pe.phase.value} — markdown signal")
+                confidence -= 0.08
+            if pe.transition_signal:
+                evidence.append(f"Phase Transition: {pe.transition_signal}")
 
         confidence = max(0.1, min(1.0, confidence))
 
@@ -145,6 +164,24 @@ class BearResearcher:
             premium = getattr(state.valuation_range, "premium_to_fair", 0)
             evidence.append(f"估值高于 fair value，premium={premium:.1f}%")
             confidence += 0.1
+
+        # 6. Wyckoff Phase Evidence
+        if state.trend_phase_result:
+            pe = generate_phase_evidence(state.trend_phase_result)
+            if pe.bear_factors:
+                evidence.extend(pe.bear_factors)
+                confidence += 0.03 * len(pe.bear_factors)
+            if pe.position_bias == "short":
+                evidence.append(f"Wyckoff Phase: {pe.phase.value} (score={pe.composite_score:.0f}, bias={pe.position_bias})")
+                confidence += 0.08
+            elif pe.position_bias == "reduce":
+                evidence.append(f"Wyckoff Phase: {pe.phase.value} — distribution signal")
+                confidence += 0.05
+            elif pe.position_bias == "long":
+                risks.append(f"Wyckoff Phase: {pe.phase.value} — bullish phase, contradicts bearish view")
+                confidence -= 0.05
+            if pe.transition_signal:
+                evidence.append(f"Phase Transition: {pe.transition_signal}")
 
         confidence = max(0.1, min(1.0, confidence))
 

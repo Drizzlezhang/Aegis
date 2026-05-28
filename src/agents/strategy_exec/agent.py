@@ -9,7 +9,7 @@ from src.models import AgentState
 from src.models.debate import JudgeVerdict
 
 from .anti_whipsaw import AntiWhipsaw
-from .market_context import analyze_strategy_market_context
+from .market_context import adjust_position_for_phase, analyze_strategy_market_context
 from .report import create_action_report
 from .strategies import discover_strategies
 
@@ -65,6 +65,19 @@ class StrategyExecAgent(BaseAgent):
             return state
 
         market_context = analyze_strategy_market_context(state.market_indices)
+
+        # Phase-aware position sizing
+        if state.trend_phase_result:
+            from src.agents.debate.phase_evidence import generate_phase_evidence
+            pe = generate_phase_evidence(state.trend_phase_result)
+            phase_adjusted = adjust_position_for_phase(market_context.position_size_factor, pe)
+            logger.info(
+                f"Phase position adjustment: bias={pe.position_bias}, "
+                f"confidence={pe.confidence:.0f}, "
+                f"factor={market_context.position_size_factor:.2f}→{phase_adjusted:.2f}"
+            )
+            market_context.position_size_factor = phase_adjusted
+
         if market_context.vix_level is not None:
             logger.info(
                 f"Strategy context for {symbol}: VIX={market_context.vix_level:.2f}, "

@@ -38,6 +38,15 @@ class DebateAgent(BaseAgent):
         """执行投资辩论。"""
         start = time.time()
 
+        # Phase evidence availability log
+        if state.trend_phase_result:
+            logger.info(
+                f"Phase evidence available: phase={state.trend_phase_result.phase.value}, "
+                f"confidence={state.trend_phase_result.confidence:.1f}"
+            )
+        else:
+            logger.info("No phase evidence available, proceeding without phase context")
+
         max_rounds = max(1, int(self.config.get("max_rounds", 1)))
         confidence_threshold = float(self.config.get("early_stop_confidence", 0.85))
 
@@ -65,7 +74,7 @@ class DebateAgent(BaseAgent):
         final_round = rounds[-1]
         bull_arg = final_round.bull_argument
         bear_arg = final_round.bear_argument
-        verdict = await self._judge.evaluate_rounds(rounds, state.symbol)
+        verdict = await self._judge.evaluate_rounds(rounds, state.symbol, state=state)
         result = DebateResult(
             symbol=state.symbol,
             debate_type="investment",

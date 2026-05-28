@@ -66,6 +66,7 @@ class PhasePredictor:
         self._thresholds = config.thresholds
         self._rsi_state: dict[str, float] = {}
         self._last_phase: WyckoffPhase | None = None
+        self._bars_since_last_transition: int = 0
 
     async def predict(
         self,
@@ -146,11 +147,22 @@ class PhasePredictor:
         # Blend phase confidence with dimension agreement confidence
         confidence = (dim_confidence + phase_conf) / 2.0
 
-        # Detect phase transition
+        # Detect phase transition with cooldown
         transition: str | None = None
+        self._bars_since_last_transition += 1
+
         if self._last_phase is not None and phase != self._last_phase:
-            transition = f"{self._last_phase.value}→{phase.value}"
-        self._last_phase = phase
+            cooldown = self._config.phase_transition_cooldown_bars
+            if self._bars_since_last_transition >= cooldown:
+                transition = f"{self._last_phase.value}→{phase.value}"
+                self._bars_since_last_transition = 0
+                self._last_phase = phase
+            else:
+                # Within cooldown — suppress transition, keep last phase
+                phase = self._last_phase
+        elif self._last_phase is None:
+            self._last_phase = phase
+            self._bars_since_last_transition = 0
 
         return TrendPhaseResult(
             phase=phase,
