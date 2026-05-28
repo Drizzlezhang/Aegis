@@ -21,6 +21,109 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _get_scheduler():
+    """Create a scheduler instance connected to the persistent jobstore for CLI ops."""
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+    from src.config import get_config
+    from src.scheduler.engine import _build_jobstores
+    config = get_config().scheduler
+    jobstores = _build_jobstores()
+    return AsyncIOScheduler(jobstores=jobstores, timezone=config.timezone)
+
+
+async def scheduler_ls() -> None:
+    """List all registered scheduler jobs."""
+    try:
+        sched = _get_scheduler()
+        sched.start()
+        try:
+            jobs = sched.get_jobs()
+            if not jobs:
+                print("No jobs registered")
+                return
+            print(f"{'JOB ID':<30} {'NEXT RUN':<30} {'TRIGGER'}")
+            print("-" * 80)
+            for j in jobs:
+                print(f"{j.id:<30} {str(j.next_run_time) if j.next_run_time else 'N/A':<30} {str(j.trigger)}")
+        finally:
+            sched.shutdown(wait=False)
+    except Exception as e:
+        print(f"Scheduler not running: {e}")
+        sys.exit(1)
+
+
+async def scheduler_pause(job_id: str) -> None:
+    """Pause a scheduler job."""
+    try:
+        sched = _get_scheduler()
+        sched.start()
+        try:
+            sched.pause_job(job_id)
+            print(f"Job '{job_id}' paused")
+        finally:
+            sched.shutdown(wait=False)
+    except Exception as e:
+        print(f"Failed to pause job '{job_id}': {e}")
+        sys.exit(1)
+
+
+async def scheduler_resume(job_id: str) -> None:
+    """Resume a scheduler job."""
+    try:
+        sched = _get_scheduler()
+        sched.start()
+        try:
+            sched.resume_job(job_id)
+            print(f"Job '{job_id}' resumed")
+        finally:
+            sched.shutdown(wait=False)
+    except Exception as e:
+        print(f"Failed to resume job '{job_id}': {e}")
+        sys.exit(1)
+
+
+async def scheduler_trigger(job_id: str) -> None:
+    """Manually trigger a scheduler job."""
+    from datetime import datetime
+    try:
+        sched = _get_scheduler()
+        sched.start()
+        try:
+            job = sched.get_job(job_id)
+            if job is None:
+                print(f"Job '{job_id}' not found")
+                sys.exit(1)
+            sched.modify_job(job_id, next_run_time=datetime.now())
+            print(f"Job '{job_id}' triggered")
+        finally:
+            sched.shutdown(wait=False)
+    except Exception as e:
+        print(f"Failed to trigger job '{job_id}': {e}")
+        sys.exit(1)
+
+
+async def scheduler_history() -> None:
+    """Show recent scheduler execution history."""
+    from src.scheduler.history import get_session, list_history
+    try:
+        session = get_session()
+        items = list_history(session, limit=20)
+        session.close()
+        if not items:
+            print("No execution history")
+            return
+        print(f"{'ID':<6} {'JOB ID':<30} {'STATUS':<10} {'START':<28} {'DUR(ms)'}")
+        print("-" * 90)
+        for item in items:
+            dur = str(item['duration_ms']) if item['duration_ms'] is not None else '-'
+            print(f"{item['id']:<6} {item['job_id']:<30} {item['status']:<10} "
+                  f"{item['start_at'] or '':<28} {dur}")
+    except Exception as e:
+        print(f"Failed to read history: {e}")
+        sys.exit(1)
+
+
 async def run_analysis(
     symbols: list[str],
     analysis_type: str = "full",
@@ -247,6 +350,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="开发模式自动重载"
     )
 
+    # scheduler 命令
+    scheduler_parser = subparsers.add_parser("scheduler", help="调度器管理")
+    scheduler_sub = scheduler_parser.add_subparsers(dest="scheduler_action", help="操作")
+
+    scheduler_sub.add_parser("ls", help="列出所有已注册任务")
+
+    pause_parser = scheduler_sub.add_parser("pause", help="暂停指定任务")
+    pause_parser.add_argument("job_id", help="任务 ID")
+
+    resume_parser = scheduler_sub.add_parser("resume", help="恢复指定任务")
+    resume_parser.add_argument("job_id", help="任务 ID")
+
+    trigger_parser = scheduler_sub.add_parser("trigger", help="手动触发任务")
+    trigger_parser.add_argument("job_id", help="任务 ID")
+
+    scheduler_sub.add_parser("history", help="显示最近执行历史")
+
     return parser
 
 
@@ -329,6 +449,21 @@ async def main_async() -> None:
             port=args.port,
             reload=args.reload,
         )
+
+    elif args.command == "scheduler":
+        if not args.scheduler_action:
+            print("Usage: aegis scheduler {ls|pause|resume|trigger|history} [args]")
+            return
+        if args.scheduler_action == "ls":
+            await scheduler_ls()
+        elif args.scheduler_action == "pause":
+            await scheduler_pause(args.job_id)
+        elif args.scheduler_action == "resume":
+            await scheduler_resume(args.job_id)
+        elif args.scheduler_action == "trigger":
+            await scheduler_trigger(args.job_id)
+        elif args.scheduler_action == "history":
+            await scheduler_history()
 
 
 def main() -> None:

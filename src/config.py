@@ -234,6 +234,13 @@ class RealtimeConfig(BaseModel):
     stale_threshold_seconds: float = 60.0
     max_subscribers: int = 50
     symbols: list[str] = Field(default_factory=list)
+    subscriber_queue_size: int = 1000
+    backpressure_strategy: str = "drop_oldest"  # drop_oldest | throttle | block
+    heartbeat_interval_seconds: float = 30.0
+    heartbeat_timeout_seconds: float = 10.0
+    max_reconnect_attempts: int = 5
+    reconnect_base_delay: float = 1.0
+    reconnect_max_delay: float = 60.0
 
 
 class WatchlistConfig(BaseModel):
@@ -250,6 +257,8 @@ class SchedulerConfig(BaseModel):
     max_concurrent_analyses: int = 3
     retry_on_failure: bool = True
     max_retries: int = 2
+    persistent_jobstore: bool = True
+    history_retention_days: int = 30
 
 
 class TelegramConfig(BaseModel):
