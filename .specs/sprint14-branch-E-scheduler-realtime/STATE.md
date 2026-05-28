@@ -4,11 +4,11 @@
 - **change_id**: sprint14-branch-E-scheduler-realtime
 - **size**: M
 - **current_stage**: 6-SHIP
-- **status**: in_progress
-- **updated_at**: 2026-05-28T12:45:00+08:00
+- **status**: completed
+- **updated_at**: 2026-05-28T12:55:00+08:00
 
 ## Next Action
-完成 6-SHIP：commit + push + merge to master
+已完成：commit + push + merge to master
 
 ## Open Questions
 - [x] SQLAlchemyJobStore 与现有 sqlite db 并发写入是否需独立 db 文件 → 复用现有 DB，SQLite WAL 模式已缓解锁竞争
