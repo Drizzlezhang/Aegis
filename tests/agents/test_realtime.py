@@ -2,8 +2,8 @@
 
 import asyncio
 import time
-import pytest
-from src.agents.data_harvester.realtime import RealtimeManager, PriceUpdate
+
+from src.agents.data_harvester.realtime import PriceUpdate, RealtimeManager
 
 
 def make_update(symbol="NVDA", price=135.0, source="yfinance", age_seconds=0.0):
@@ -41,16 +41,16 @@ class TestRealtimeManager:
         asyncio.run(mgr.publish(update))
         assert mgr.get_latest("NVDA") is None
 
-    def test_queue_full_silently_drops(self):
+    def test_queue_full_drop_oldest(self):
         mgr = RealtimeManager()
 
         async def test():
             q = mgr.subscribe(max_queue_size=1)
             await mgr.publish(make_update(price=100.0))
             await mgr.publish(make_update(price=200.0))
-            # 第二个 publish 应静默丢弃，不抛异常
+            # drop_oldest: oldest (100.0) is discarded, newest (200.0) is kept
             first = await asyncio.wait_for(q.get(), timeout=1.0)
-            assert first.price == 100.0
+            assert first.price == 200.0
 
         asyncio.run(test())
 
