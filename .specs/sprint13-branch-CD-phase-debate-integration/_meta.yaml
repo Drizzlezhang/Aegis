@@ -1,11 +1,11 @@
 schema_version: 2
 change_id: "sprint13-branch-CD-phase-debate-integration"
 size: "M"
-stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY"]
-current_stage: "5-VERIFY"
-status: "active"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "6-SHIP"
+status: "completed"
 created_at: "2026-05-28T10:00:00+08:00"
-updated_at: "2026-05-28T11:00:00+08:00"
+updated_at: "2026-05-28T11:05:00+08:00"
 retry_count: 0
 last_tldr: "Phase→Debate 桥接 + Strategy 仓位调整 + Cooldown，7 waves，25 集成测试全部通过"
 last_next: "进入 6-SHIP，commit + push + merge to master"
