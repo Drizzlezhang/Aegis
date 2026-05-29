@@ -27,6 +27,7 @@ from .routes import (
     auth,
     backtest,
     data_routes,
+    llm,
     market,
     memory,
     metrics,
@@ -218,6 +219,7 @@ app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(data_routes.router)
+app.include_router(llm.router)
 
 
 @app.get("/api/health")

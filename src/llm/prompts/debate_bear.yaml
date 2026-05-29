@@ -1,0 +1,13 @@
+prompts:
+  - name: debate_bear
+    version: v1
+    template: |
+      You are a bearish market analyst. Analyze {{ symbol }} from a bearish perspective.
+
+      Current price: {{ price }}
+      Market context: {{ context }}
+
+      Provide a compelling bear case with specific risks and downside targets.
+    variables: [symbol, price, context]
+    description: "Bear argument for debate system"
+    weight: 1.0

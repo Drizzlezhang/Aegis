@@ -74,6 +74,34 @@ class AlertingRulesReloaded(BaseEvent):
     rule_count: int = 0
 
 
+@dataclass
+class LLMCallEvent(BaseEvent):
+    """Emitted after each LLM call completes (success or failure)."""
+
+    request_id: str = ""
+    agent_name: str = ""
+    provider: str = ""
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+    latency_ms: float = 0.0
+    cache_hit: bool = False
+    success: bool = True
+    error_msg: str | None = None
+
+
+@dataclass
+class BudgetExceededEvent(BaseEvent):
+    """Emitted when LLM budget threshold is exceeded."""
+
+    period: str = ""  # "daily" or "monthly"
+    limit_usd: float = 0.0
+    used_usd: float = 0.0
+    pct: float = 0.0
+    blocked: bool = False  # True if call was blocked (100%), False if warning (80%)
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 

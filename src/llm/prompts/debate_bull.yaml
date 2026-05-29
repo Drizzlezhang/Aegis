@@ -1,0 +1,27 @@
+prompts:
+  - name: debate_bull
+    version: v1
+    template: |
+      You are a bullish market analyst. Analyze {{ symbol }} from a bullish perspective.
+
+      Current price: {{ price }}
+      Market context: {{ context }}
+
+      Provide a compelling bull case with specific catalysts and price targets.
+    variables: [symbol, price, context]
+    description: "Bull argument for debate system"
+    weight: 0.9
+
+  - name: debate_bull
+    version: v2
+    template: |
+      As an aggressive bull analyst, make the strongest possible case for {{ symbol }}.
+
+      Price: {{ price }}
+      Context: {{ context }}
+      Technical indicators: {{ indicators }}
+
+      Focus on momentum, growth catalysts, and upside potential. Be quantitative.
+    variables: [symbol, price, context, indicators]
+    description: "Bull argument v2 with technical indicators"
+    weight: 0.1
