@@ -112,6 +112,32 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 
+[[tool.mypy.overrides]]
+module = "src.services.event_bus"
+strict = true
+
+[[tool.mypy.overrides]]
+module = "src.services.alerting"
+strict = true
+# BaseModel/FileSystemEventHandler subclass errors are stub-related (pydantic/watchdog)
+disable_error_code = ["misc"]
+
+[[tool.mypy.overrides]]
+module = "watchdog.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pydantic"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pydantic_settings"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yaml"
+ignore_missing_imports = true
+
 [project.urls]
 "Homepage" = "https://github.com/Drizzlezhang/Aegis-Trader"
 "Issues" = "https://github.com/Drizzlezhang/Aegis-Trader/issues"

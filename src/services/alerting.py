@@ -494,18 +494,18 @@ class AlertEngine:
         bus = self._bus
 
         class _RulesFileHandler(FileSystemEventHandler):
-            def __init__(self):
+            def __init__(self) -> None:
                 self._debounce_task: asyncio.Task[None] | None = None
 
-            def on_modified(self, event):
-                if event.src_path.endswith(rules_path.name):
+            def on_modified(self, event: Any) -> None:
+                if event.src_path.endswith(str(rules_path)):
                     if self._debounce_task is not None:
                         self._debounce_task.cancel()
                     self._debounce_task = asyncio.ensure_future(
                         self._reload_after_debounce()
                     )
 
-            async def _reload_after_debounce(self):
+            async def _reload_after_debounce(self) -> None:
                 await asyncio.sleep(1.0)  # debounce 1s
                 try:
                     new_rules = load_rules_from_yaml(rules_path)
@@ -540,5 +540,5 @@ def load_rules_from_yaml(path: str | Path) -> list[AlertRule]:
     """Load alert rules from a YAML file."""
     with open(path) as f:
         data = yaml.safe_load(f)
-    config = AlertRulesConfig.model_validate(data)
+    config: AlertRulesConfig = AlertRulesConfig.model_validate(data)
     return config.rules
