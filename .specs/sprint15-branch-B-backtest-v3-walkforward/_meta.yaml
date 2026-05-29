@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint15-branch-B-backtest-v3-walkforward"
+size: "L"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "4-BUILD"
+status: "active"
+created_at: "2026-05-29T10:00:00+08:00"
+updated_at: "2026-05-29T11:20:00+08:00"
+retry_count: 0
+last_tldr: "4-BUILD Wave 1 完成：T01-T06（CostModel + Walk-Forward + Timeframe），35 测试 PASS"
+last_next: "Wave 2: T07 Position Sizers"
+last_risk: "Walk-forward 性能可能不达标（>10min/年），T16 需提前验证"
+last_progress_note: "Wave 1 done (35/35), Wave 2 T07 进行中"
+last_context_mode: "full"
+last_verified_at: ""

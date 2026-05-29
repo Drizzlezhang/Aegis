@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime as dt
 from typing import Any
 
 from src.models.backtest import (
@@ -16,6 +16,15 @@ from src.models.backtest import (
 logger = logging.getLogger(__name__)
 
 
+def _to_date(ts: Any) -> date:
+    """Convert a timestamp to a date, handling both datetime and date objects."""
+    if isinstance(ts, dt):
+        return ts.date()
+    if isinstance(ts, date):
+        return ts
+    return ts.date()
+
+
 class BacktestRunner:
     """Run a full pipeline backtest over a historical date range.
 
@@ -23,17 +32,24 @@ class BacktestRunner:
     collects daily decisions, and simulates trades.
     """
 
+    _BULLISH_PHASES: frozenset[str] = frozenset({"accumulation", "markup", "re_accumulation"})
+    _BEARISH_PHASES: frozenset[str] = frozenset({"distribution", "markdown", "re_distribution"})
+
     def __init__(
         self,
         symbol: str,
         start: date,
         end: date,
         strategy_config: dict[str, Any] | None = None,
+        timeframe: str = "1d",
+        benchmark_symbol: str | None = None,
     ):
         self.symbol = symbol.upper()
-        self.start = start
-        self.end = end
+        self.start = _to_date(start)
+        self.end = _to_date(end)
         self.strategy_config = strategy_config or {}
+        self.timeframe = timeframe
+        self.benchmark_symbol = benchmark_symbol.upper() if benchmark_symbol else None
 
     async def run(
         self,
@@ -60,7 +76,7 @@ class BacktestRunner:
         # Filter by date range
         data = [
             d for d in ohlcv_data
-            if self.start <= d.timestamp.date() <= self.end
+            if self.start <= _to_date(d.timestamp) <= self.end
         ]
         if not data:
             return PipelineBacktestResult(
@@ -87,7 +103,8 @@ class BacktestRunner:
 
         for i, bar in enumerate(data):
             price = bar.close if hasattr(bar, "close") else 0
-            date_str = bar.timestamp.strftime("%Y-%m-%d")
+            bar_date = _to_date(bar.timestamp)
+            date_str = bar_date.isoformat()
 
             # Detect market phase
             prev_price = data[i - 1].close if i > 0 and hasattr(data[i - 1], "close") else None
@@ -154,7 +171,7 @@ class BacktestRunner:
         # Close any open position
         if position_open and current_trade:
             last_price = data[-1].close if hasattr(data[-1], "close") else 0
-            last_date = data[-1].timestamp.strftime("%Y-%m-%d")
+            last_date = _to_date(data[-1].timestamp).isoformat()
             last_phase, last_confidence = self._detect_phase(last_price, None, total_bars - 1, total_bars)
             proceeds = shares * last_price
             capital += proceeds
@@ -174,6 +191,11 @@ class BacktestRunner:
         from src.backtest.metrics import calculate_performance_report
         metrics = calculate_performance_report(equity_curve, trades)
 
+        # Calculate benchmark metrics if benchmark_symbol is set
+        benchmark_metrics = None
+        if self.benchmark_symbol and equity_curve:
+            benchmark_metrics = _calculate_benchmark_metrics(equity_curve)
+
         return PipelineBacktestResult(
             symbol=self.symbol,
             strategy="pipeline",
@@ -183,6 +205,7 @@ class BacktestRunner:
             trades=trades,
             metrics=metrics,
             daily_decisions=daily_decisions,
+            benchmark=benchmark_metrics,
         )
 
     def _simulate_decision(self, bar: Any, index: int, total: int) -> str:
@@ -237,13 +260,10 @@ class BacktestRunner:
 
         Bullish phases get >1.0, bearish get <1.0.
         """
-        bullish_phases = {"accumulation", "markup", "re_accumulation"}
-        bearish_phases = {"distribution", "markdown", "re_distribution"}
-
         base = 1.0
-        if phase in bullish_phases:
+        if phase in self._BULLISH_PHASES:
             base = 1.0 + (confidence / 100.0) * 0.5  # 1.0 - 1.5
-        elif phase in bearish_phases:
+        elif phase in self._BEARISH_PHASES:
             base = 1.0 - (confidence / 100.0) * 0.5  # 0.5 - 1.0
 
         return round(base, 2)
@@ -299,3 +319,78 @@ class MultiSymbolRunner:
         tasks = [_run_one(s) for s in self.symbols]
         results = await asyncio.gather(*tasks)
         return dict(zip(self.symbols, results, strict=False))
+
+
+def _calculate_benchmark_metrics(equity_curve: list[dict[str, Any]]) -> "BenchmarkMetrics":
+    """Calculate benchmark comparison metrics from equity curve.
+
+    Uses the built-in benchmark values stored in each equity curve point.
+    Computes alpha, beta, information ratio, and tracking error.
+
+    Args:
+        equity_curve: List of {"date", "value", "benchmark"} dicts.
+
+    Returns:
+        BenchmarkMetrics with alpha, beta, IR, TE.
+    """
+    from src.models.backtest import BenchmarkMetrics
+
+    if len(equity_curve) < 2:
+        return BenchmarkMetrics()
+
+    # Extract daily returns
+    strategy_returns: list[float] = []
+    benchmark_returns: list[float] = []
+
+    for i in range(1, len(equity_curve)):
+        prev_val = equity_curve[i - 1]["value"]
+        curr_val = equity_curve[i]["value"]
+        prev_bm = equity_curve[i - 1].get("benchmark", prev_val)
+        curr_bm = equity_curve[i].get("benchmark", curr_val)
+
+        if prev_val > 0:
+            strategy_returns.append((curr_val - prev_val) / prev_val)
+        if prev_bm > 0:
+            benchmark_returns.append((curr_bm - prev_bm) / prev_bm)
+
+    if not strategy_returns or not benchmark_returns:
+        return BenchmarkMetrics()
+
+    n = min(len(strategy_returns), len(benchmark_returns))
+    sr = strategy_returns[:n]
+    br = benchmark_returns[:n]
+
+    # Beta = Cov(s, b) / Var(b)
+    mean_s = sum(sr) / n
+    mean_b = sum(br) / n
+
+    cov = sum((s - mean_s) * (b - mean_b) for s, b in zip(sr, br, strict=False)) / n
+    var_b = sum((b - mean_b) ** 2 for b in br) / n
+
+    beta = cov / var_b if var_b > 0 else 1.0
+
+    # Alpha = mean_s - beta * mean_b (daily, annualized later)
+    alpha_daily = mean_s - beta * mean_b
+    alpha = alpha_daily * 252  # Annualize
+
+    # Tracking error = std(s - b) * sqrt(252)
+    diffs = [s - b for s, b in zip(sr, br, strict=False)]
+    mean_diff = sum(diffs) / n
+    var_diff = sum((d - mean_diff) ** 2 for d in diffs) / n
+    tracking_error = (var_diff ** 0.5) * (252 ** 0.5)
+
+    # Information ratio = alpha / tracking_error
+    information_ratio = alpha / tracking_error if tracking_error > 0 else 0.0
+
+    # Total returns
+    strategy_return = (equity_curve[-1]["value"] / equity_curve[0]["value"] - 1) if equity_curve[0]["value"] > 0 else 0.0
+    benchmark_return = (equity_curve[-1].get("benchmark", equity_curve[-1]["value"]) / equity_curve[0].get("benchmark", equity_curve[0]["value"]) - 1) if equity_curve[0].get("benchmark", 1) > 0 else 0.0
+
+    return BenchmarkMetrics(
+        alpha=alpha,
+        beta=beta,
+        information_ratio=information_ratio,
+        tracking_error=tracking_error,
+        benchmark_return=benchmark_return,
+        strategy_return=strategy_return,
+    )

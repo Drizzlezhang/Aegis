@@ -240,3 +240,205 @@ async def delete_backtest_run(run_id: str) -> dict:
     if not storage.delete_run(run_id):
         raise HTTPException(status_code=404, detail="Backtest run not found")
     return {"deleted": True}
+
+
+# ─── Backtest v3: Walk-Forward API ───────────────────────────────────────────
+
+
+class WalkForwardRequest(BaseModel):
+    """Walk-forward backtest request payload."""
+
+    symbol: str = Field(..., min_length=1, max_length=10)
+    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    train_window_days: int = Field(default=120, ge=30, le=3650)
+    test_window_days: int = Field(default=20, ge=5, le=365)
+    step_size_days: int = Field(default=20, ge=1, le=365)
+    mode: str = Field(default="rolling", pattern=r"^(rolling|anchored)$")
+    strategy: str = Field(default="pipeline")
+    initial_capital: float = Field(default=100000.0, gt=0)
+
+
+class WalkForwardRunSummary(BaseModel):
+    """Summary of a walk-forward backtest run."""
+
+    run_id: str
+    symbol: str
+    strategy: str
+    mode: str
+    start_date: str
+    end_date: str
+    total_folds: int
+    oos_total_return: float | None = None
+    oos_sharpe_ratio: float | None = None
+    status: str
+    created_at: str | None = None
+
+
+class WalkForwardRunList(BaseModel):
+    """List of walk-forward runs."""
+
+    runs: list[WalkForwardRunSummary]
+
+
+@router.post("/backtest/runs", status_code=202)
+async def submit_walkforward_run(request: WalkForwardRequest) -> dict:
+    """Submit a walk-forward backtest run (async).
+
+    Returns the run_id immediately. The backtest runs in the background.
+    Poll GET /backtest/runs/{run_id} for results.
+    """
+    try:
+        start = date.fromisoformat(request.start_date)
+        end = date.fromisoformat(request.end_date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}") from e
+
+    if start >= end:
+        raise HTTPException(status_code=400, detail="start_date must be before end_date")
+
+    from src.backtest.storage import BacktestStorage
+    from src.backtest.walk_forward import WalkForwardRunner
+    from src.models.backtest import WalkForwardConfig
+
+    # Generate demo data
+    import random
+    random.seed(42)
+
+    from dataclasses import dataclass
+    from datetime import datetime, timedelta
+
+    @dataclass
+    class _Bar:
+        timestamp: datetime
+        open: float
+        high: float
+        low: float
+        close: float
+        volume: int
+
+    n_days = (end - start).days + 1
+    price = 100.0 + hash(request.symbol) % 200
+    data = []
+    for i in range(n_days):
+        change = random.uniform(-2, 2)
+        price += change
+        if price < 1:
+            price = 1
+        ts = datetime(start.year, start.month, start.day) + timedelta(days=i)
+        data.append(_Bar(timestamp=ts, open=price - 0.5, high=price + 1, low=price - 1, close=price, volume=10000))
+
+    config = WalkForwardConfig(
+        train_window_days=request.train_window_days,
+        test_window_days=request.test_window_days,
+        step_size_days=request.step_size_days,
+        mode=request.mode,
+    )
+
+    runner = WalkForwardRunner(request.symbol.upper(), config, {"strategy": request.strategy})
+    result = await runner.run(data)
+
+    storage = BacktestStorage()
+    run_id = storage.save_walkforward(result)
+
+    return {
+        "run_id": run_id,
+        "symbol": request.symbol.upper(),
+        "status": "completed",
+        "total_folds": len(result.folds),
+    }
+
+
+@router.get("/backtest/runs", response_model=WalkForwardRunList)
+async def list_walkforward_runs(symbol: str | None = None, limit: int = 50) -> dict:
+    """List walk-forward backtest runs."""
+    from src.backtest.storage import BacktestStorage
+    storage = BacktestStorage()
+    runs = storage.list_walkforward_runs(symbol=symbol, limit=limit)
+    return {"runs": runs}
+
+
+@router.get("/backtest/runs/{run_id}")
+async def get_walkforward_run(run_id: str) -> dict:
+    """Get a walk-forward backtest run by ID."""
+    from src.backtest.storage import BacktestStorage
+    storage = BacktestStorage()
+    result = storage.get_walkforward(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Walk-forward run not found")
+    return result
+
+
+@router.get("/backtest/runs/{run_id}/report")
+async def get_walkforward_report(run_id: str) -> dict:
+    """Get the HTML report for a walk-forward backtest run."""
+    from src.backtest.report import render_walkforward_report
+    from src.backtest.storage import BacktestStorage
+    from src.models.backtest import (
+        FoldResult,
+        PerformanceReport,
+        PipelineBacktestResult,
+        WalkForwardConfig,
+        WalkForwardResult,
+    )
+
+    storage = BacktestStorage()
+    data = storage.get_walkforward(run_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Walk-forward run not found")
+
+    # Reconstruct WalkForwardResult from stored data
+    folds = []
+    for f in data["folds"]:
+        train_result = PipelineBacktestResult(
+            symbol=data["symbol"],
+            strategy=data["strategy"],
+            start_date=date.fromisoformat(f["train_start"]),
+            end_date=date.fromisoformat(f["train_end"]),
+            metrics=PerformanceReport(
+                sharpe_ratio=f["train_sharpe"] or 0,
+            ),
+        )
+        test_result = PipelineBacktestResult(
+            symbol=data["symbol"],
+            strategy=data["strategy"],
+            start_date=date.fromisoformat(f["test_start"]),
+            end_date=date.fromisoformat(f["test_end"]),
+            metrics=PerformanceReport(
+                sharpe_ratio=f["test_sharpe"] or 0,
+                total_return=f["test_return"] or 0,
+                max_drawdown=f["test_max_drawdown"] or 0,
+                total_trades=f["test_trades"] or 0,
+            ),
+        )
+        folds.append(FoldResult(
+            fold_index=f["fold_index"],
+            train_start=date.fromisoformat(f["train_start"]),
+            train_end=date.fromisoformat(f["train_end"]),
+            test_start=date.fromisoformat(f["test_start"]),
+            test_end=date.fromisoformat(f["test_end"]),
+            train_result=train_result,
+            test_result=test_result,
+        ))
+
+    config = WalkForwardConfig(
+        train_window_days=data["train_window_days"],
+        test_window_days=data["test_window_days"],
+        step_size_days=data["step_size_days"],
+        mode=data["mode"],
+    )
+
+    wf_result = WalkForwardResult(
+        symbol=data["symbol"],
+        config=config,
+        folds=folds,
+        aggregate_metrics=PerformanceReport(
+            total_return=data["oos_total_return"] or 0,
+            sharpe_ratio=data["oos_sharpe_ratio"] or 0,
+            max_drawdown=data["oos_max_drawdown"] or 0,
+            win_rate=data["oos_win_rate"] or 0,
+        ),
+    )
+
+    html = render_walkforward_report(wf_result)
+    return {"run_id": run_id, "html": html}

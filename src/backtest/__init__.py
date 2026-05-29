@@ -1,5 +1,16 @@
 """Backtest engine for strategy simulation."""
 
+from .cost_model import (  # noqa: F401
+    ATRAdaptiveSlippage,
+    CommissionModel,
+    CostModel,
+    FixedBpsSlippage,
+    FixedCommission,
+    PercentCommission,
+    SlippageModel,
+    TieredCommission,
+    VolumeWeightedSlippage,
+)
 from .engine import BacktestEngine, BacktestResult, TradeRecord  # noqa: F401
 from .metrics import calculate_metrics, calculate_monthly_returns, calculate_performance_report
 from .options_engine import (
@@ -21,10 +32,15 @@ from .storage import BacktestStorage
 from .strategies import Signal
 
 __all__ = [
+    "ATRAdaptiveSlippage",
     "BacktestEngine",
     "BacktestResult",
     "BacktestRunner",
     "BacktestStorage",
+    "CommissionModel",
+    "CostModel",
+    "FixedBpsSlippage",
+    "FixedCommission",
     "MultiSymbolRunner",
     "OptionPosition",
     "OptionsBacktestEngine",
@@ -32,7 +48,11 @@ __all__ = [
     "OptionsStrategy",
     "OptionsTradeResult",
     "OptionType",
+    "PercentCommission",
     "Signal",
+    "SlippageModel",
+    "TieredCommission",
+    "VolumeWeightedSlippage",
     "calculate_metrics",
     "calculate_monthly_returns",
     "calculate_performance_report",

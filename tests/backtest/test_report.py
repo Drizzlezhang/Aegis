@@ -3,12 +3,15 @@
 from datetime import date
 from pathlib import Path
 
-from src.backtest.report import render_multi_report, render_report
+from src.backtest.report import render_multi_report, render_report, render_walkforward_report
 from src.models.backtest import (
+    FoldResult,
     PerformanceReport,
     PhaseAttributionRow,
     PipelineBacktestResult,
     PipelineBacktestTrade,
+    WalkForwardConfig,
+    WalkForwardResult,
 )
 
 
@@ -161,3 +164,84 @@ class TestRenderMultiReport:
         files = list(tmp_path.glob("*.html"))
         assert len(files) == 1
         assert "QQQ" in files[0].name
+
+
+class TestWalkforwardReport:
+    """T12: Walk-forward report rendering."""
+
+    def _make_wf_result(self) -> WalkForwardResult:
+        """Create a sample WalkForwardResult for testing."""
+        equity = [
+            {"date": "2024-01-02", "value": 100000.0, "benchmark": 100000.0},
+            {"date": "2024-01-03", "value": 101000.0, "benchmark": 100500.0},
+        ]
+        train_result = PipelineBacktestResult(
+            symbol="QQQ", strategy="pipeline",
+            start_date=date(2024, 1, 1), end_date=date(2024, 1, 15),
+            equity_curve=equity,
+        )
+        test_result = PipelineBacktestResult(
+            symbol="QQQ", strategy="pipeline",
+            start_date=date(2024, 1, 16), end_date=date(2024, 1, 31),
+            equity_curve=equity,
+        )
+        fold = FoldResult(
+            fold_index=0,
+            train_start=date(2024, 1, 1), train_end=date(2024, 1, 15),
+            test_start=date(2024, 1, 16), test_end=date(2024, 1, 31),
+            train_result=train_result, test_result=test_result,
+        )
+        config = WalkForwardConfig(
+            train_window_days=15, test_window_days=15, step_size_days=15,
+        )
+        return WalkForwardResult(
+            symbol="QQQ", config=config, folds=[fold],
+            aggregate_metrics=PerformanceReport(total_return=3.2, sharpe_ratio=1.5),
+            oos_equity_curve=equity,
+        )
+
+    def test_report_has_five_sections(self):
+        """AC-30: HTML 报告含 ≥5 个新章节."""
+        result = self._make_wf_result()
+        html = render_walkforward_report(result)
+
+        sections = [
+            "Aggregate OOS Metrics",
+            "Cumulative OOS Equity Curve",
+            "Per-Fold Metrics Matrix",
+            "Parameter Stability",
+            "Monte Carlo Simulation",
+            "vs Benchmark",
+        ]
+        found = sum(1 for s in sections if s in html)
+        assert found >= 5, f"Expected ≥5 sections, found {found}"
+
+    def test_report_includes_fold_data(self):
+        """Report includes per-fold metrics."""
+        result = self._make_wf_result()
+        html = render_walkforward_report(result)
+        assert "2024-01-01" in html
+        assert "2024-01-15" in html
+        assert "2024-01-16" in html
+        assert "2024-01-31" in html
+
+    def test_writes_to_file(self, tmp_path: Path):
+        """AC-31: 报告文件输出到正确路径."""
+        result = self._make_wf_result()
+        output = tmp_path / "wf_QQQ_2024-01-01_2024-01-31.html"
+        html = render_walkforward_report(result, output_path=output)
+        assert output.exists()
+        assert output.read_text() == html
+
+    def test_empty_folds_handled(self):
+        """Report handles empty folds gracefully."""
+        result = WalkForwardResult(
+            symbol="QQQ",
+            config=WalkForwardConfig(train_window_days=15, test_window_days=15, step_size_days=15),
+            folds=[],
+            aggregate_metrics=PerformanceReport(),
+            oos_equity_curve=[],
+        )
+        html = render_walkforward_report(result)
+        assert "QQQ" in html
+        assert "0 folds" in html

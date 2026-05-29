@@ -11,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from src.models.backtest import (
     PipelineBacktestResult,
+    WalkForwardResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -166,3 +167,95 @@ def render_multi_report(
             output_path = output_dir / f"{symbol}_{result.start_date.isoformat()}_{result.end_date.isoformat()}.html"
         reports[symbol] = render_report(result, output_path)
     return reports
+
+
+def render_walkforward_report(
+    result: WalkForwardResult,
+    output_path: Path | None = None,
+) -> str:
+    """Render a walk-forward backtest result as an HTML report.
+
+    Args:
+        result: WalkForwardResult to render.
+        output_path: If provided, write HTML to this path.
+
+    Returns:
+        The rendered HTML string.
+    """
+    env = Environment(
+        loader=FileSystemLoader(str(_TEMPLATE_DIR)),
+        autoescape=True,
+    )
+    template = env.get_template("walkforward_report.html.j2")
+
+    equity_chart = _make_equity_chart_html(result.oos_equity_curve)
+
+    # MC histogram chart
+    mc_chart = ""
+    if result.monte_carlo and result.monte_carlo.return_distribution:
+        mc_chart = _make_mc_histogram_html(result.monte_carlo.return_distribution)
+
+    html = template.render(
+        symbol=result.symbol,
+        start_date=result.folds[0].train_start.isoformat() if result.folds else "",
+        end_date=result.folds[-1].test_end.isoformat() if result.folds else "",
+        total_folds=len(result.folds),
+        metrics=result.aggregate_metrics,
+        equity_chart=equity_chart,
+        mc_chart=mc_chart,
+        folds=result.folds,
+        benchmark=result.benchmark,
+        monte_carlo=result.monte_carlo,
+        sensitivity=result.sensitivity,
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
+    )
+
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(html, encoding="utf-8")
+        logger.info("Walk-forward report written to %s", output_path)
+
+    return html
+
+
+def _make_mc_histogram_html(distribution: list[float]) -> str:
+    """Generate a simple histogram as HTML bars for MC distribution."""
+    if not distribution:
+        return ""
+
+    n = len(distribution)
+    min_val = min(distribution)
+    max_val = max(distribution)
+    if max_val == min_val:
+        return "<p>All returns identical.</p>"
+
+    # Create 20 bins
+    n_bins = 20
+    bin_width = (max_val - min_val) / n_bins
+    bins = [0] * n_bins
+    for v in distribution:
+        idx = min(int((v - min_val) / bin_width), n_bins - 1)
+        bins[idx] += 1
+
+    max_count = max(bins) if bins else 1
+    bar_width_pct = 100.0 / n_bins
+
+    bars_html = ""
+    for i, count in enumerate(bins):
+        height_pct = (count / max_count * 100) if max_count > 0 else 0
+        bin_center = min_val + (i + 0.5) * bin_width
+        bars_html += (
+            f'<div style="display:inline-block;width:{bar_width_pct:.1f}%;text-align:center;vertical-align:bottom;">'
+            f'<div style="background:var(--accent);height:{height_pct:.0f}px;margin:0 1px;border-radius:2px 2px 0 0;" '
+            f'title="{bin_center:.1%}: {count}"></div>'
+            f'</div>'
+        )
+
+    return (
+        f'<div style="padding:1rem;background:var(--card-bg);border-radius:8px;">'
+        f'<div style="display:flex;align-items:flex-end;height:150px;">{bars_html}</div>'
+        f'<div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-secondary);margin-top:0.5rem;">'
+        f'<span>{min_val:.1%}</span><span>{(min_val + max_val) / 2:.1%}</span><span>{max_val:.1%}</span>'
+        f'</div></div>'
+    )

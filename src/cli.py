@@ -5,6 +5,7 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 from src.cli_services import (
     collect_cli_health_report,
@@ -383,6 +384,196 @@ async def run_backtest(args: argparse.Namespace) -> None:
             webbrowser.open(f"file://{first_path.absolute()}")
 
 
+async def run_walkforward(args: argparse.Namespace) -> None:
+    """Run walk-forward backtest."""
+    from datetime import date as dt_date
+
+    from src.backtest.report import render_walkforward_report
+    from src.backtest.walk_forward import WalkForwardRunner
+    from src.models.backtest import WalkForwardConfig
+
+    start_date = dt_date.fromisoformat(args.from_date)
+    end_date = dt_date.fromisoformat(args.to_date)
+
+    config = WalkForwardConfig(
+        train_window_days=args.train_days,
+        test_window_days=args.test_days,
+        step_size_days=args.step_days,
+        mode=args.mode,
+    )
+
+    # Generate demo data
+    import random
+    random.seed(42)
+
+    from dataclasses import dataclass
+    from datetime import datetime, timedelta
+
+    @dataclass
+    class _Bar:
+        timestamp: datetime
+        open: float
+        high: float
+        low: float
+        close: float
+        volume: int
+
+    n_days = (end_date - start_date).days + 1
+    price = 100.0 + hash(args.symbol) % 200
+    data = []
+    for i in range(n_days):
+        change = random.uniform(-2, 2)
+        price += change
+        if price < 1:
+            price = 1
+        ts = datetime(start_date.year, start_date.month, start_date.day) + timedelta(days=i)
+        data.append(_Bar(timestamp=ts, open=price - 0.5, high=price + 1, low=price - 1, close=price, volume=10000))
+
+    print(f"Running walk-forward backtest for {args.symbol} ({start_date} → {end_date})")
+    print(f"  Mode: {args.mode}, Train: {args.train_days}d, Test: {args.test_days}d, Step: {args.step_days}d")
+
+    runner = WalkForwardRunner(args.symbol, config, {"strategy": args.strategy})
+    result = await runner.run(data)
+
+    print(f"\n  Folds: {len(result.folds)}")
+    m = result.aggregate_metrics
+    print(f"  OOS Total Return: {m.total_return:.2f}%")
+    print(f"  OOS Sharpe Ratio: {m.sharpe_ratio:.2f}")
+    print(f"  OOS Max Drawdown: {m.max_drawdown:.2f}%")
+    print(f"  OOS Win Rate:     {m.win_rate:.1f}%")
+
+    # Render report
+    output_path = args.output or Path(f"reports/backtest/wf_{args.symbol}_{start_date.isoformat()}_{end_date.isoformat()}.html")
+    render_walkforward_report(result, output_path)
+    print(f"Report saved to {output_path}")
+
+    if not args.no_open:
+        import webbrowser
+        webbrowser.open(f"file://{output_path.absolute()}")
+
+
+async def run_mc(args: argparse.Namespace) -> None:
+    """Run Monte Carlo simulation."""
+    from datetime import date as dt_date
+
+    from src.backtest.monte_carlo import MonteCarloSimulator
+    from src.backtest.runner import BacktestRunner
+
+    start_date = dt_date.fromisoformat(args.from_date)
+    end_date = dt_date.fromisoformat(args.to_date)
+
+    # Generate demo data
+    import random
+    random.seed(42)
+
+    from dataclasses import dataclass
+    from datetime import datetime, timedelta
+
+    @dataclass
+    class _Bar:
+        timestamp: datetime
+        open: float
+        high: float
+        low: float
+        close: float
+        volume: int
+
+    n_days = (end_date - start_date).days + 1
+    price = 100.0 + hash(args.symbol) % 200
+    data = []
+    for i in range(n_days):
+        change = random.uniform(-2, 2)
+        price += change
+        if price < 1:
+            price = 1
+        ts = datetime(start_date.year, start_date.month, start_date.day) + timedelta(days=i)
+        data.append(_Bar(timestamp=ts, open=price - 0.5, high=price + 1, low=price - 1, close=price, volume=10000))
+
+    print(f"Running Monte Carlo simulation for {args.symbol} ({start_date} → {end_date})")
+    print(f"  Iterations: {args.iterations}")
+
+    runner = BacktestRunner(args.symbol, start_date, end_date, {"strategy": args.strategy})
+    result = await runner.run(data)
+
+    simulator = MonteCarloSimulator(seed=42)
+    mc_result = simulator.run(result.trades, n_iterations=args.iterations)
+
+    print(f"\n  VaR (95%):        {mc_result.var_95 * 100:.2f}%")
+    print(f"  CVaR (95%):       {mc_result.cvar_95 * 100:.2f}%")
+    print(f"  Ruin Probability: {mc_result.ruin_probability * 100:.2f}%")
+    print(f"  Mean Return:      {mc_result.mean_return * 100:.2f}%")
+    print(f"  Median Return:    {mc_result.median_return * 100:.2f}%")
+    print(f"  Std Return:       {mc_result.std_return * 100:.2f}%")
+
+
+async def run_sensitivity(args: argparse.Namespace) -> None:
+    """Run parameter sensitivity analysis."""
+    from datetime import date as dt_date
+
+    from src.backtest.runner import BacktestRunner
+    from src.backtest.sensitivity import SensitivityAnalyzer
+
+    start_date = dt_date.fromisoformat(args.from_date)
+    end_date = dt_date.fromisoformat(args.to_date)
+
+    # Generate demo data
+    import random
+    random.seed(42)
+
+    from dataclasses import dataclass
+    from datetime import datetime, timedelta
+
+    @dataclass
+    class _Bar:
+        timestamp: datetime
+        open: float
+        high: float
+        low: float
+        close: float
+        volume: int
+
+    n_days = (end_date - start_date).days + 1
+    price = 100.0 + hash(args.symbol) % 200
+    data = []
+    for i in range(n_days):
+        change = random.uniform(-2, 2)
+        price += change
+        if price < 1:
+            price = 1
+        ts = datetime(start_date.year, start_date.month, start_date.day) + timedelta(days=i)
+        data.append(_Bar(timestamp=ts, open=price - 0.5, high=price + 1, low=price - 1, close=price, volume=10000))
+
+    start, end, step = args.param_range
+    print(f"Running sensitivity analysis for {args.symbol} ({start_date} → {end_date})")
+    print(f"  Parameter: {args.param}, Range: [{start}, {end}], Step: {step}")
+
+    def run_with_param(value: float) -> Any:
+        config = {"strategy": args.strategy, args.param: value}
+        runner = BacktestRunner(args.symbol, start_date, end_date, config)
+        return asyncio.get_event_loop().run_until_complete(runner.run(data))
+
+    analyzer = SensitivityAnalyzer()
+    result = analyzer.sweep(
+        param_name=args.param,
+        param_range=(start, end, step),
+        run_fn=run_with_param,
+    )
+
+    print(f"\n  Data points: {len(result.data_points)}")
+    if result.cliffs:
+        print(f"  Cliffs detected: {len(result.cliffs)}")
+        for cliff in result.cliffs:
+            print(f"    - {cliff['param_value']}: {cliff['metric']} dropped {cliff['drop_pct']:.1f}%")
+    else:
+        print("  No parameter cliffs detected.")
+
+    # Print data table
+    print(f"\n  {'Value':>8} {'Sharpe':>8} {'Return':>8} {'Max DD':>8}")
+    print("  " + "-" * 38)
+    for pt in result.data_points:
+        print(f"  {pt['param_value']:>8.1f} {pt['sharpe_ratio']:>8.2f} {pt['total_return']:>7.2f}% {pt['max_drawdown']:>7.2f}%")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Aegis-Trader - Multi-Agent quant trading system",
@@ -500,44 +691,178 @@ def build_parser() -> argparse.ArgumentParser:
 
     scheduler_sub.add_parser("history", help="显示最近执行历史")
 
-    # backtest 命令
+    # backtest 命令 (with subcommands)
     backtest_parser = subparsers.add_parser("backtest", help="运行回测")
-    backtest_parser.add_argument(
+    backtest_sub = backtest_parser.add_subparsers(dest="backtest_action", help="回测子命令")
+
+    # backtest run (default, backward compatible)
+    bt_run_parser = backtest_sub.add_parser("run", help="运行标准回测 (默认)")
+    bt_run_parser.add_argument(
         "--symbol",
         help="单个标的代码 (如 QQQ)",
     )
-    backtest_parser.add_argument(
+    bt_run_parser.add_argument(
         "--symbols",
         nargs="+",
         help="多个标的代码 (如 QQQ SPY NVDA)",
     )
-    backtest_parser.add_argument(
+    bt_run_parser.add_argument(
         "--from",
         dest="from_date",
         required=True,
         help="回测起始日期 (YYYY-MM-DD)",
     )
-    backtest_parser.add_argument(
+    bt_run_parser.add_argument(
         "--to",
         dest="to_date",
         required=True,
         help="回测结束日期 (YYYY-MM-DD)",
     )
-    backtest_parser.add_argument(
+    bt_run_parser.add_argument(
         "--strategy",
         default="pipeline",
         help="策略名称 (默认: pipeline)",
     )
-    backtest_parser.add_argument(
+    bt_run_parser.add_argument(
         "--output",
         "-o",
         type=Path,
         help="报告输出目录 (默认: reports/backtest/)",
     )
-    backtest_parser.add_argument(
+    bt_run_parser.add_argument(
         "--no-open",
         action="store_true",
         help="不自动打开 HTML 报告",
+    )
+
+    # backtest walk-forward
+    bt_wf_parser = backtest_sub.add_parser("walk-forward", help="运行 Walk-Forward 回测")
+    bt_wf_parser.add_argument(
+        "--symbol",
+        required=True,
+        help="标的代码 (如 QQQ)",
+    )
+    bt_wf_parser.add_argument(
+        "--from",
+        dest="from_date",
+        required=True,
+        help="回测起始日期 (YYYY-MM-DD)",
+    )
+    bt_wf_parser.add_argument(
+        "--to",
+        dest="to_date",
+        required=True,
+        help="回测结束日期 (YYYY-MM-DD)",
+    )
+    bt_wf_parser.add_argument(
+        "--train-days",
+        type=int,
+        default=120,
+        help="训练窗口天数 (默认: 120)",
+    )
+    bt_wf_parser.add_argument(
+        "--test-days",
+        type=int,
+        default=20,
+        help="测试窗口天数 (默认: 20)",
+    )
+    bt_wf_parser.add_argument(
+        "--step-days",
+        type=int,
+        default=20,
+        help="步进天数 (默认: 20)",
+    )
+    bt_wf_parser.add_argument(
+        "--mode",
+        choices=["rolling", "anchored"],
+        default="rolling",
+        help="Walk-Forward 模式 (默认: rolling)",
+    )
+    bt_wf_parser.add_argument(
+        "--strategy",
+        default="pipeline",
+        help="策略名称 (默认: pipeline)",
+    )
+    bt_wf_parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        help="报告输出路径",
+    )
+    bt_wf_parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="不自动打开 HTML 报告",
+    )
+
+    # backtest mc
+    bt_mc_parser = backtest_sub.add_parser("mc", help="运行 Monte Carlo 模拟")
+    bt_mc_parser.add_argument(
+        "--symbol",
+        required=True,
+        help="标的代码 (如 QQQ)",
+    )
+    bt_mc_parser.add_argument(
+        "--from",
+        dest="from_date",
+        required=True,
+        help="回测起始日期 (YYYY-MM-DD)",
+    )
+    bt_mc_parser.add_argument(
+        "--to",
+        dest="to_date",
+        required=True,
+        help="回测结束日期 (YYYY-MM-DD)",
+    )
+    bt_mc_parser.add_argument(
+        "--iterations",
+        type=int,
+        default=1000,
+        help="模拟迭代次数 (默认: 1000)",
+    )
+    bt_mc_parser.add_argument(
+        "--strategy",
+        default="pipeline",
+        help="策略名称 (默认: pipeline)",
+    )
+
+    # backtest sensitivity
+    bt_sens_parser = backtest_sub.add_parser("sensitivity", help="运行参数敏感性分析")
+    bt_sens_parser.add_argument(
+        "--symbol",
+        required=True,
+        help="标的代码 (如 QQQ)",
+    )
+    bt_sens_parser.add_argument(
+        "--from",
+        dest="from_date",
+        required=True,
+        help="回测起始日期 (YYYY-MM-DD)",
+    )
+    bt_sens_parser.add_argument(
+        "--to",
+        dest="to_date",
+        required=True,
+        help="回测结束日期 (YYYY-MM-DD)",
+    )
+    bt_sens_parser.add_argument(
+        "--param",
+        required=True,
+        help="要分析的参数名 (如 ma_window)",
+    )
+    bt_sens_parser.add_argument(
+        "--range",
+        dest="param_range",
+        nargs=3,
+        type=float,
+        required=True,
+        metavar=("START", "END", "STEP"),
+        help="参数范围 (如 10 50 5)",
+    )
+    bt_sens_parser.add_argument(
+        "--strategy",
+        default="pipeline",
+        help="策略名称 (默认: pipeline)",
     )
 
     return parser
@@ -639,7 +964,17 @@ async def main_async() -> None:
             await scheduler_history()
 
     elif args.command == "backtest":
-        await run_backtest(args)
+        if not args.backtest_action or args.backtest_action == "run":
+            await run_backtest(args)
+        elif args.backtest_action == "walk-forward":
+            await run_walkforward(args)
+        elif args.backtest_action == "mc":
+            await run_mc(args)
+        elif args.backtest_action == "sensitivity":
+            await run_sensitivity(args)
+        else:
+            print(f"Unknown backtest action: {args.backtest_action}")
+            sys.exit(1)
 
 
 def main() -> None:

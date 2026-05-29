@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walk-Forward Report — {{ symbol }} | {{ start_date }} → {{ end_date }}</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --card-bg: #16213e;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0b0;
+            --accent: #00d4aa;
+            --accent-red: #ff6b6b;
+            --border: #2a2a4a;
+            --positive: #00d4aa;
+            --negative: #ff6b6b;
+        }
+        [data-theme="light"] {
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --text-secondary: #666666;
+            --accent: #00a878;
+            --accent-red: #e74c3c;
+            --border: #e0e0e0;
+            --positive: #00a878;
+            --negative: #e74c3c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        header h1 { font-size: 2rem; color: var(--accent); }
+        header .subtitle { color: var(--text-secondary); margin-top: 0.5rem; }
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        h2 {
+            font-size: 1.4rem;
+            color: var(--accent);
+            margin: 2rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .metric-card .label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; }
+        .metric-card .value { font-size: 1.4rem; font-weight: 700; margin-top: 0.25rem; }
+        .metric-card .value.positive { color: var(--positive); }
+        .metric-card .value.negative { color: var(--negative); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        td.positive { color: var(--positive); }
+        td.negative { color: var(--negative); }
+        .chart-container { margin: 1.5rem 0; }
+        .fold-boundary {
+            border-left: 2px dashed var(--accent);
+            opacity: 0.3;
+        }
+        .histogram-bar {
+            display: inline-block;
+            background: var(--accent);
+            margin: 0 1px;
+            vertical-align: bottom;
+        }
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">☀️ / 🌙</button>
+    <div class="container">
+        <header>
+            <h1>Walk-Forward Backtest Report</h1>
+            <div class="subtitle">{{ symbol }} | {{ start_date }} → {{ end_date }} | {{ total_folds }} folds</div>
+        </header>
+
+        <!-- Section 1: Aggregate Metrics -->
+        <h2>1. Aggregate OOS Metrics</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="label">Total Return</div>
+                <div class="value {{ 'positive' if metrics.total_return >= 0 else 'negative' }}">{{ "%.2f"|format(metrics.total_return) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Annualized Return</div>
+                <div class="value {{ 'positive' if metrics.annualized_return >= 0 else 'negative' }}">{{ "%.2f"|format(metrics.annualized_return) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Sharpe Ratio</div>
+                <div class="value">{{ "%.2f"|format(metrics.sharpe_ratio) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Sortino Ratio</div>
+                <div class="value">{{ "%.2f"|format(metrics.sortino_ratio) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Max Drawdown</div>
+                <div class="value negative">{{ "%.2f"|format(metrics.max_drawdown) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Win Rate</div>
+                <div class="value">{{ "%.1f"|format(metrics.win_rate) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Profit Factor</div>
+                <div class="value">{{ "%.2f"|format(metrics.profit_factor) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Total Trades</div>
+                <div class="value">{{ metrics.total_trades }}</div>
+            </div>
+        </div>
+
+        <!-- Section 2: Cumulative Equity Curve -->
+        <h2>2. Cumulative OOS Equity Curve</h2>
+        <div class="chart-container">
+            {{ equity_chart | safe }}
+        </div>
+
+        <!-- Section 3: Per-Fold Metrics Matrix -->
+        <h2>3. Per-Fold Metrics Matrix</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fold</th>
+                    <th>Train Period</th>
+                    <th>Test Period</th>
+                    <th>Train Sharpe</th>
+                    <th>Test Sharpe</th>
+                    <th>Test Return</th>
+                    <th>Trades</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fold in folds %}
+                <tr>
+                    <td>{{ fold.fold_index + 1 }}</td>
+                    <td>{{ fold.train_start }} → {{ fold.train_end }}</td>
+                    <td>{{ fold.test_start }} → {{ fold.test_end }}</td>
+                    <td>{{ "%.2f"|format(fold.train_result.metrics.sharpe_ratio) }}</td>
+                    <td class="{{ 'positive' if fold.test_result.metrics.sharpe_ratio >= 0 else 'negative' }}">{{ "%.2f"|format(fold.test_result.metrics.sharpe_ratio) }}</td>
+                    <td class="{{ 'positive' if fold.test_result.metrics.total_return >= 0 else 'negative' }}">{{ "%.2f"|format(fold.test_result.metrics.total_return) }}%</td>
+                    <td>{{ fold.test_result.metrics.total_trades }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Section 4: Parameter Stability -->
+        <h2>4. Parameter Stability</h2>
+        {% if sensitivity and sensitivity.data_points %}
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ sensitivity.param_name }}</th>
+                    <th>Sharpe</th>
+                    <th>Total Return</th>
+                    <th>Max Drawdown</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pt in sensitivity.data_points %}
+                <tr>
+                    <td>{{ pt.param_value }}</td>
+                    <td>{{ "%.2f"|format(pt.sharpe_ratio) }}</td>
+                    <td>{{ "%.2f"|format(pt.total_return) }}%</td>
+                    <td class="negative">{{ "%.2f"|format(pt.max_drawdown) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if sensitivity.cliffs %}
+        <p style="color: var(--accent-red); margin-top: 0.5rem;">
+            ⚠️ {{ sensitivity.cliffs | length }} parameter cliff(s) detected.
+        </p>
+        {% endif %}
+        {% else %}
+        <p style="color: var(--text-secondary);">No sensitivity data available.</p>
+        {% endif %}
+
+        <!-- Section 5: Monte Carlo Histogram -->
+        <h2>5. Monte Carlo Simulation</h2>
+        {% if monte_carlo and monte_carlo.return_distribution %}
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="label">VaR (95%)</div>
+                <div class="value negative">{{ "%.2f"|format(monte_carlo.var_95 * 100) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">CVaR (95%)</div>
+                <div class="value negative">{{ "%.2f"|format(monte_carlo.cvar_95 * 100) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Ruin Probability</div>
+                <div class="value {{ 'negative' if monte_carlo.ruin_probability > 0.05 else '' }}">{{ "%.2f"|format(monte_carlo.ruin_probability * 100) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Mean Return</div>
+                <div class="value">{{ "%.2f"|format(monte_carlo.mean_return * 100) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Median Return</div>
+                <div class="value">{{ "%.2f"|format(monte_carlo.median_return * 100) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Std Return</div>
+                <div class="value">{{ "%.2f"|format(monte_carlo.std_return * 100) }}%</div>
+            </div>
+        </div>
+        <div class="chart-container">
+            {{ mc_chart | safe }}
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">No Monte Carlo data available.</p>
+        {% endif %}
+
+        <!-- Section 6: vs Benchmark -->
+        <h2>6. vs Benchmark</h2>
+        {% if benchmark %}
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="label">Alpha (ann.)</div>
+                <div class="value {{ 'positive' if benchmark.alpha >= 0 else 'negative' }}">{{ "%.4f"|format(benchmark.alpha) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Beta</div>
+                <div class="value">{{ "%.2f"|format(benchmark.beta) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Information Ratio</div>
+                <div class="value">{{ "%.2f"|format(benchmark.information_ratio) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Tracking Error</div>
+                <div class="value">{{ "%.4f"|format(benchmark.tracking_error) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Strategy Return</div>
+                <div class="value {{ 'positive' if benchmark.strategy_return >= 0 else 'negative' }}">{{ "%.2f"|format(benchmark.strategy_return * 100) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Benchmark Return</div>
+                <div class="value {{ 'positive' if benchmark.benchmark_return >= 0 else 'negative' }}">{{ "%.2f"|format(benchmark.benchmark_return * 100) }}%</div>
+            </div>
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">No benchmark data available.</p>
+        {% endif %}
+
+        <div class="footer">
+            Generated by Aegis Backtest v3 Engine | {{ generated_at }}
+        </div>
+    </div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        }
+    </script>
+</body>
+</html>
