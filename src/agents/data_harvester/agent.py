@@ -243,7 +243,7 @@ class DataHarvesterAgent(BaseAgent):
         if self._fetcher_manager is not None:
             try:
                 report = await self._fetcher_manager.health_report()
-                for name, health in report.items():
+                for _name, health in report.items():
                     if health.status in (FetcherStatus.HEALTHY, FetcherStatus.DEGRADED):
                         return True
                 return False
@@ -254,7 +254,7 @@ class DataHarvesterAgent(BaseAgent):
         if not self._skills:
             return False
 
-        for skill_name, skill in self._skills.items():
+        for _skill_name, skill in self._skills.items():
             try:
                 result = await skill.execute({
                     "symbol": "QQQ",

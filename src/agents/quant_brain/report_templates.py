@@ -23,7 +23,7 @@ class ReportTemplate:
 
 
 FULL_ANALYSIS = ReportTemplate(
-    sections=[section for section in ReportSection],
+    sections=list(ReportSection),
     max_words_per_section=500,
 )
 

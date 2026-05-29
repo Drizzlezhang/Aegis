@@ -1,7 +1,7 @@
 """Tests for WebSocket analysis progress endpoint."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,10 +15,9 @@ class TestWSAnalysis:
     async def test_ws_connection_accepted(self):
         """WebSocket connection to analysis endpoint is accepted."""
         from fastapi import FastAPI, WebSocket
-        from fastapi.testclient import TestClient
 
         app = FastAPI()
-        orchestrator_mock = MagicMock()
+        MagicMock()
 
         @app.websocket("/ws/analysis/{request_id}")
         async def ws_endpoint(websocket: WebSocket, request_id: str):
@@ -40,7 +39,6 @@ class TestWSAnalysis:
     async def test_ws_receives_progress_events(self):
         """WebSocket receives pipeline_progress events from orchestrator."""
         from fastapi import FastAPI, WebSocket
-        from fastapi.testclient import TestClient
 
         app = FastAPI()
         listeners: dict[str, list] = {}
@@ -95,7 +93,6 @@ class TestWSAnalysis:
     async def test_ws_filters_by_request_id(self):
         """Events with non-matching request_id are not forwarded."""
         from fastapi import FastAPI, WebSocket
-        from fastapi.testclient import TestClient
 
         app = FastAPI()
         listeners: dict[str, list] = {}

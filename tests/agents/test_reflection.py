@@ -1,7 +1,7 @@
 """Tests for reflection engine."""
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -30,7 +30,7 @@ def manager(tmp_path):
 async def test_reflection_engine_updates_profitable_pending_decision(decision_log, manager):
     entry = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(hours=30),
+        timestamp=datetime.now(UTC) - timedelta(hours=30),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,
@@ -59,7 +59,7 @@ async def test_reflection_engine_updates_profitable_pending_decision(decision_lo
 async def test_reflection_engine_uses_30_day_default_delay(decision_log, manager):
     entry = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=10),
+        timestamp=datetime.now(UTC) - timedelta(days=10),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,
@@ -84,7 +84,7 @@ async def test_reflection_engine_uses_30_day_default_delay(decision_log, manager
 async def test_reflection_engine_processes_after_30_day_delay(decision_log, manager):
     entry = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=31),
+        timestamp=datetime.now(UTC) - timedelta(days=31),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,
@@ -109,7 +109,7 @@ async def test_reflection_engine_processes_after_30_day_delay(decision_log, mana
 async def test_reflection_engine_ignores_invalid_expiry_for_expired_branch(decision_log, manager):
     entry = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=31),
+        timestamp=datetime.now(UTC) - timedelta(days=31),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         contract_symbol="QQQ260116C00450000",

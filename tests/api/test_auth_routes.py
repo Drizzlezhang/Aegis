@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api.routes.auth import router as auth_router
-from src.config import set_config, get_config
+from src.config import get_config, set_config
 
 API_KEYS = ["login-test-key"]
 

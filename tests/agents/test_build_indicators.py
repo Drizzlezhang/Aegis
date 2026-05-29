@@ -125,10 +125,10 @@ class TestBuildIndicators:
 
     def test_estimate_adx(self):
         agent = QuantBrainAgent()
-        from src.models import AgentState
-
         # High volatility → high ADX
         import random
+
+        from src.models import AgentState
         random.seed(42)
         bars = [make_ohlcv_bar(100.0 + random.uniform(-5, 5), 1000000) for _ in range(20)]
         state = AgentState(symbol="TEST", trade_date=date(2024, 1, 1), ohlcv_data=bars)

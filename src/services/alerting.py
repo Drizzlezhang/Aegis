@@ -18,7 +18,13 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
-from src.services.event_bus import AlertEvent, BaseEvent, EventBus, EventSeverity
+from src.services.event_bus import (
+    AlertEvent,
+    AlertingRulesReloaded,
+    BaseEvent,
+    EventBus,
+    EventSeverity,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,13 @@
 """Agent state and sub-models for pipeline composition."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 from .analysis import GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
-from .market import MarketIndex, OHLCV
+from .market import OHLCV, MarketIndex
 from .options import OptionChain
 from .trend_phase import TrendPhaseResult
 
@@ -62,7 +62,7 @@ class AgentState(BaseModel):
     strategy_result: StrategyResult = Field(default_factory=StrategyResult)
     trend_phase_result: TrendPhaseResult | None = None
 
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     agent_sequence: list[str] = Field(default_factory=list)
 
     def add_agent_step(self, agent_name: str) -> None:
@@ -91,7 +91,7 @@ class AgentState(BaseModel):
         return sorted(level.price for level in self.resistance_levels)
 
 
-from .trade import RecommendedOption
+from .trade import RecommendedOption  # noqa: E402
 
 StrategyResult.model_rebuild()
 AgentState.model_rebuild()

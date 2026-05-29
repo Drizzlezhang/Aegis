@@ -15,8 +15,6 @@ from src.models import (
     OptionChain,
     OptionContract,
     OptionType,
-    SupportResistanceLevel,
-    ValuationRange,
 )
 from src.models.debate import InvestmentRating
 
@@ -344,8 +342,9 @@ class TestEdgeCases:
         await orchestrator.initialize()
 
         with patch.object(orchestrator.get_agent("Quant-Brain"), 'run', new_callable=AsyncMock) as mock_quant:
-            from src.models import AgentState
             from datetime import date
+
+            from src.models import AgentState
 
             # Return state with no support levels
             minimal_state = AgentState(

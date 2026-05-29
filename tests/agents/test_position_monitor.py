@@ -20,8 +20,8 @@ from src.models import (
     ProfitTarget,
     RollTrigger,
     StopLoss,
-    TradePlan,
     StrategyMode,
+    TradePlan,
 )
 
 

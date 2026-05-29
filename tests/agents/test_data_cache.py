@@ -1,7 +1,7 @@
 """Tests for DataCache."""
 
 import time
-import pytest
+
 from src.agents.data_harvester.cache import DataCache
 
 

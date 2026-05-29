@@ -15,19 +15,31 @@ from src.agents.orchestrator import Orchestrator
 from src.agents.position_monitor.position_manager import PositionManager
 from src.config import get_config
 from src.observability.logging import setup_logging
+from src.scheduler.engine import AnalysisScheduler
 from src.services import DecisionLog, PositionService, StatsService
 from src.services.settings import SettingsService
 from src.services.tracking.service import TrackingService
 
 from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
-from src.scheduler.engine import AnalysisScheduler
-
-from .routes import analysis, backtest, market, memory, metrics, notifications, positions, settings, stats, status, symbols, ws
+from .routes import (
+    analysis,
+    auth,
+    backtest,
+    data_routes,
+    market,
+    memory,
+    metrics,
+    notifications,
+    positions,
+    settings,
+    stats,
+    status,
+    symbols,
+    ws,
+)
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
-from .routes import auth
-from .routes import data_routes
 from .routes import scheduler as scheduler_routes
 from .routes import tracking as tracking_routes
 from .routes import watchlist as watchlist_routes
@@ -67,9 +79,9 @@ async def lifespan(app_: FastAPI):
     app_.state.settings_service = SettingsService()
 
     # Notification router
+    from src.services.notification.base import NotificationLevel
     from src.services.notification.router import NotificationRouter, RoutingRule
     from src.services.notification.telegram import TelegramNotifier
-    from src.services.notification.base import NotificationLevel
 
     notification_router = NotificationRouter()
     telegram = TelegramNotifier()
@@ -155,7 +167,7 @@ async def lifespan(app_: FastAPI):
 
     try:
         await asyncio.wait_for(_do_shutdown(), timeout=30)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("Shutdown timed out after 30s, forcing exit.")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")

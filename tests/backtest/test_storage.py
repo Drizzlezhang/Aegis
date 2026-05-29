@@ -1,6 +1,5 @@
 """Tests for backtest storage."""
 
-import json
 import tempfile
 from pathlib import Path
 

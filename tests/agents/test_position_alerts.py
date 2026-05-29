@@ -4,14 +4,11 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.position_monitor.alerts import (
     AlertLevel,
     AlertType,
-    PositionAlert,
     generate_alerts,
 )
 from src.models import (
@@ -20,8 +17,8 @@ from src.models import (
     Position,
     ProfitTarget,
     StopLoss,
-    TradePlan,
     StrategyMode,
+    TradePlan,
 )
 
 

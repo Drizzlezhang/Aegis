@@ -2,7 +2,6 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -11,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.agents.data_harvester.base_fetcher import BaseFetcher, FetcherHealth, FetcherStatus
 from src.agents.data_harvester.fetcher_manager import (
     CircuitStatus,
-    DataFetchError,
     DataFetcherManager,
+    DataFetchError,
 )
 from src.config import DataSourceConfig
 

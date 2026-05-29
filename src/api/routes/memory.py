@@ -1,13 +1,11 @@
 """Aegis-Memory API routes for semantic search and memory retrieval."""
 
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from src.agents.aegis_memory.agent import AegisMemoryAgent
-from src.config import get_config
 
 router = APIRouter()
 
@@ -86,7 +84,7 @@ async def search_memory(request: SearchRequest) -> SearchResponse:
             limit=request.limit
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {e}") from e
 
     results = []
     for r in raw_results:
@@ -123,7 +121,7 @@ async def get_market_notes(
     try:
         rows = await agent.recall_market_notes(symbol=symbol, category=category, limit=limit)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch notes: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch notes: {e}") from e
 
     return [
         MarketNoteItem(
@@ -146,7 +144,7 @@ async def get_memory_stats() -> StatsResponse:
     try:
         stats = await agent.get_vector_store_stats()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch stats: {e}") from e
 
     return StatsResponse(
         analysis_results=stats.get("analysis_results", 0),

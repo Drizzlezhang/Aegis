@@ -1,10 +1,10 @@
 """Notification routing — dispatch by level/category to configured channels."""
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from .base import Notification, NotificationChannel, NotificationCategory, NotificationLevel
+from .base import Notification, NotificationCategory, NotificationChannel, NotificationLevel
 
 
 @dataclass
@@ -52,7 +52,7 @@ class NotificationRouter:
             category=category,
             title=title,
             message=message,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             metadata=metadata,
         )
 

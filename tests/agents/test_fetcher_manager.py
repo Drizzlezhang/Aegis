@@ -3,7 +3,6 @@
 import sys
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -168,7 +167,7 @@ async def test_circuit_breaker_half_open(config):
     circuit.open_until = time.monotonic() - 1  # 已过半开时间
 
     # 半开状态下会尝试调用
-    result = await manager.fetch_ohlcv("QQQ")
+    await manager.fetch_ohlcv("QQQ")
     # 仍然失败，重新打开
     assert circuit.status == CircuitStatus.OPEN
 
@@ -264,12 +263,12 @@ async def test_cache_ttl_expiry(config, healthy_fetcher):
     """Verify cache entries expire after TTL."""
     manager = DataFetcherManager([healthy_fetcher], config)
 
-    result1 = await manager.fetch_ohlcv("AAPL")
+    await manager.fetch_ohlcv("AAPL")
     assert healthy_fetcher.ohlcv_calls == 1
 
     manager._cache.clear()
 
-    result2 = await manager.fetch_ohlcv("AAPL")
+    await manager.fetch_ohlcv("AAPL")
     assert healthy_fetcher.ohlcv_calls == 2
 
 

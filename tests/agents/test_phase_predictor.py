@@ -1,16 +1,14 @@
 """Unit tests for PhasePredictor — 7-dimension Wyckoff phase engine."""
 
-import asyncio
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 
 from src.agents.quant_brain.phase_predictor import PhasePredictor
 from src.config import PhaseConfig, PhaseThresholds
 from src.models.analysis import ValuationRange
-from src.models.scoring import MacroRegime
-from src.models.trend_phase import DimensionScore, TrendPhaseResult, WyckoffPhase
+from src.models.trend_phase import TrendPhaseResult, WyckoffPhase
 
 
 def _closes(bars):
@@ -512,8 +510,8 @@ class TestDimensionFailure:
 
     def test_phase_dimension_failure_event_recorded(self, monkeypatch):
         """AC2.3: self._events contains PhaseDimensionFailure record."""
-        from src.agents.quant_brain.phase_predictor import PhasePredictor
         from src.agents.quant_brain.phase_events import PhaseDimensionFailure
+        from src.agents.quant_brain.phase_predictor import PhasePredictor
 
         p = PhasePredictor()
 
@@ -704,10 +702,10 @@ class TestPhaseTrendAnalysis:
 
         # Insert 20 identical phase records
         import uuid
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
-        for i in range(20):
+        now = datetime.now(UTC)
+        for _i in range(20):
             conn.execute(
                 "INSERT INTO phase_history (id, symbol, timestamp, phase, composite_score, confidence, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -737,9 +735,9 @@ class TestPhaseTrendAnalysis:
         conn.commit()
 
         import uuid
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         phases = ["accumulation", "distribution"] * 10
         for phase in phases:
             conn.execute(
@@ -771,9 +769,9 @@ class TestPhaseTrendAnalysis:
         conn.commit()
 
         import uuid
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # 12 markup, 5 accumulation, 3 distribution
         for _ in range(12):
             conn.execute(

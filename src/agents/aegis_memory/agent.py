@@ -405,13 +405,13 @@ class AegisMemoryAgent(BaseAgent):
 
     async def find_similar_decisions(self, state: AgentState) -> list[dict]:
         """查找与当前分析情境相似的历史决策。
-        
+
         相似性维度:
         1. 相同 symbol
         2. 类似技术 grade
         3. 类似宏观 regime
         4. 类似 debate verdict
-        
+
         返回最相关的 5 条历史决策及其结果。
         """
         if not self._vector_store:

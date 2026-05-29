@@ -35,7 +35,7 @@ async def test_retry_on_429(client):
     client._session = mock_session
 
     resp_429 = _mock_response(status=429, headers={"Retry-After": "0.01"})
-    resp_200 = _mock_response(status=200, json_data={
+    _mock_response(status=200, json_data={
         "choices": [{"message": {"content": "ok"}}],
         "model": "test",
         "usage": {},

@@ -1,10 +1,10 @@
 """Structured JSON logging for Aegis-Trader."""
 
 import contextvars
-import logging
 import json
+import logging
 import sys
-import time
+from datetime import UTC
 from typing import Any
 
 
@@ -30,8 +30,8 @@ class JSONFormatter(logging.Formatter):
 
     @staticmethod
     def _format_time(record: logging.LogRecord) -> str:
-        from datetime import datetime, timezone
-        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        from datetime import datetime
+        dt = datetime.fromtimestamp(record.created, tz=UTC)
         return dt.isoformat()
 
 
@@ -39,7 +39,7 @@ def setup_logging(level: str = "INFO", json_output: bool = True):
     """配置全局日志。生产环境用 JSON，开发用 human-readable。"""
     root = logging.getLogger()
     root.setLevel(level)
-    
+
     handler = logging.StreamHandler(sys.stdout)
     if json_output:
         handler.setFormatter(JSONFormatter())
@@ -47,13 +47,13 @@ def setup_logging(level: str = "INFO", json_output: bool = True):
         handler.setFormatter(logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
         ))
-    
+
     root.handlers.clear()
     root.addHandler(handler)
 
 
-_trace_var: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
-    "trace_context", default={}
+_trace_var: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
+    "trace_context", default=None
 )
 
 

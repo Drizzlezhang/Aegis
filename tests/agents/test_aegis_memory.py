@@ -3,7 +3,7 @@
 import os
 import sys
 import tempfile
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -15,9 +15,9 @@ from src.agents.aegis_memory import queries
 from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.agents.aegis_memory.storage import AnalysisStorage
 from src.models import (
-    DecisionOutcome,
     OHLCV,
     AgentState,
+    DecisionOutcome,
     OptionChain,
     OptionContract,
     OptionType,
@@ -133,7 +133,7 @@ class TestAgentStateSnapshots:
     def test_timestamp_defaults_to_utc(self):
         state = AgentState(symbol="QQQ", trade_date=date(2024, 1, 2))
 
-        assert state.timestamp.tzinfo == timezone.utc
+        assert state.timestamp.tzinfo == UTC
 
     def test_snapshot_quant_deep_copies_models(self, sample_agent_state):
         snapshot = sample_agent_state.snapshot_quant()

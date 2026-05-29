@@ -3,7 +3,8 @@
 from datetime import date
 
 import pytest
-from src.services.backtest_validator import BacktestValidator, BacktestResult
+
+from src.services.backtest_validator import BacktestValidator
 
 
 @pytest.fixture

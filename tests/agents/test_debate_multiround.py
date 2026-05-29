@@ -4,7 +4,7 @@ import pytest
 
 from src.agents.debate.agent import DebateAgent
 from src.models import AgentState
-from src.models.debate import DebateArgument, DebateRole, JudgeVerdict, InvestmentRating
+from src.models.debate import DebateArgument, DebateRole, InvestmentRating, JudgeVerdict
 
 
 def make_state(symbol="TEST"):

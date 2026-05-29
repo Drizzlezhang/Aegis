@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class AntiWhipsaw:
         except (ValueError, TypeError):
             return True, "invalid_timestamp"
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if now - last_ts > self._cooldown:
             return True, "cooldown_expired"
 
@@ -63,7 +63,7 @@ class AntiWhipsaw:
         symbol = symbol.upper()
         self._decisions[symbol] = {
             "direction": direction,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         self._save_state()
 

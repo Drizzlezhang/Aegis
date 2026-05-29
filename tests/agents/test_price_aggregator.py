@@ -1,6 +1,5 @@
 """Tests for PriceAggregator."""
 
-import pytest
 from src.agents.data_harvester.price_aggregator import PriceAggregator
 
 

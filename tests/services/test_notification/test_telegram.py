@@ -1,6 +1,5 @@
 """Tests for TelegramNotifier."""
 
-import pytest
 
 from src.services.notification.telegram import TelegramNotifier
 
@@ -24,7 +23,6 @@ class TestTelegramNotifier:
 
     def test_silent_hours_blocks_send(self, monkeypatch):
         """During silent hours, send() returns False unless force=True."""
-        from datetime import datetime
         from src.config import get_config
 
         config = get_config()
@@ -51,6 +49,7 @@ class TestTelegramNotifier:
     def test_silent_hours_cross_midnight(self, monkeypatch):
         """Test cross-midnight silent hours logic."""
         from datetime import datetime
+
         from src.config import get_config
 
         config = get_config()

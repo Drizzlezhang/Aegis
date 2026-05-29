@@ -1,6 +1,5 @@
 """Tests for Futu data source skill."""
 
-from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest

@@ -1,8 +1,9 @@
 """持仓自动化规则引擎。"""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable
+from typing import Any
 
 
 class RuleAction(StrEnum):
@@ -24,7 +25,7 @@ class RuleResult:
 
 class PositionRulesEngine:
     """持仓管理规则引擎。
-    
+
     预置规则:
     1. DTE < 21 + 无利润 → suggest_roll
     2. P&L > target_pct → alert
@@ -39,12 +40,12 @@ class PositionRulesEngine:
 
     def evaluate(self, position: dict, market_data: dict) -> list[RuleResult]:
         """评估所有规则。
-        
+
         Args:
             position: {"symbol", "dte_remaining", "entry_price", "current_price",
                       "target_pct", "stop_loss_pct", "strategy_type", "position_type"}
             market_data: {"price_history_5d": list, "iv_rank": float, ...}
-        
+
         Returns:
             按 urgency 降序排列的规则触发结果
         """

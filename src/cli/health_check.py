@@ -176,7 +176,6 @@ class HealthCheckRunner:
 
     def _check_breaker_states(self) -> CheckResult:
         """Check circuit breaker states."""
-        open_breakers = []
         try:
             # Breaker states are only available at runtime via DataFetcherManager
             # CLI check reports that breakers require a running API server

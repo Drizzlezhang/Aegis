@@ -2,14 +2,11 @@
 
 import asyncio
 from datetime import date
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from src.agents.orchestrator import (
-    AGENT_TIMEOUTS,
-    CRITICAL_AGENTS,
-    DEFAULT_AGENT_TIMEOUT,
     MAX_RETRIES,
     AgentTimeoutError,
     Orchestrator,
@@ -40,7 +37,7 @@ async def test_agent_timeout_skips_non_critical():
 
     # Override timeout to a tiny value for fast test
     with patch.object(orch, "_execute_agent_with_timeout", side_effect=AgentTimeoutError("Aegis-Memory", 0.001)):
-        result = await orch._run_agent_with_retry(step, state)
+        await orch._run_agent_with_retry(step, state)
 
     # Should have recorded the error
     assert "agent_errors" in state.metadata
@@ -76,7 +73,7 @@ async def test_agent_retry_succeeds_on_second_attempt():
 
     orch._agents["Quant-Brain"].run = flaky_run
 
-    result = await orch._run_agent_with_retry(step, state)
+    await orch._run_agent_with_retry(step, state)
 
     assert call_count[0] == 2
     assert "agent_retries" in state.metadata
@@ -95,7 +92,7 @@ async def test_agent_retry_exhausted_skips():
 
     orch._agents["Position-Monitor"].run = always_fail
 
-    result = await orch._run_agent_with_retry(step, state)
+    await orch._run_agent_with_retry(step, state)
 
     # Should have recorded errors and retries
     assert "agent_errors" in state.metadata

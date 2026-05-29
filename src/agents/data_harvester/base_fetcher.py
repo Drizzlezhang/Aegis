@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-
 STANDARD_COLUMNS = [
     "date", "open", "high", "low", "close", "volume",
     "adj_close", "dividend", "split",

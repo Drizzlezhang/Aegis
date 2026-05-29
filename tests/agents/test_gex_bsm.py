@@ -1,5 +1,3 @@
-import math
-import pytest
 from skills.algorithms.gex_calculator.skill import GEXCalculatorSkill
 
 
@@ -40,10 +38,10 @@ def test_bsm_gamma_vs_simplified():
         risk_free_rate=0.05,
         implied_vol=0.3
     )
-    
+
     # We can't easily test `_calculate_gamma` directly against BSM without a full contract,
     # but we can verify the BSM gamma is positive and within a sane range for standard inputs.
     assert 0.01 < gamma_bsm < 0.1
-    
+
     gamma_otm = skill._calculate_bsm_gamma(100.0, 120.0, 0.25)
     assert gamma_bsm > gamma_otm * 1.5, "ATM gamma should be significantly larger than OTM gamma"

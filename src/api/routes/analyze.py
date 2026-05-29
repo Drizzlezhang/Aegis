@@ -89,10 +89,10 @@ async def run_analysis(request: AnalyzeRequest) -> AnalyzeResponse:
             _orchestrator.analyze_symbols(symbols),
             timeout=120.0
         )
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="Analysis timed out after 120 seconds")
+    except TimeoutError as e:
+        raise HTTPException(status_code=504, detail="Analysis timed out after 120 seconds") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}") from e
 
     # Build response
     results: list[AnalyzeResult] = []

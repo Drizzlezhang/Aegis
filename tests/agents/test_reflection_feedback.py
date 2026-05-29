@@ -1,7 +1,7 @@
 """Tests for reflection feedback loop."""
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -29,7 +29,7 @@ def manager(tmp_path):
 async def test_query_recent_reflected_returns_non_pending(decision_log):
     pending = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=31),
+        timestamp=datetime.now(UTC) - timedelta(days=31),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,
@@ -58,7 +58,7 @@ async def test_query_recent_reflected_respects_limit(decision_log):
     for i in range(3):
         entry = DecisionEntry(
             id=str(uuid4()),
-            timestamp=datetime.now(timezone.utc) - timedelta(days=31 + i),
+            timestamp=datetime.now(UTC) - timedelta(days=31 + i),
             symbol="QQQ",
             decision_type=DecisionType.OPEN,
             current_price=100.0,
@@ -78,7 +78,7 @@ async def test_query_recent_reflected_respects_limit(decision_log):
 async def test_reflection_engine_updates_and_query_reflects(decision_log, manager):
     entry = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=31),
+        timestamp=datetime.now(UTC) - timedelta(days=31),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,
@@ -110,7 +110,7 @@ async def test_empty_reflections_returns_empty_list(decision_log):
 async def test_query_recent_reflected_orders_by_timestamp_desc(decision_log):
     old = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=40),
+        timestamp=datetime.now(UTC) - timedelta(days=40),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,
@@ -122,7 +122,7 @@ async def test_query_recent_reflected_orders_by_timestamp_desc(decision_log):
     old.outcome = DecisionOutcome.PROFITABLE
     new = DecisionEntry(
         id=str(uuid4()),
-        timestamp=datetime.now(timezone.utc) - timedelta(days=20),
+        timestamp=datetime.now(UTC) - timedelta(days=20),
         symbol="QQQ",
         decision_type=DecisionType.OPEN,
         current_price=100.0,

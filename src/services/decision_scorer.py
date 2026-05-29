@@ -18,7 +18,7 @@ class DecisionScore:
 
 class DecisionScorer:
     """评估历史决策质量。
-    
+
     评分维度:
     1. Timing (30pts): 入场价 vs 后续最低价的距离
        - 回撤 < 5% → 30
@@ -43,10 +43,10 @@ class DecisionScorer:
 
     def score(self, decision: dict, position_history: dict) -> DecisionScore:
         """评分一条已完成的决策。
-        
+
         Args:
             decision: {"id", "symbol", "entry_price", "target_pct", "stop_loss_pct", "strategy_type"}
-            position_history: {"prices_after_entry": list[float], "exit_price": float|None, 
+            position_history: {"prices_after_entry": list[float], "exit_price": float|None,
                              "exit_reason": str, "position_size_pct": float, "days_held": int}
         """
         timing = self._score_timing(decision, position_history)
@@ -54,7 +54,7 @@ class DecisionScorer:
         exit_quality = self._score_exit(decision, position_history)
         adherence = self._score_plan_adherence(decision, position_history)
         tags = self._generate_tags(timing, sizing, exit_quality, adherence, position_history)
-        
+
         return DecisionScore(
             decision_id=decision["id"],
             symbol=decision["symbol"],
@@ -74,7 +74,7 @@ class DecisionScorer:
         entry_price = decision.get("entry_price", prices[0])
         min_price = min(prices[:30]) if len(prices) >= 30 else min(prices)
         max_drawdown_pct = (entry_price - min_price) / entry_price * 100 if entry_price > 0 else 0
-        
+
         if max_drawdown_pct < 5:
             return 30.0
         elif max_drawdown_pct < 15:
@@ -89,14 +89,14 @@ class DecisionScorer:
         size_pct = history.get("position_size_pct", 5.0)
         exit_price = history.get("exit_price")
         entry_price = decision.get("entry_price", 0)
-        
+
         if not exit_price or not entry_price:
             return 12.0
-        
+
         pnl_pct = (exit_price - entry_price) / entry_price * 100
         is_profit = pnl_pct > 0
         standard_size = 5.0  # 标准仓位 5%
-        
+
         if is_profit and size_pct >= standard_size:
             return 20.0
         elif is_profit and size_pct < standard_size:
@@ -111,13 +111,13 @@ class DecisionScorer:
         exit_reason = history.get("exit_reason", "unknown")
         exit_price = history.get("exit_price")
         entry_price = decision.get("entry_price", 0)
-        target_pct = decision.get("target_pct", 20.0)
-        
+        decision.get("target_pct", 20.0)
+
         if not exit_price or not entry_price:
             return 15.0
-        
+
         pnl_pct = (exit_price - entry_price) / entry_price * 100
-        
+
         if exit_reason == "target_hit":
             return 30.0
         elif exit_reason == "stop_loss" and pnl_pct >= -decision.get("stop_loss_pct", 10) * 1.2:

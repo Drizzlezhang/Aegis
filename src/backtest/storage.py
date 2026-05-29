@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -57,7 +57,7 @@ class BacktestStorage:
                     result.get("metrics", {}).get("total_return"),
                     result.get("metrics", {}).get("max_drawdown"),
                     result.get("metrics", {}).get("total_trades"),
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
         return run_id

@@ -1,7 +1,7 @@
 """Tests for ModelCircuitBreaker."""
 
 import time
-import pytest
+
 from src.llm.gateway import ModelCircuitBreaker
 
 

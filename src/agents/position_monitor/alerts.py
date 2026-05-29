@@ -1,7 +1,7 @@
 """Independent alert generation — complements PositionMonitor.scan()."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import uuid4
 
@@ -29,7 +29,7 @@ class PositionAlert:
     alert_type: AlertType = AlertType.APPROACHING_STOP
     level: AlertLevel = AlertLevel.INFO
     message: str = ""
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     current_price: float | None = None
     threshold: float | None = None
 
@@ -92,7 +92,7 @@ def generate_alerts(
                 )
 
         # 3. holding_timeout: days held > 30
-        days_held = (datetime.now(timezone.utc).date() - position.entry_date).days
+        days_held = (datetime.now(UTC).date() - position.entry_date).days
         if days_held > 30:
             alerts.append(
                 PositionAlert(

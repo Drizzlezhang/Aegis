@@ -9,7 +9,16 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.position_monitor.position_manager import PositionManager
-from src.models import OptionContract, OptionType, Position, PositionStatus, ProfitTarget, StopLoss, TradePlan, StrategyMode
+from src.models import (
+    OptionContract,
+    OptionType,
+    Position,
+    PositionStatus,
+    ProfitTarget,
+    StopLoss,
+    StrategyMode,
+    TradePlan,
+)
 
 
 @pytest.fixture

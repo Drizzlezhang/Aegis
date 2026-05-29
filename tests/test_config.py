@@ -1,7 +1,7 @@
 """Config 字段完整性测试。"""
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -15,7 +15,6 @@ from src.config import (
     PhaseConfig,
     PositionConfig,
     ProviderCredential,
-    get_config,
     reload_config,
 )
 

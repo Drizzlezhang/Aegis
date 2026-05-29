@@ -104,7 +104,7 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
         start = date.fromisoformat(request.start_date)
         end = date.fromisoformat(request.end_date)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}") from e
 
     if start >= end:
         raise HTTPException(status_code=400, detail="start_date must be before end_date")
@@ -128,9 +128,9 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
             initial_capital=request.initial_capital,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Backtest failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {e}") from e
 
     # Map trades to frontend format
     trades_resp: list[TradeResponse] = []

@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api.middleware.auth import AuthMiddleware
-from src.config import set_config, get_config
+from src.config import get_config, set_config
 
 JWT_SECRET = "test-secret-key-for-middleware"
 API_KEYS = ["test-api-key-1", "test-api-key-2"]

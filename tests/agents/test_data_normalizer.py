@@ -3,14 +3,11 @@
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from unittest.mock import Mock
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.data_harvester.data_normalizer import DataNormalizer
-from src.models import OHLCV, OptionChain, OptionContract, OptionType
+from src.models import OHLCV, OptionChain
 
 
 def test_normalize_ohlcv_from_yfinance_format():

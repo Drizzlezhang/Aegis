@@ -1,6 +1,6 @@
 """Reflect pending decisions into finalized outcomes."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.models import DecisionEntry, DecisionOutcome, PositionStatus
 from src.services import DecisionLog
@@ -43,10 +43,10 @@ class ReflectionEngine:
         return True
 
     def _is_due(self, entry: DecisionEntry) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         timestamp = entry.timestamp
         if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
+            timestamp = timestamp.replace(tzinfo=UTC)
         return now - timestamp >= self._reflection_delay
 
     def _match_position(self, entry: DecisionEntry, positions):

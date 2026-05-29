@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.llm.client import LLMError, LLMRequest, LLMResponse
-from src.llm.gateway import LLMGateway, LLMMetrics
+from src.llm.gateway import LLMGateway
 
 
 @pytest.fixture

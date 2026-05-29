@@ -1,7 +1,8 @@
 """Tests for DecisionScorer."""
 
 import pytest
-from src.services.decision_scorer import DecisionScorer, DecisionScore
+
+from src.services.decision_scorer import DecisionScorer
 
 
 @pytest.fixture

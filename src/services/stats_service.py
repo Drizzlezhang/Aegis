@@ -30,7 +30,7 @@ class StatsService:
         """获取指定时间范围内的交易统计。"""
         decisions = await self._decisions.get_recent(days=days)
         positions = await self._positions.get_closed_positions(days=days)
-        
+
         if not decisions and not positions:
             return TradingStats(
                 total_decisions=0, total_positions=0, win_rate=0.0,
@@ -39,30 +39,30 @@ class StatsService:
                 avg_holding_days=0.0, monthly_pnl={},
                 by_strategy={}, by_symbol={},
             )
-        
+
         # 计算统计
         wins = [p for p in positions if p.get("pnl_pct", 0) > 0]
         win_rate = len(wins) / len(positions) if positions else 0.0
         avg_pnl = sum(p.get("pnl_pct", 0) for p in positions) / len(positions) if positions else 0.0
         total_pnl = sum(p.get("realized_pnl", 0) for p in positions)
-        
+
         # Best/Worst
         sorted_by_pnl = sorted(positions, key=lambda p: p.get("pnl_pct", 0))
         best = {"symbol": sorted_by_pnl[-1]["symbol"], "pnl_pct": sorted_by_pnl[-1].get("pnl_pct", 0)} if sorted_by_pnl else None
         worst = {"symbol": sorted_by_pnl[0]["symbol"], "pnl_pct": sorted_by_pnl[0].get("pnl_pct", 0)} if sorted_by_pnl else None
-        
+
         # Avg holding days
         avg_days = sum(p.get("days_held", 0) for p in positions) / len(positions) if positions else 0.0
-        
+
         # Monthly PnL
         monthly = self._group_monthly_pnl(positions)
-        
+
         # By strategy
         by_strategy = self._group_by_field(positions, "strategy_type")
-        
+
         # By symbol
         by_symbol = self._group_by_field(positions, "symbol")
-        
+
         return TradingStats(
             total_decisions=len(decisions),
             total_positions=len(positions),
@@ -117,7 +117,7 @@ class StatsService:
         for p in positions:
             key = p.get(field, "unknown")
             groups.setdefault(key, []).append(p)
-        
+
         result = {}
         for key, items in groups.items():
             wins = [i for i in items if i.get("pnl_pct", 0) > 0]

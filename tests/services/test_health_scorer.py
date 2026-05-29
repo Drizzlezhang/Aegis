@@ -2,9 +2,7 @@
 
 from dataclasses import dataclass
 
-import pytest
-
-from src.services.health_scorer import HealthScore, HealthScorer
+from src.services.health_scorer import HealthScorer
 
 
 @dataclass

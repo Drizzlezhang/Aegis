@@ -2,8 +2,6 @@
 
 from datetime import date, datetime, timedelta
 
-import pytest
-
 from src.agents.quant_brain.phase_predictor import PhasePredictor
 from src.models.market import OHLCV
 from src.models.scoring import MacroRegime

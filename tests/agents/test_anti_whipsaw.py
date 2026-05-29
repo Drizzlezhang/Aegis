@@ -1,11 +1,6 @@
 """Tests for AntiWhipsaw decision stabilizer."""
 
-import json
-import time
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from src.agents.strategy_exec.anti_whipsaw import AntiWhipsaw
 
@@ -39,7 +34,7 @@ class TestAntiWhipsaw:
         aw = AntiWhipsaw(cooldown_hours=1, state_file=str(state_file))
         aw._decisions["AAPL"] = {
             "direction": "bullish",
-            "timestamp": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+            "timestamp": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
         }
         allowed, reason = aw.should_allow("AAPL", "bearish")
         assert allowed

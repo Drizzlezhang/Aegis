@@ -2,9 +2,9 @@
 
 import time
 
+import jwt
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import jwt
 
 from src.config import get_config
 

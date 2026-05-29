@@ -1,13 +1,11 @@
 """Integration tests for PhasePredictor → Debate Agent data flow."""
 
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 
 from src.agents.debate.judge import InvestmentJudge
-from src.agents.debate.phase_evidence import generate_phase_evidence
 from src.agents.debate.researchers import BearResearcher, BullResearcher
-from src.models.scoring import MacroRegime
 from src.models.state import AgentState
 from src.models.trend_phase import DimensionScore, TrendPhaseResult, WyckoffPhase
 

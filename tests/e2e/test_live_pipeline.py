@@ -4,8 +4,9 @@
 默认跳过（需要网络 + yfinance）。
 """
 
-import pytest
 import os
+
+import pytest
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("RUN_E2E_TESTS"),
@@ -18,12 +19,12 @@ pytestmark = pytest.mark.skipif(
 async def test_full_pipeline_single_symbol():
     """跑一个 symbol 的完整 pipeline，验证不 crash 且产出 recommendations。"""
     from src.agents.orchestrator import Orchestrator
-    
+
     orchestrator = Orchestrator()
     await orchestrator.initialize()
-    
+
     state = await orchestrator.analyze_symbol("NVDA")
-    
+
     assert state is not None
     assert state.symbol == "NVDA"
     assert state.metadata.get("agent_timings") is not None
@@ -36,12 +37,13 @@ async def test_full_pipeline_single_symbol():
 @pytest.mark.asyncio
 async def test_pipeline_graceful_degradation():
     """验证非 critical agent 失败时 pipeline 不中断。"""
+    from unittest.mock import AsyncMock, patch
+
     from src.agents.orchestrator import Orchestrator
-    from unittest.mock import patch, AsyncMock
-    
+
     orchestrator = Orchestrator()
     await orchestrator.initialize()
-    
+
     # Mock memory agent 失败
     with patch.object(
         orchestrator._agents.get("Aegis-Memory", AsyncMock()),
@@ -49,6 +51,6 @@ async def test_pipeline_graceful_degradation():
         side_effect=RuntimeError("Memory unavailable")
     ):
         state = await orchestrator.analyze_symbol("SPY")
-    
+
     assert state is not None
     assert "Aegis-Memory" in state.metadata.get("agent_errors", {})

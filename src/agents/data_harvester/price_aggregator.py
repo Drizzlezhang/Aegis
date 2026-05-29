@@ -1,8 +1,8 @@
 """多源价格仲裁。"""
 
-from dataclasses import dataclass
 import statistics
 import time
+from dataclasses import dataclass
 
 
 @dataclass
@@ -18,7 +18,7 @@ class AggregatedPrice:
 
 class PriceAggregator:
     """多源价格仲裁器。
-    
+
     策略:
     - 1 源 → confidence=0.7
     - 2+ 源价差 < 0.5% → median, confidence=0.95

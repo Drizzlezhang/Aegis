@@ -116,7 +116,7 @@ class RightSideLeapsStrategy(StrategyGenerator):
             reasoning += f"  • SMA bullish: {'Yes' if sma_bullish else 'No'}\n"
             reasoning += f"  • RSI healthy: {'Yes' if rsi_healthy else 'No'}\n"
             reasoning += f"  • Volume expanding: {'Yes' if vol_expanding else 'No'}\n"
-            reasoning += f"  • Entry: single tranche (100%)\n"
+            reasoning += "  • Entry: single tranche (100%)\n"
             reasoning += f"  • Strike: {best_call.strike:.2f}, Expiry: {best_call.expiry}\n"
             reasoning += f"  • Delta: {best_call.delta:.2f}\n"
             if risk_reward_ratio:

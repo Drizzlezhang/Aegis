@@ -1,12 +1,11 @@
 """Tests for WatchlistService."""
 
-import json
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from src.services.watchlist import WatchlistItem, WatchlistService
+from src.services.watchlist import WatchlistService
 
 
 @pytest.fixture

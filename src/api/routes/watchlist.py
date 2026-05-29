@@ -27,7 +27,7 @@ async def add_to_watchlist(req: AddSymbolRequest):
         item = _service.add(req.symbol, req.notes, req.priority)
         return {"item": item.model_dump(mode="json")}
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=409, detail=str(e)) from e
 
 
 @router.delete("/watchlist/{symbol}")

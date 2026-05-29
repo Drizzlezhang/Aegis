@@ -349,7 +349,7 @@ class QuantBrainAgent(BaseAgent):
 
         ema12_series = ema_series(closes, 12)
         ema26_series = ema_series(closes, 26)
-        macd_series = [e12 - e26 for e12, e26 in zip(ema12_series, ema26_series)]
+        macd_series = [e12 - e26 for e12, e26 in zip(ema12_series, ema26_series, strict=False)]
 
         macd_line = macd_series[-1]
 

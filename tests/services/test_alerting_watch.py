@@ -1,8 +1,6 @@
 """Tests for alerting rules file watching (hot-reload via watchdog)."""
 
 import asyncio
-import tempfile
-from pathlib import Path
 
 import pytest
 

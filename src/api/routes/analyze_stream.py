@@ -3,7 +3,8 @@
 import asyncio
 import json
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -122,7 +123,7 @@ async def run_analysis_stream(request: AnalyzeStreamRequest) -> StreamingRespons
                 await queue.put(_sse("start", {"symbols": symbols, "progress": 0}))
                 await asyncio.wait_for(_orchestrator.analyze_symbols(symbols), timeout=120.0)
                 await queue.put(_sse("done", {"totalTime": round(time.time() - start_time, 2), "progress": 100}))
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await queue.put(_sse("error", {"message": "Analysis timed out after 120 seconds"}))
             except Exception as exc:
                 await queue.put(_sse("error", {"message": f"Analysis failed: {str(exc)}"}))

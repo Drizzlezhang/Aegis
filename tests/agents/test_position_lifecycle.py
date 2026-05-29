@@ -3,13 +3,22 @@
 import sys
 from datetime import date, timedelta
 from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.position_monitor.monitor import AlertType, PositionMonitor
 from src.agents.position_monitor.position_manager import PositionManager
-from src.models import OptionContract, OptionType, Position, PositionStatus, TradePlan, StrategyMode, StopLoss
+from src.models import (
+    OptionContract,
+    OptionType,
+    Position,
+    PositionStatus,
+    StopLoss,
+    StrategyMode,
+    TradePlan,
+)
 
 
 @pytest.fixture

@@ -2,10 +2,9 @@
 
 import logging
 import time
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from typing import Any
-
-from collections.abc import AsyncGenerator
 
 from src.config import get_config
 

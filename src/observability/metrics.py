@@ -2,7 +2,6 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-import time
 
 
 @dataclass

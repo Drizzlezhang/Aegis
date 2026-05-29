@@ -12,6 +12,7 @@ import cachetools
 
 from src.agents.data_harvester.base_fetcher import BaseFetcher, FetcherHealth, FetcherStatus
 from src.config import DataSourceConfig
+
 from .cache import DataCache
 
 logger = logging.getLogger(__name__)

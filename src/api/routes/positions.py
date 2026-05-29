@@ -1,6 +1,7 @@
 """Position monitoring API routes."""
 
-from datetime import date as date_type, datetime, timezone
+from datetime import UTC, datetime
+from datetime import date as date_type
 from typing import Protocol
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ from src.agents.position_monitor.alerts import generate_alerts
 from src.agents.position_monitor.monitor import PositionMonitor
 from src.agents.position_monitor.position_manager import PositionManager
 from src.models.options import OptionContract, OptionType
-from src.models.plan import ProfitTarget, StopLoss, TradePlan, StrategyMode
+from src.models.plan import ProfitTarget, StopLoss, StrategyMode, TradePlan
 from src.models.position import Position, PositionStatus
 
 router = APIRouter()
@@ -231,7 +232,7 @@ class _RoutePositionService:
 
         return {
             "alerts": merged,
-            "scanned_at": datetime.now(timezone.utc).isoformat(),
+            "scanned_at": datetime.now(UTC).isoformat(),
         }
 
     def _to_position_item(self, position: Position) -> dict:

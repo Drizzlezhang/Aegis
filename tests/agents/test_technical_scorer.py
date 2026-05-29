@@ -3,7 +3,6 @@
 import pytest
 
 from src.models import TechnicalScoreBreakdown
-from src.skills.base import SkillResult
 
 
 class TestTechnicalScoreBreakdown:

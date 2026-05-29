@@ -11,7 +11,7 @@ class TestSettingsFlow:
         # Get current
         get_resp = await client.get("/api/settings")
         assert get_resp.status_code == 200
-        original = get_resp.json()
+        get_resp.json()
 
         # Update
         put_resp = await client.put("/api/settings", json={

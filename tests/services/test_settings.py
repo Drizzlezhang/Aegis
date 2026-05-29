@@ -1,11 +1,9 @@
 """Tests for SettingsService."""
 
-import tempfile
-from pathlib import Path
 
 import pytest
 
-from src.services.settings import SETTINGS_PATH, SettingsService, UserSettings
+from src.services.settings import SettingsService
 
 
 @pytest.fixture

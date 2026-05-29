@@ -1,6 +1,6 @@
 """辩论系统模型。"""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -43,7 +43,7 @@ class DebateRound(BaseModel):
     round_number: int = 1
     bull_argument: DebateArgument | None = None
     bear_argument: DebateArgument | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class JudgeVerdict(BaseModel):
@@ -66,4 +66,4 @@ class DebateResult(BaseModel):
     rounds: list[DebateRound] = Field(default_factory=list)
     verdict: JudgeVerdict | None = None
     total_duration_ms: float = 0.0
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

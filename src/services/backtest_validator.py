@@ -24,12 +24,12 @@ class BacktestResult:
 
 class BacktestValidator:
     """历史回测验证器。
-    
+
     用途:
     1. 验证策略推荐在历史数据上是否有效
     2. 计算策略的 win rate, avg PnL, max drawdown
     3. 为 DecisionScorer 提供对比基准
-    
+
     注意: 历史价格由调用方提供，本类不直接调用 fetcher。
     """
 
@@ -45,7 +45,7 @@ class BacktestValidator:
         historical_prices: list[float] | None = None,
     ) -> BacktestResult:
         """回测单条策略。
-        
+
         Args:
             historical_prices: 入场日之后的每日收盘价列表
         """
@@ -59,7 +59,7 @@ class BacktestValidator:
                 hit_profit_target=False, hit_stop_loss=False,
                 risk_reward_actual=None,
             )
-        
+
         prices = historical_prices[:max_days]
         max_price = entry_price
         min_price = entry_price
@@ -67,43 +67,43 @@ class BacktestValidator:
         exit_day = None
         hit_target = False
         hit_stop = False
-        
+
         for i, price in enumerate(prices):
             max_price = max(max_price, price)
             min_price = min(min_price, price)
             pnl_pct = (price - entry_price) / entry_price * 100
-            
+
             # 检查止盈
             if pnl_pct >= target_pct:
                 exit_price = price
                 exit_day = i + 1
                 hit_target = True
                 break
-            
+
             # 检查止损
             if pnl_pct <= -stop_loss_pct:
                 exit_price = price
                 exit_day = i + 1
                 hit_stop = True
                 break
-        
+
         max_gain = (max_price - entry_price) / entry_price * 100
         max_dd = (entry_price - min_price) / entry_price * 100
-        
+
         if exit_price is None:
             # 到期未触及止盈止损
             exit_price = prices[-1]
             exit_day = len(prices)
-        
+
         final_pnl = (exit_price - entry_price) / entry_price * 100
-        
+
         # 风险收益比
         risk_reward = None
         if stop_loss_pct > 0:
             risk_reward = final_pnl / stop_loss_pct
-        
+
         exit_date_val = entry_date + timedelta(days=exit_day) if exit_day else None
-        
+
         return BacktestResult(
             symbol=symbol,
             strategy_type=strategy_type,
@@ -122,7 +122,7 @@ class BacktestValidator:
 
     def batch_validate(self, decisions: list[dict]) -> list[BacktestResult]:
         """批量回测多条策略。
-        
+
         Args:
             decisions: [{"symbol", "strategy_type", "entry_date", "entry_price",
                         "target_pct", "stop_loss_pct", "max_days", "historical_prices"}, ...]
@@ -147,18 +147,18 @@ class BacktestValidator:
         if not results:
             return {"total_trades": 0, "win_rate": 0.0, "avg_pnl_pct": 0.0,
                     "max_drawdown_pct": 0.0, "profit_factor": 0.0, "avg_days_held": 0.0}
-        
+
         completed = [r for r in results if r.final_pnl_pct is not None]
         if not completed:
             return {"total_trades": len(results), "win_rate": 0.0, "avg_pnl_pct": 0.0,
                     "max_drawdown_pct": 0.0, "profit_factor": 0.0, "avg_days_held": 0.0}
-        
+
         wins = [r for r in completed if r.final_pnl_pct > 0]
         losses = [r for r in completed if r.final_pnl_pct <= 0]
-        
+
         total_gains = sum(r.final_pnl_pct for r in wins) if wins else 0
         total_losses = abs(sum(r.final_pnl_pct for r in losses)) if losses else 0
-        
+
         return {
             "total_trades": len(completed),
             "win_rate": len(wins) / len(completed),

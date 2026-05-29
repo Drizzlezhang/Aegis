@@ -132,7 +132,7 @@ class LeftSideLeapsStrategy(StrategyGenerator):
             reasoning += f"  • Support convergence: {'Yes' if near_support else 'No'}\n"
             reasoning += f"  • Undervalued: {'Yes' if is_undervalued else 'No'}\n"
             reasoning += f"  • IV low: {'Yes' if iv_low else 'No'}\n"
-            reasoning += f"  • Entry: 3 tranches (40%+30%+30%)\n"
+            reasoning += "  • Entry: 3 tranches (40%+30%+30%)\n"
             reasoning += f"  • Strike: {best_call.strike:.2f}, Expiry: {best_call.expiry}\n"
             reasoning += f"  • Delta: {best_call.delta:.2f}\n"
             if risk_reward_ratio:

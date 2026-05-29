@@ -1,6 +1,5 @@
 """Tests for HistoricalCache (B4)."""
 
-import json
 import tempfile
 import time
 from pathlib import Path

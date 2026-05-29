@@ -1,9 +1,9 @@
 """Tests for DataHarvesterAgent fallback logic."""
 
-import pytest
+from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from datetime import date, datetime
+import pytest
 
 from src.agents.data_harvester.agent import DataHarvesterAgent
 from src.models import AgentState

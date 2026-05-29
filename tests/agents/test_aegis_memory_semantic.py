@@ -13,13 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.aegis_memory.agent import AegisMemoryAgent
 from src.models import (
-    AgentState,
     OHLCV,
-    OptionChain,
-    OptionContract,
-    OptionType,
+    AgentState,
     SupportResistanceLevel,
-    ValuationRange,
 )
 
 

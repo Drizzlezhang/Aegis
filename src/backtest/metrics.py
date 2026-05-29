@@ -3,7 +3,7 @@
 import math
 from typing import Any
 
-from src.models.backtest import PerformanceReport, PipelineBacktestTrade
+from src.models.backtest import PerformanceReport
 
 from .engine import TradeRecord
 

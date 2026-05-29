@@ -1,15 +1,15 @@
 """Tests for options backtest engine."""
 
+
 import pytest
-from datetime import date
 
 from src.backtest.options_engine import (
     OptionsBacktestEngine,
+    OptionsBacktestResult,
     OptionsStrategy,
     OptionsTradeResult,
-    OptionsBacktestResult,
 )
-from src.backtest.options_pricing import OptionPosition, OptionType, position_pnl
+from src.backtest.options_pricing import OptionType, position_pnl
 
 
 def _make_price_data(prices: list[float], start_date: str = "2024-01-02") -> list[dict]:
@@ -38,7 +38,7 @@ class TestCoveredCall:
         """Stock stays flat → short call premium is profit."""
         # 30 days of flat price at $100
         prices = [100.0] * 30
-        price_data = _make_price_data(prices)
+        _make_price_data(prices)
 
         engine = OptionsBacktestEngine(strategy=OptionsStrategy.COVERED_CALL)
         result = engine._construct_legs(OptionsStrategy.COVERED_CALL, 100.0, 45)
@@ -52,7 +52,7 @@ class TestCoveredCall:
         """Stock drops significantly → stock loss exceeds premium."""
         # Start at 100, drop to 80 over 30 days
         prices = [100.0 - i * 0.67 for i in range(30)]  # ~80 at end
-        price_data = _make_price_data(prices)
+        _make_price_data(prices)
 
         engine = OptionsBacktestEngine(strategy=OptionsStrategy.COVERED_CALL)
         # Manually construct legs and verify PnL at end

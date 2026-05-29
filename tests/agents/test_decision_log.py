@@ -9,8 +9,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.agents.aegis_memory.decision_log import DecisionLog
-from src.services import DecisionLog as SharedDecisionLog
 from src.models.decision import DecisionEntry, DecisionOutcome, DecisionType
+from src.services import DecisionLog as SharedDecisionLog
 
 
 @pytest.fixture

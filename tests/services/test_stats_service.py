@@ -3,7 +3,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from src.services.stats_service import StatsService, TradingStats
+
+from src.services.stats_service import StatsService
 
 
 @pytest.fixture

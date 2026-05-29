@@ -1,7 +1,7 @@
 """Abstract notification channel interface."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
@@ -53,6 +53,7 @@ class NotificationChannel(ABC):
         """Check if channel is properly configured and reachable."""
         ...
 
+    @abstractmethod
     async def close(self) -> None:
         """Cleanup resources."""
-        pass
+        ...

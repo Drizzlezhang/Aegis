@@ -1,7 +1,8 @@
 """Tests for PositionRulesEngine."""
 
 import pytest
-from src.agents.position_monitor.rules_engine import PositionRulesEngine, RuleAction, RuleResult
+
+from src.agents.position_monitor.rules_engine import PositionRulesEngine, RuleAction
 
 
 @pytest.fixture

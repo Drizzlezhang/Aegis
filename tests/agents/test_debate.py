@@ -2,14 +2,13 @@
 
 import pytest
 
-from src.agents.debate.researchers import BullResearcher, BearResearcher
-from src.agents.debate.judge import InvestmentJudge
 from src.agents.debate.agent import DebateAgent
+from src.agents.debate.judge import InvestmentJudge
+from src.agents.debate.researchers import BearResearcher, BullResearcher
 from src.models.debate import (
     DebateArgument,
     DebateRole,
     InvestmentRating,
-    JudgeVerdict,
 )
 
 

@@ -1,6 +1,6 @@
 """System status API routes."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter
@@ -89,7 +89,7 @@ def _pipeline_metrics() -> PipelineMetrics:
     if history:
         durations = [float(item.get("execution_time", 0.0)) for item in history]
         avg_duration = round(sum(durations) / len(durations), 3)
-        latest = max(history, key=lambda item: item.get("timestamp") or datetime.min.replace(tzinfo=timezone.utc))
+        latest = max(history, key=lambda item: item.get("timestamp") or datetime.min.replace(tzinfo=UTC))
         ts = latest.get("timestamp")
         if isinstance(ts, datetime):
             last_run_time = ts.isoformat()

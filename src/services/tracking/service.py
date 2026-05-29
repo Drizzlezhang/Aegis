@@ -2,13 +2,12 @@
 
 import json
 import logging
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import yfinance as yf
 
-from src.config import get_config
 from .models import TrackedDecision, TrackingStatus
 
 logger = logging.getLogger(__name__)
@@ -69,7 +68,7 @@ class TrackingService:
         if not pending:
             return
 
-        symbols = list(set(d.symbol for d in pending))
+        symbols = list({d.symbol for d in pending})
         logger.info(f"Updating {len(pending)} tracked decisions for {len(symbols)} symbols")
 
         for decision in pending:

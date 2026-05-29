@@ -252,7 +252,7 @@ class LLMClient:
                         finish_reason=choice.get("finish_reason"),
                         tool_calls=message.get("tool_calls")
                     )
-            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            except (TimeoutError, aiohttp.ClientError) as e:
                 last_error = e
                 if attempt < max_retries - 1:
                     delay = base_delay * (2 ** attempt)

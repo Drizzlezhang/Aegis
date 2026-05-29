@@ -66,7 +66,7 @@ class TelegramNotifier(NotificationChannel):
         msg += f"推荐策略数: {len(recommendations)}\n"
         if recommendations and confidence >= self._config.confidence_threshold:
             rec = recommendations[0]
-            msg += f"\n🎯 *Top 推荐:*\n"
+            msg += "\n🎯 *Top 推荐:*\n"
             msg += f" 策略: {rec.get('strategy_type', 'N/A')}\n"
             msg += f" 置信度: {confidence:.0%}\n"
             msg += f" 入场: ${rec.get('entry_price', 'N/A')}\n"
@@ -78,10 +78,10 @@ class TelegramNotifier(NotificationChannel):
         success = sum(1 for r in results if r.get("success"))
         high_conf = sum(1 for r in results if r.get("high_confidence"))
 
-        msg = f"📋 *每日分析汇总*\n"
+        msg = "📋 *每日分析汇总*\n"
         msg += f"分析标的: {total} | 成功: {success} | 高置信度推荐: {high_conf}\n"
         if high_conf > 0:
-            msg += f"\n🔥 *高置信度标的:*\n"
+            msg += "\n🔥 *高置信度标的:*\n"
             for r in results:
                 if r.get("high_confidence"):
                     msg += f" • {r['symbol']}: {r.get('top_strategy', 'N/A')}\n"

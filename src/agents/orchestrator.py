@@ -4,10 +4,11 @@ import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from importlib import import_module
-from typing import Any, Callable
+from typing import Any
 
 from src.agents.base import BaseAgent
 from src.agents.quant_brain.report_templates import FULL_ANALYSIS, build_structured_report
@@ -143,7 +144,7 @@ class Orchestrator:
         """Run full analysis pipeline for a single symbol."""
         symbol = symbol.upper()
         start_time = time.time()
-        
+
         trace_id = str(uuid.uuid4())[:8]
         TraceContext.set(trace_id, symbol)
         logger.info("Pipeline started", extra={"extra_fields": {"trace_id": trace_id, "symbol": symbol}})
@@ -168,7 +169,7 @@ class Orchestrator:
         execution_time = time.time() - start_time
         self._execution_history.append({
             "symbol": symbol,
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "execution_time": execution_time,
             "agent_sequence": state.agent_sequence.copy(),
             "recommendations_count": len(state.recommended_options),
@@ -194,8 +195,8 @@ class Orchestrator:
                 agent.run(state),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
-            raise AgentTimeoutError(agent.name, timeout)
+        except TimeoutError as e:
+            raise AgentTimeoutError(agent.name, timeout) from e
 
     async def _run_agent_with_retry(self, step: PipelineStep, state: AgentState, request_id: str = "") -> AgentState:
         """Run agent with retry for non-critical agents."""
@@ -203,13 +204,11 @@ class Orchestrator:
         timeout = AGENT_TIMEOUTS.get(step.agent_name, DEFAULT_AGENT_TIMEOUT)
         is_critical = step.agent_name in CRITICAL_AGENTS
 
-        last_error: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
                 result = await self._execute_agent_with_timeout(agent, state, timeout)
                 return result
             except AgentTimeoutError as e:
-                last_error = e
                 state.metadata.setdefault("agent_errors", {})[step.agent_name] = str(e)
                 if is_critical:
                     raise
@@ -230,7 +229,6 @@ class Orchestrator:
                               "attempt": attempt + 1})
                 await asyncio.sleep(backoff)
             except Exception as e:
-                last_error = e
                 state.metadata.setdefault("agent_errors", {})[step.agent_name] = str(e)
                 if is_critical:
                     raise
@@ -258,17 +256,17 @@ class Orchestrator:
         steps = pipeline_steps or self._build_pipeline_steps()
         agent_timings = {}
         checkpoints = []
-        
+
         for step in steps:
             state.current_step = step.index - 1
             step_start = time.time()
-            
+
             # 保存 checkpoint（浅拷贝 state）
             checkpoints.append({
                 "agent": step.display_name,
                 "state_snapshot": state.model_copy(deep=False) if hasattr(state, 'model_copy') else None,
             })
-            
+
             logger.info(f"[{step.index}/{step.total}] Running {step.display_name} for {state.symbol}...")
             await self._emit("step_started", step=step, state=state)
             if request_id:
@@ -276,7 +274,7 @@ class Orchestrator:
                     request_id=request_id,
                     step={"index": step.index - 1, "total": step.total,
                           "agent": step.display_name, "status": "started"})
-            
+
             try:
                 state = await self._run_agent_with_retry(step, state, request_id)
             except (AgentTimeoutError, Exception) as e:
@@ -286,14 +284,14 @@ class Orchestrator:
                 logger.error(f"Agent {step.display_name} failed: {e}",
                             extra={"extra_fields": {"agent": step.display_name, "error": str(e)}})
                 agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "error": str(e)}
-                
+
                 # Record metrics
                 self.metrics.record_agent_run(
                     step.display_name, success=False, duration_ms=elapsed_ms,
                     timeout=is_timeout,
                     retried=bool(state.metadata.get("agent_retries")),
                 )
-                
+
                 if request_id:
                     await self._emit("pipeline_progress",
                         request_id=request_id,
@@ -307,17 +305,17 @@ class Orchestrator:
                 # 其他 agent 失败 → 记录错误，继续 pipeline
                 state.metadata.setdefault("agent_errors", {})[step.display_name] = str(e)
                 continue
-                
+
             elapsed = time.time() - step_start
             elapsed_ms = elapsed * 1000
             agent_timings[step.display_name] = {"duration_s": round(elapsed, 3), "status": "ok"}
-            
+
             # Record metrics
             self.metrics.record_agent_run(
                 step.display_name, success=True, duration_ms=elapsed_ms,
                 retried=bool(state.metadata.get("agent_retries")),
             )
-            
+
             state.current_step = step.index
             await self._emit("step_completed", step=step, state=state)
             if request_id:
@@ -328,7 +326,7 @@ class Orchestrator:
                           "elapsed_ms": int(elapsed_ms)})
             logger.info(f"[{step.index}/{step.total}] {step.display_name} completed in {elapsed:.2f}s",
                        extra={"extra_fields": {"agent": step.display_name, "duration_s": elapsed}})
-                       
+
         state.metadata["agent_timings"] = agent_timings
         state.metadata["trace_id"] = TraceContext.get().get("trace_id")
         state.metadata["pipeline_checkpoints"] = len(checkpoints)
@@ -416,7 +414,7 @@ AEGIS-TRADER ANALYSIS REPORT
 {'=' * 70}
 Symbol: {symbol}
 Trade Date: {state.trade_date}
-Analysis Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')}
+Analysis Time: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S %Z')}
 Pipeline: {' -> '.join(state.agent_sequence)}
 
 {'=' * 70}

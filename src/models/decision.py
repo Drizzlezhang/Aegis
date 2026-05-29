@@ -1,6 +1,6 @@
 """Decision log models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -26,7 +26,7 @@ class DecisionOutcome(StrEnum):
 
 class DecisionEntry(BaseModel):
     id: str = Field(..., description="Unique decision ID")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     symbol: str
     decision_type: DecisionType
     current_price: float

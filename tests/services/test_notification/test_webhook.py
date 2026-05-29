@@ -1,21 +1,23 @@
 """Tests for WebhookNotifier."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC
+from unittest.mock import AsyncMock, MagicMock
 
-from src.services.notification.base import Notification, NotificationLevel, NotificationCategory
+import pytest
+
+from src.services.notification.base import Notification, NotificationCategory, NotificationLevel
 from src.services.notification.webhook import WebhookNotifier
 
 
 def _make_notification(**kwargs) -> Notification:
-    from datetime import datetime, timezone
+    from datetime import datetime
     defaults = {
         "id": "test-001",
         "level": NotificationLevel.WARNING,
         "category": NotificationCategory.SYSTEM,
         "title": "Test",
         "message": "Test message",
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
     }
     defaults.update(kwargs)
     return Notification(**defaults)
