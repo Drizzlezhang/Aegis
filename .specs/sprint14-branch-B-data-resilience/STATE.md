@@ -3,12 +3,12 @@
 ## Current
 - **change_id**: sprint14-branch-B-data-resilience
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-05-28T12:40:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-29T00:00:00+08:00
 
 ## Next Action
-进入 6-SHIP，commit + push
+已合入 master（via sprint14-branch-F）
 
 ## Open Questions
 - [x] B1 多源校验：通过 mock 多源测试，不等待真实多源接入

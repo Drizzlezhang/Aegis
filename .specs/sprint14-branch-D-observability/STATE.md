@@ -3,12 +3,12 @@
 ## Current
 - **change_id**: sprint14-branch-D-observability
 - **size**: S
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-05-28T11:35:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-29T00:00:00+08:00
 
 ## Next Action
-进入 6-SHIP，commit + push + merge to master
+已合入 master（via sprint14-branch-F）
 
 ## Open Questions
 - [ ] prometheus_client 为 optional dependency，CI 需安装 metrics extra

@@ -3,12 +3,12 @@
 ## Current
 - **change_id**: sprint14-branch-F-finalize-and-integrate
 - **size**: L
-- **current_stage**: 3-PLAN
-- **status**: in_progress
-- **updated_at**: 2026-05-28T13:20:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-05-29T00:00:00+08:00
 
 ## Next Action
-进入 4-BUILD，按波次顺序执行实现
+已合入 master
 
 ## Open Questions
 - [x] F5-F12 需等 Branch B-B4 合入后才能执行 → 已确认 B-B4 已合入
