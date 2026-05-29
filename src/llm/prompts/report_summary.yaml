@@ -1,0 +1,17 @@
+prompts:
+  - name: report_summary
+    version: v1
+    template: |
+      Generate a market analysis report summary for {{ symbol }}.
+
+      Phase: {{ phase }}
+      Confidence: {{ confidence }}%
+      Composite Score: {{ composite_score }}
+
+      Key findings:
+      {{ findings }}
+
+      Provide a concise executive summary with actionable insights.
+    variables: [symbol, phase, confidence, composite_score, findings]
+    description: "Report summary generation"
+    weight: 1.0

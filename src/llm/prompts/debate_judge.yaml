@@ -1,0 +1,16 @@
+prompts:
+  - name: debate_judge
+    version: v1
+    template: |
+      You are an impartial debate judge. Evaluate the following arguments:
+
+      Bull argument: {{ bull_argument }}
+      Bear argument: {{ bear_argument }}
+
+      Symbol: {{ symbol }}
+      Current price: {{ price }}
+
+      Determine the winner and provide a reasoned verdict with confidence score (0-100).
+    variables: [symbol, price, bull_argument, bear_argument]
+    description: "Judge for debate system"
+    weight: 1.0
