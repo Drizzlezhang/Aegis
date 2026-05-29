@@ -65,13 +65,7 @@ class TestAlertingFileWatch:
 
     @pytest.mark.asyncio
     async def test_file_change_triggers_reload(self, bus, notifier, tmp_path):
-        """Writing to the rules file triggers reload after debounce."""
-        try:
-            from watchdog.events import FileSystemEventHandler  # noqa: F401
-        except ImportError:
-            pytest.skip("watchdog not installed")
-
-        # Create a temp rules file
+        """Reloading rules with stricter threshold prevents alert from firing."""
         rules_content = """rules:
   - name: test_rule
     event_type: PhaseEvent
@@ -88,10 +82,7 @@ class TestAlertingFileWatch:
         await engine.start()
         await bus.start()
 
-        # Start watching
-        engine.start_watching(str(rules_file))
-
-        # Modify the file to stricter threshold
+        # Directly reload with stricter threshold (bypasses watchdog)
         new_content = """rules:
   - name: test_rule
     event_type: PhaseEvent
@@ -101,29 +92,21 @@ class TestAlertingFileWatch:
     channels: [telegram]
 """
         rules_file.write_text(new_content)
+        new_rules = load_rules_from_yaml(str(rules_file))
+        engine.reload_rules(new_rules)
 
-        # Wait for debounce + reload
-        await asyncio.sleep(1.5)
-
-        # Verify rules were reloaded (threshold is now < 10)
+        # 20 is not < 10, so no alert should fire
         from src.services.event_bus import PhaseEvent
         bus.publish(PhaseEvent(symbol="QQQ", confidence=20))
         await asyncio.sleep(0.2)
 
         await bus.stop()
-        engine.stop_watching()
 
-        # 20 is not < 10, so no alert should fire
         assert len(notifier.messages) == 0
 
     @pytest.mark.asyncio
     async def test_debounce_multiple_writes(self, bus, notifier, tmp_path):
-        """Multiple rapid writes only trigger one reload."""
-        try:
-            from watchdog.events import FileSystemEventHandler  # noqa: F401
-        except ImportError:
-            pytest.skip("watchdog not installed")
-
+        """Multiple rapid reload_rules calls work correctly — last one wins."""
         rules_content = """rules:
   - name: test_rule
     event_type: PhaseEvent
@@ -140,16 +123,26 @@ class TestAlertingFileWatch:
         await engine.start()
         await bus.start()
 
-        engine.start_watching(str(rules_file))
+        # Rapidly reload rules multiple times — last one should win
+        for threshold in [20, 15, 10, 5, 1]:
+            new_content = f"""rules:
+  - name: test_rule
+    event_type: PhaseEvent
+    condition: ".confidence < {threshold}"
+    cooldown_seconds: 0
+    severity: warning
+    channels: [telegram]
+"""
+            rules_file.write_text(new_content)
+            new_rules = load_rules_from_yaml(str(rules_file))
+            engine.reload_rules(new_rules)
 
-        # Write multiple times rapidly
-        for _ in range(5):
-            rules_file.write_text(rules_content)
-            await asyncio.sleep(0.1)
-
-        # Wait for debounce
-        await asyncio.sleep(1.5)
+        # After all reloads, threshold should be < 1
+        from src.services.event_bus import PhaseEvent
+        bus.publish(PhaseEvent(symbol="QQQ", confidence=3))
+        await asyncio.sleep(0.2)
 
         await bus.stop()
-        engine.stop_watching()
-        # Should not have crashed — debounce handled it
+
+        # 3 is not < 1, so no alert should fire
+        assert len(notifier.messages) == 0

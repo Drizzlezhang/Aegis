@@ -2,13 +2,26 @@
 
 import random
 from datetime import date, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from src.api.main import app, lifespan
+
+
+@pytest.fixture(autouse=True)
+def mock_scheduler():
+    """Mock AnalysisScheduler to avoid pickle errors with yfinance_ohlcv."""
+    with patch("src.api.main.AnalysisScheduler") as mock_cls:
+        mock_instance = MagicMock()
+        mock_instance.initialize = AsyncMock()
+        mock_instance.start = MagicMock()
+        mock_instance.stop = MagicMock()
+        mock_instance.aclose = AsyncMock()
+        mock_cls.return_value = mock_instance
+        yield mock_cls
 
 
 @pytest_asyncio.fixture

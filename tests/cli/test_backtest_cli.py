@@ -1,22 +1,11 @@
 """Tests for backtest CLI subcommand."""
 
 import argparse
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
-# Import build_parser from src/cli.py (not the src/cli/ package)
-_spec = importlib.util.spec_from_file_location(
-    "src_cli_module",
-    Path(__file__).parent.parent.parent / "src" / "cli.py",
-)
-_src_cli = importlib.util.module_from_spec(_spec)
-sys.modules["src_cli_module"] = _src_cli
-_spec.loader.exec_module(_src_cli)
-build_parser = _src_cli.build_parser
-run_backtest = _src_cli.run_backtest
+from src.cli import build_parser, run_backtest
 
 
 class TestBacktestCLIParser:
