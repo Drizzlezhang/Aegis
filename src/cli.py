@@ -540,6 +540,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="不自动打开 HTML 报告",
     )
 
+    # llm 命令
+    llm_parser = subparsers.add_parser("llm", help="LLM cost governance")
+    llm_sub = llm_parser.add_subparsers(dest="llm_action", title="llm commands")
+
+    cost_parser = llm_sub.add_parser("cost", help="Show LLM cost breakdown")
+    cost_parser.add_argument("--period", default="7d", choices=["today", "7d", "30d"],
+                             help="Time period (default: 7d)")
+    cost_parser.add_argument("--group-by", default="agent", choices=["agent", "model", "day"],
+                             help="Group by (default: agent)")
+
+    llm_sub.add_parser("budget", help="Show real-time budget status")
+    llm_sub.add_parser("cache-stats", help="Show cache hit rate and savings")
+
     return parser
 
 
@@ -570,6 +583,115 @@ def get_symbols_from_args(args: argparse.Namespace) -> list[str]:
         symbols = config.core_symbols[:3]  # 默认分析前3个
 
     return symbols
+
+
+async def _handle_llm_cost(args: argparse.Namespace) -> None:
+    """Show LLM cost breakdown."""
+    from datetime import UTC, datetime, timedelta
+
+    from src.db import get_session
+    from sqlalchemy import text
+
+    now = datetime.now(UTC)
+    if args.period == "today":
+        since = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif args.period == "30d":
+        since = now - timedelta(days=30)
+    else:
+        since = now - timedelta(days=7)
+
+    group_by = args.group_by
+
+    async with get_session() as session:
+        result = await session.execute(
+            text(
+                f"SELECT {group_by}, "
+                "SUM(input_tokens) as total_input, "
+                "SUM(output_tokens) as total_output, "
+                "SUM(cost_usd) as total_cost, "
+                "COUNT(*) as calls "
+                "FROM llm_call_log "
+                "WHERE timestamp >= :since AND success = 1 "
+                f"GROUP BY {group_by} "
+                "ORDER BY total_cost DESC"
+            ),
+            {"since": since.isoformat()},
+        )
+        rows = result.fetchall()
+
+    if not rows:
+        print(f"No LLM calls found for period: {args.period}")
+        return
+
+    total_cost = sum(row[3] for row in rows)
+    total_tokens = sum(row[1] + row[2] for row in rows)
+
+    print(f"\nLLM Cost Report ({args.period}, grouped by {group_by})")
+    print(f"{'='*80}")
+    print(f"Total cost: ${total_cost:.4f}  |  Total tokens: {total_tokens:,}")
+    print(f"{'-'*80}")
+    print(f"{group_by:<25} {'Input':>10} {'Output':>10} {'Cost':>10} {'Calls':>8}")
+    print(f"{'-'*80}")
+
+    for row in rows:
+        key, inp, out, cost, calls = row
+        print(f"{str(key):<25} {inp:>10,} {out:>10,} ${cost:>9.4f} {calls:>8}")
+
+    print(f"{'-'*80}")
+    print(f"{'TOTAL':<25} {sum(r[1] for r in rows):>10,} {sum(r[2] for r in rows):>10,} "
+          f"${total_cost:>9.4f} {sum(r[4] for r in rows):>8}")
+    print()
+
+
+async def _handle_llm_budget(args: argparse.Namespace) -> None:
+    """Show real-time budget status."""
+    from src.llm.budget import get_budget_tracker
+
+    tracker = get_budget_tracker()
+    status = await tracker.check()
+
+    print(f"\nLLM Budget Status")
+    print(f"{'='*50}")
+
+    for period in ["daily", "monthly"]:
+        info = status[period]
+        emoji = "OK" if info["status"] == "ok" else "WARN" if info["status"] == "warning" else "CRIT"
+        print(f"  {period.capitalize()}: [{emoji}] {info['status'].upper()}")
+        print(f"    Limit:     ${info['limit_usd']:.2f}")
+        print(f"    Used:      ${info['used_usd']:.4f}")
+        print(f"    Remaining: ${info['remaining_usd']:.4f}")
+        print(f"    Usage:     {info['pct']:.1f}%")
+        print()
+
+    print()
+
+
+async def _handle_llm_cache_stats(args: argparse.Namespace) -> None:
+    """Show cache hit rate and savings."""
+    from src.llm.cache import get_prompt_cache
+
+    cache = get_prompt_cache()
+    hit_rate = cache.hit_rate
+
+    print(f"\nLLM Cache Statistics")
+    print(f"{'='*40}")
+    print(f"  Hits:      {cache.hits}")
+    print(f"  Misses:    {cache.misses}")
+    print(f"  Hit Rate:  {hit_rate:.1%}")
+
+    if cache.hits > 0:
+        from src.db import get_session
+        from sqlalchemy import text
+
+        async with get_session() as session:
+            result = await session.execute(
+                text("SELECT COALESCE(AVG(cost_usd), 0) FROM llm_call_log WHERE cache_hit = 0")
+            )
+            avg_cost = result.fetchone()[0]
+            estimated_savings = cache.hits * avg_cost
+            print(f"  Est. Savings: ${estimated_savings:.4f}")
+
+    print()
 
 
 async def main_async() -> None:
@@ -640,6 +762,18 @@ async def main_async() -> None:
 
     elif args.command == "backtest":
         await run_backtest(args)
+
+    elif args.command == "llm":
+        dispatch = {
+            "cost": _handle_llm_cost,
+            "budget": _handle_llm_budget,
+            "cache-stats": _handle_llm_cache_stats,
+        }
+        handler = dispatch.get(args.llm_action)
+        if handler:
+            await handler(args)
+        else:
+            print(f"Usage: aegis llm {{cost|budget|cache-stats}} [args]")
 
 
 def main() -> None:

@@ -40,3 +40,33 @@ rules:
     cooldown_seconds: 300
     severity: warning
     channels: [telegram]
+
+  # ── LLM Cost Governance ──────────────────────────────────────────────────
+
+  - name: llm_cost_daily_80pct
+    event_type: BaseEvent
+    condition: ".pct >= 80 AND .period == 'daily'"
+    cooldown_seconds: 3600
+    severity: warning
+    channels: [telegram]
+
+  - name: llm_cost_daily_100pct
+    event_type: BaseEvent
+    condition: ".pct >= 100 AND .period == 'daily'"
+    cooldown_seconds: 600
+    severity: critical
+    channels: [telegram]
+
+  - name: llm_rate_limit_throttle
+    event_type: BaseEvent
+    condition: ".source == 'llm_rate_limit'"
+    cooldown_seconds: 300
+    severity: info
+    channels: []
+
+  - name: llm_cache_hit_rate_low
+    event_type: BaseEvent
+    condition: ".source == 'llm_cache_degraded'"
+    cooldown_seconds: 3600
+    severity: warning
+    channels: [telegram]
