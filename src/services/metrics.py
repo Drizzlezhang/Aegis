@@ -140,6 +140,83 @@ def set_cache_hit_ratio(cache_type: str, ratio: float) -> None:
     cache_hit_ratio.labels(cache_type=cache_type).set(ratio)
 
 
+# ── LLM metrics ──────────────────────────────────────────────────────────────
+
+llm_tokens_total = Counter(
+    "aegis_llm_tokens_total",
+    "Total LLM tokens consumed",
+    labelnames=["provider", "model", "agent", "type"],
+    registry=_registry,
+)
+
+llm_cost_usd_total = Counter(
+    "aegis_llm_cost_usd_total",
+    "Total LLM cost in USD",
+    labelnames=["provider", "model", "agent"],
+    registry=_registry,
+)
+
+llm_latency_seconds = Histogram(
+    "aegis_llm_latency_seconds",
+    "LLM call latency in seconds",
+    labelnames=["provider", "model"],
+    buckets=[0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60],
+    registry=_registry,
+)
+
+llm_cache_hit_rate = Gauge(
+    "aegis_llm_cache_hit_rate",
+    "LLM cache hit rate (0.0-1.0)",
+    registry=_registry,
+)
+
+llm_rate_limit_wait_ms = Histogram(
+    "aegis_llm_rate_limit_wait_ms",
+    "LLM rate limit wait time in milliseconds",
+    labelnames=["provider"],
+    buckets=[1, 5, 10, 50, 100, 500, 1000, 5000],
+    registry=_registry,
+)
+
+llm_budget_usage_ratio = Gauge(
+    "aegis_llm_budget_usage_ratio",
+    "LLM budget usage ratio (0.0-1.0)",
+    labelnames=["period"],
+    registry=_registry,
+)
+
+
+def record_llm_call(
+    provider: str,
+    model: str,
+    agent: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: float,
+    latency_s: float,
+) -> None:
+    """Record an LLM call with all associated metrics."""
+    llm_tokens_total.labels(provider=provider, model=model, agent=agent, type="input").inc(input_tokens)
+    llm_tokens_total.labels(provider=provider, model=model, agent=agent, type="output").inc(output_tokens)
+    llm_cost_usd_total.labels(provider=provider, model=model, agent=agent).inc(cost_usd)
+    llm_latency_seconds.labels(provider=provider, model=model).observe(latency_s)
+
+
+def record_llm_cache_hit_rate(rate: float) -> None:
+    """Set LLM cache hit rate gauge."""
+    llm_cache_hit_rate.set(rate)
+
+
+def record_llm_rate_limit_wait(provider: str, wait_ms: float) -> None:
+    """Record LLM rate limit wait time."""
+    llm_rate_limit_wait_ms.labels(provider=provider).observe(wait_ms)
+
+
+def record_llm_budget_usage(period: str, ratio: float) -> None:
+    """Set LLM budget usage ratio gauge."""
+    llm_budget_usage_ratio.labels(period=period).set(ratio)
+
+
 def get_metrics_text() -> str:
     """Return Prometheus text format for all registered metrics."""
     return generate_latest(_registry).decode("utf-8")

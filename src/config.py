@@ -41,6 +41,16 @@ class ProviderCredential(BaseModel):
     enabled: bool = True
 
 
+class LLMGovernanceConfig(BaseModel):
+    """LLM governance configuration."""
+    enabled: bool = True
+    cache_ttl_seconds: int = 86400  # 24h
+    cache_exclude_agents: list[str] = Field(default_factory=lambda: ["debate"])
+    budget_daily_usd: float = 10.0
+    budget_monthly_usd: float = 200.0
+    rate_limit: dict[str, dict[str, int]] = Field(default_factory=dict)
+
+
 class LLMConfig(BaseModel):
     """LLM configuration."""
     provider: str = "deepseek"
@@ -55,6 +65,7 @@ class LLMConfig(BaseModel):
     max_retries: int = 3
     retry_base_delay: float = 1.0
     enable_request_logging: bool = False
+    governance: LLMGovernanceConfig = Field(default_factory=LLMGovernanceConfig)
 
 
 class PhaseThresholds(BaseModel):
