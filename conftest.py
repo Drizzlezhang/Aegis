@@ -6,20 +6,27 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def _test_db_dir(tmp_path_factory):
-    """Session-scoped temp directory for test database."""
-    return tmp_path_factory.mktemp("aegis_test")
+def _test_db_dir(tmp_path_factory, worker_id: str):
+    """Session-scoped temp directory for test database.
+
+    Uses worker_id for pytest-xdist isolation: each worker gets its own DB.
+    """
+    suffix = f"_{worker_id}" if worker_id != "master" else ""
+    return tmp_path_factory.mktemp(f"aegis_test{suffix}")
 
 
 @pytest.fixture(scope="session", autouse=True)
-def alembic_upgrade_head(_test_db_dir):
+def alembic_upgrade_head(_test_db_dir, worker_id: str):
     """Run alembic upgrade head once per test session on a temp SQLite DB.
 
     Sets AEGIS_DATABASE__URL to a temp file, reloads config, runs migrations.
     This ensures all tests that access the DB (e.g. phase_history table)
     have the schema available.
+
+    Uses worker_id suffix for pytest-xdist: each parallel worker gets its own DB.
     """
-    db_path = _test_db_dir / "aegis.db"
+    db_suffix = f"_{worker_id}" if worker_id != "master" else ""
+    db_path = _test_db_dir / f"aegis{db_suffix}.db"
     db_url = f"sqlite:///{db_path}"
 
     # Save original env var (if any) and set temp DB URL
