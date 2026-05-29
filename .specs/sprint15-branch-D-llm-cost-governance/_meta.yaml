@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint15-branch-D-llm-cost-governance"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "4-BUILD"
+status: "active"
+created_at: "2026-05-29T00:00:00+08:00"
+updated_at: "2026-05-29T00:00:00+08:00"
+retry_count: 0
+last_tldr: "tasks.md 已创建：9 个任务 (D1-D9) 分 6 个 Wave，每任务含 depends_on / read_files / write_files / verify 命令，4 个风险任务标记，回滚方案"
+last_next: "实现 D1: LLM 调用统一中间件 (src/llm/middleware.py + @llm_governed 装饰器)"
+last_risk: "D1 中间件链接入破坏现有 LLM 调用 — 需单独 commit 并跑全量测试验证"
+last_progress_note: "D1 进行中"
+last_context_mode: "full"
+last_verified_at: ""

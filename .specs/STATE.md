@@ -1,9 +1,9 @@
 # Active Change State
 
-- active_change_id: sprint15-branch-A-tech-debt-cleanup
-- current_stage: 4-BUILD
-- status: in_progress
+- active_change_id: sprint15-branch-D-llm-cost-governance
+- current_stage: 6-SHIP
+- status: completed
 - interrupted_reason: ""
 - unfinished_tasks: ""
-- updated_at: 2026-05-28T14:35:00+08:00
+- updated_at: 2026-05-29T00:00:00+08:00
 - recovery_mode: new
