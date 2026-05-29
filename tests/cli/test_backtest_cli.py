@@ -15,9 +15,10 @@ class TestBacktestCLIParser:
         """--symbol flag is parsed correctly."""
         parser = build_parser()
         args = parser.parse_args([
-            "backtest", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
+            "backtest", "run", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
         ])
         assert args.command == "backtest"
+        assert args.backtest_action == "run"
         assert args.symbol == "QQQ"
         assert args.from_date == "2024-01-01"
         assert args.to_date == "2024-03-31"
@@ -26,7 +27,7 @@ class TestBacktestCLIParser:
         """--symbols flag accepts multiple values."""
         parser = build_parser()
         args = parser.parse_args([
-            "backtest", "--symbols", "QQQ", "SPY", "NVDA",
+            "backtest", "run", "--symbols", "QQQ", "SPY", "NVDA",
             "--from", "2024-01-01", "--to", "2024-03-31",
         ])
         assert args.symbols == ["QQQ", "SPY", "NVDA"]
@@ -35,7 +36,7 @@ class TestBacktestCLIParser:
         """--strategy flag defaults to pipeline."""
         parser = build_parser()
         args = parser.parse_args([
-            "backtest", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
+            "backtest", "run", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
         ])
         assert args.strategy == "pipeline"
 
@@ -43,7 +44,7 @@ class TestBacktestCLIParser:
         """--output flag sets output directory."""
         parser = build_parser()
         args = parser.parse_args([
-            "backtest", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
+            "backtest", "run", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
             "--output", "/tmp/reports",
         ])
         assert args.output == Path("/tmp/reports")
@@ -52,7 +53,7 @@ class TestBacktestCLIParser:
         """--no-open flag is parsed."""
         parser = build_parser()
         args = parser.parse_args([
-            "backtest", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
+            "backtest", "run", "--symbol", "QQQ", "--from", "2024-01-01", "--to", "2024-03-31",
             "--no-open",
         ])
         assert args.no_open is True
@@ -61,13 +62,13 @@ class TestBacktestCLIParser:
         """--from and --to are required."""
         parser = build_parser()
         with pytest.raises(SystemExit):
-            parser.parse_args(["backtest", "--symbol", "QQQ"])
+            parser.parse_args(["backtest", "run", "--symbol", "QQQ"])
 
     def test_symbol_or_symbols_required(self):
         """At least one of --symbol or --symbols is needed (validated in handler)."""
         parser = build_parser()
         args = parser.parse_args([
-            "backtest", "--from", "2024-01-01", "--to", "2024-03-31",
+            "backtest", "run", "--from", "2024-01-01", "--to", "2024-03-31",
         ])
         assert args.symbol is None
         assert args.symbols is None
