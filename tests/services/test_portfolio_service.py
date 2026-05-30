@@ -8,13 +8,13 @@ from src.services.portfolio_service import PortfolioService
 
 
 @pytest.fixture
-def broker():
-    return PaperBroker()
+def broker(tmp_path):
+    return PaperBroker(db_path=str(tmp_path / "paper_state.sqlite"))
 
 
 @pytest.fixture
 def portfolio(broker, tmp_path):
-    return PortfolioService(broker, history_path=str(tmp_path / "equity_curve.json"))
+    return PortfolioService(broker, db_path=str(tmp_path / "paper_state.sqlite"))
 
 
 @pytest.mark.asyncio
@@ -28,7 +28,7 @@ async def test_get_snapshot_initial(portfolio):
 @pytest.mark.asyncio
 async def test_record_snapshot_adds_to_equity_curve(portfolio):
     await portfolio.record_snapshot()
-    curve = portfolio.get_equity_curve()
+    curve = await portfolio.get_equity_curve()
     assert len(curve) == 1
     assert curve[0]["equity"] == 100_000.0
 
@@ -39,7 +39,7 @@ async def test_equity_curve_reflects_trades(broker, portfolio):
     await broker.place_order("AAPL", OrderSide.BUY, 10, OrderType.MARKET)
     await portfolio.record_snapshot()  # after trade
 
-    curve = portfolio.get_equity_curve()
+    curve = await portfolio.get_equity_curve()
     assert len(curve) == 2
     # Equity should be same (cash → stock), but cash should differ
     assert curve[0]["cash"] > curve[1]["cash"]
@@ -47,7 +47,7 @@ async def test_equity_curve_reflects_trades(broker, portfolio):
 
 @pytest.mark.asyncio
 async def test_get_stats_empty(portfolio):
-    stats = portfolio.get_stats()
+    stats = await portfolio.get_stats()
     assert stats["total_snapshots"] == 0
 
 
@@ -55,7 +55,7 @@ async def test_get_stats_empty(portfolio):
 async def test_get_stats_with_data(portfolio):
     await portfolio.record_snapshot()
     await portfolio.record_snapshot()
-    stats = portfolio.get_stats()
+    stats = await portfolio.get_stats()
     assert stats["total_snapshots"] == 2
     assert stats["start_equity"] == 100_000.0
     assert stats["current_equity"] == 100_000.0
@@ -65,15 +65,15 @@ async def test_get_stats_with_data(portfolio):
 async def test_get_equity_curve_with_limit(portfolio):
     for _ in range(5):
         await portfolio.record_snapshot()
-    curve = portfolio.get_equity_curve(limit=3)
+    curve = await portfolio.get_equity_curve(limit=3)
     assert len(curve) == 3
 
 
 @pytest.mark.asyncio
 async def test_reset_clears_history(portfolio):
     await portfolio.record_snapshot()
-    portfolio.reset()
-    curve = portfolio.get_equity_curve()
+    await portfolio.reset()
+    curve = await portfolio.get_equity_curve()
     assert len(curve) == 0
 
 
@@ -82,5 +82,5 @@ async def test_max_drawdown_calculation(broker, portfolio):
     await portfolio.record_snapshot()  # equity = 100000
     await broker.place_order("AAPL", OrderSide.BUY, 100, OrderType.MARKET)
     await portfolio.record_snapshot()  # equity still ~100000 (cash → stock)
-    stats = portfolio.get_stats()
+    stats = await portfolio.get_stats()
     assert stats["max_drawdown_pct"] >= 0.0

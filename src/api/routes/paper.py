@@ -137,7 +137,7 @@ class _PaperRouteService:
 
     async def get_portfolio(self) -> dict:
         snapshot = await self._portfolio.get_snapshot()
-        stats = self._portfolio.get_stats()
+        stats = await self._portfolio.get_stats()
         return {
             "cash": snapshot.cash,
             "equity": snapshot.equity,
@@ -172,8 +172,8 @@ class _PaperRouteService:
         return {"success": True, "orderId": order_id, "message": f"Order {order_id} cancelled"}
 
     async def reset(self) -> dict:
-        self._broker.reset()
-        self._portfolio.reset()
+        await self._broker.reset()
+        await self._portfolio.reset()
         return {"success": True, "message": "Paper trading state reset"}
 
     @staticmethod

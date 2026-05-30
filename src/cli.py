@@ -558,7 +558,7 @@ async def paper_portfolio() -> None:
     svc = PortfolioService(broker)
 
     snapshot = await svc.get_snapshot()
-    stats = svc.get_stats()
+    stats = await svc.get_stats()
 
     print("Paper Trading Portfolio\n")
     print(f"  Cash:         ${snapshot.cash:,.2f}")
@@ -583,8 +583,8 @@ async def paper_reset() -> None:
     broker = PaperBroker()
     svc = PortfolioService(broker)
 
-    broker.reset()
-    svc.reset()
+    await broker.reset()
+    await svc.reset()
     print("Paper trading state reset: orders, positions, cash, and equity curve cleared.")
 
 
