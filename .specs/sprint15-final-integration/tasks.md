@@ -193,7 +193,7 @@
 - read_files: [src/agents/strategy_exec/brokers/paper.py]
 - write_files: [src/services/portfolio_service.py]
 - verify: `pytest tests/services/test_portfolio_service.py -v`
-- status: pending
+- status: completed
 
 #### C7: Paper Trading CLI
 - 描述: 新子命令 `aegis paper start/stop/positions/orders/portfolio/reset`，标注为 dev/ops 工具
