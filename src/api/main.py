@@ -32,6 +32,7 @@ from .routes import (
     memory,
     metrics,
     notifications,
+    paper,
     positions,
     settings,
     stats,
@@ -218,6 +219,7 @@ app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(paper.router, prefix="/api")
 app.include_router(data_routes.router)
 app.include_router(llm.router)
 
