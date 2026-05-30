@@ -10,7 +10,6 @@ from src.services.event_bus import (
     EventBus,
     OrderCancelledEvent,
     OrderFilledEvent,
-    OrderRejectedEvent,
     OrderSubmittedEvent,
 )
 from src.services.portfolio_service import PortfolioService
@@ -217,6 +216,7 @@ class TestCLIPaperIntegration:
     def test_paper_help_shows_subcommands(self, monkeypatch, capsys):
         """`aegis paper --help` shows all subcommands."""
         import sys
+
         from src import cli
 
         monkeypatch.setattr(sys, "argv", ["aegis", "paper", "--help"])
@@ -232,6 +232,7 @@ class TestCLIPaperIntegration:
     async def test_paper_positions_runs(self, monkeypatch, capsys, tmp_path):
         """CLI paper positions runs without error."""
         import sys
+
         from src import cli
 
         monkeypatch.setattr(sys, "argv", ["aegis", "paper", "positions"])
@@ -244,6 +245,7 @@ class TestCLIPaperIntegration:
     async def test_paper_portfolio_shows_balance(self, monkeypatch, capsys, tmp_path):
         """CLI portfolio shows cash and equity."""
         import sys
+
         from src import cli
 
         monkeypatch.setattr(sys, "argv", ["aegis", "paper", "portfolio"])

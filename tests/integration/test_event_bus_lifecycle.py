@@ -2,17 +2,13 @@
 
 import asyncio
 
-import pytest
-
 from src.agents.position_monitor.agent import PositionMonitorAgent
 from src.agents.strategy_exec.brokers.paper import PaperBroker
 from src.models.paper import OrderSide, OrderType
 from src.services.event_bus import (
     AlertEvent,
     EventBus,
-    EventSeverity,
     OrderFilledEvent,
-    get_event_bus,
 )
 
 

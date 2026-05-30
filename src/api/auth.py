@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
 from src.config import get_config
 

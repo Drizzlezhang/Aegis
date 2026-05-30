@@ -6,7 +6,14 @@ This directory is excluded from the Sprint 16 constitution grep guard.
 
 from abc import ABC, abstractmethod
 
-from src.models.paper import AccountSnapshot, Order, OrderResult, OrderSide, OrderType, PositionSnapshot
+from src.models.paper import (
+    AccountSnapshot,
+    Order,
+    OrderResult,
+    OrderSide,
+    OrderType,
+    PositionSnapshot,
+)
 
 
 class BrokerBase(ABC):

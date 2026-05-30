@@ -2,9 +2,6 @@
 
 import asyncio
 
-import pytest
-from fastapi.testclient import TestClient
-
 from src.agents.strategy_exec.brokers.paper import PaperBroker
 from src.models.paper import OrderSide, OrderType
 from src.services.event_bus import EventBus, OrderFilledEvent

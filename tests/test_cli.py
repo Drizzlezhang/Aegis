@@ -3,6 +3,17 @@ import pytest
 from src import cli
 
 
+@pytest.fixture(autouse=True)
+async def _reset_event_bus():
+    """Reset EventBus singleton and PaperBroker state between tests."""
+    import src.services.event_bus as eb
+    eb._event_bus = None
+    # Reset PaperBroker SQLite state to avoid cross-test leakage
+    from src.agents.strategy_exec.brokers.paper import PaperBroker
+    broker = PaperBroker()
+    await broker.reset()
+
+
 @pytest.mark.asyncio
 async def test_main_async_prints_help_without_command(monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["aegis"])

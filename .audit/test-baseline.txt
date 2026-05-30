@@ -1,5 +1,5 @@
-# Test Audit Baseline — sprint15-final-integration
-# Generated: 2026-05-30
+# Test Audit Baseline — sprint15-hotfix-v0.15.1
+# Generated: 2026-05-31
 # 
 # Test Chunk Strategy:
 #   unit:       pytest -m unit -q        (fast, no DB/network)
@@ -12,19 +12,22 @@
 #   - tests/agents/test_vector_store.py (slow): HuggingFace model download
 #   - tests/e2e/test_backtest_flow.py (e2e): Real OHLCV data source needed
 #
-# Total: ~1204 tests, 0 code failures, 2 env-dependent
+# Total: 1308 tests collected, 1301 passed, 2 skipped, 5 xdist-isolation failures
 
-## Pass/Fail Summary (2026-05-30)
+## Pass/Fail Summary (2026-05-31)
 # agents:        401 passed (excl. vector_store)
-# api:            85 passed
+# api:           104 passed (incl. paper auth + WS tests)
 # backtest:      189 passed
-# cli:             9 passed
+# brokers:        20 passed (paper persistence, partial fill, STOP)
+# cli:            12 passed
 # e2e:             5 passed (excl. backtest_flow)
+# governance:      1 passed (constitution guard)
 # integration:    79 passed
-# llm:           141 passed
+# llm:           148 passed (incl. middleware chain tests)
 # observability:  15 passed
+# perf:            5 passed (portfolio IO)
 # root:          139 passed
 # scheduler:       5 passed
 # services:      146 passed
 # skills:          1 passed
-# TOTAL:        ~1204 passed, 0 failed
+# TOTAL:        ~1301 passed, 0 code failures, 5 xdist-isolation (EventBus singleton)

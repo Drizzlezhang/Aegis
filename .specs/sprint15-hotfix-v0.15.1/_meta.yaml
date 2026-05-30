@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint15-hotfix-v0.15.1"
+size: "L"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "3-PLAN"
+status: "active"
+created_at: "2026-05-30T10:30:00+08:00"
+updated_at: "2026-05-30T10:50:00+08:00"
+retry_count: 0
+last_tldr: "30 tasks across 6 waves: W1 LLM governance (T01-05), W2 EventBus lifecycle (T06-10), W3 Paper auth + constitution (T11-17), W4 PaperBroker quality (T18-23), W5 Web WS (T24-27), W6 metrics + docs (T28-30). Each task has verify command."
+last_next: "进入 4-BUILD，从 Wave 1 T01 开始实现"
+last_risk: "T02 _dispatch 异常传播变更高风险；T06 EventBus lifespan 可能影响现有测试"
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""
