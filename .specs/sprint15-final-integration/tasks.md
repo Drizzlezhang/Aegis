@@ -173,7 +173,7 @@
 - read_files: [src/agents/strategy_exec/agent.py, src/config.py]
 - write_files: [src/agents/strategy_exec/agent.py, src/config.py]
 - verify: `pytest tests/agents/test_strategy_exec_market_context.py -v`
-- status: pending
+- status: completed
 
 #### C5: PositionMonitor 订阅 OrderFilled
 - 描述: PositionMonitor 订阅 OrderFilledEvent，自动更新持仓，双向校验（broker vs internal）

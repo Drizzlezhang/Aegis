@@ -214,6 +214,7 @@ class AgentConfig(BaseModel):
     strategy_exec_enabled: bool = True
     aegis_memory_enabled: bool = True
     max_concurrent_agents: int = 4
+    execution_mode: str = "paper"  # "paper" | "live" | "disabled"
 
 
 class DebateConfig(BaseModel):
