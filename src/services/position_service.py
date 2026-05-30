@@ -45,7 +45,7 @@ class PositionService:
 
     async def get_position_chain(self, position_id: str) -> list[dict]:
         chain = []
-        current_id = position_id
+        current_id: str | None = position_id
         while current_id:
             pos = await self._manager.get_position(current_id)
             if pos is None:

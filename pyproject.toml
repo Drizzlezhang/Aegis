@@ -140,6 +140,21 @@ ignore_missing_imports = true
 module = "yaml"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "prometheus_client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "src.services.*"
+strict = true
+# type-arg: dict/list generic args (cosmetic)
+# import-not-found: prometheus_client stub missing
+# no-untyped-def: legacy functions without annotations
+# misc: pydantic BaseModel subclass stub issues
+# no-any-return: httpx/aiohttp return types
+# no-untyped-call: _save helper without annotation
+disable_error_code = ["type-arg", "import-not-found", "no-untyped-def", "misc", "no-any-return", "no-untyped-call"]
+
 [project.urls]
 "Homepage" = "https://github.com/Drizzlezhang/Aegis-Trader"
 "Issues" = "https://github.com/Drizzlezhang/Aegis-Trader/issues"

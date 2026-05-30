@@ -153,17 +153,17 @@ class BacktestValidator:
             return {"total_trades": len(results), "win_rate": 0.0, "avg_pnl_pct": 0.0,
                     "max_drawdown_pct": 0.0, "profit_factor": 0.0, "avg_days_held": 0.0}
 
-        wins = [r for r in completed if r.final_pnl_pct > 0]
-        losses = [r for r in completed if r.final_pnl_pct <= 0]
+        wins = [r for r in completed if r.final_pnl_pct is not None and r.final_pnl_pct > 0]
+        losses = [r for r in completed if r.final_pnl_pct is not None and r.final_pnl_pct <= 0]
 
-        total_gains = sum(r.final_pnl_pct for r in wins) if wins else 0
-        total_losses = abs(sum(r.final_pnl_pct for r in losses)) if losses else 0
+        total_gains = sum(r.final_pnl_pct for r in wins if r.final_pnl_pct is not None) if wins else 0.0
+        total_losses = abs(sum(r.final_pnl_pct for r in losses if r.final_pnl_pct is not None)) if losses else 0.0
 
         return {
             "total_trades": len(completed),
             "win_rate": len(wins) / len(completed),
-            "avg_pnl_pct": sum(r.final_pnl_pct for r in completed) / len(completed),
-            "max_drawdown_pct": max(r.max_drawdown_pct for r in completed),
+            "avg_pnl_pct": sum(r.final_pnl_pct for r in completed if r.final_pnl_pct is not None) / len(completed),
+            "max_drawdown_pct": max(r.max_drawdown_pct for r in completed if r.max_drawdown_pct is not None),
             "profit_factor": total_gains / total_losses if total_losses > 0 else float('inf'),
-            "avg_days_held": sum(r.days_held for r in completed) / len(completed),
+            "avg_days_held": sum(r.days_held for r in completed if r.days_held is not None) / len(completed),
         }
