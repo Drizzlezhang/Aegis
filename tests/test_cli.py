@@ -64,3 +64,68 @@ class TestBacktestSubcommands:
         assert "walk-forward" in captured.out
         assert "mc" in captured.out
         assert "sensitivity" in captured.out
+
+
+class TestPaperSubcommands:
+    """C7: CLI paper subcommands — positions, orders, portfolio, reset."""
+
+    def test_paper_help(self, monkeypatch, capsys):
+        """`aegis paper --help` shows paper subcommands."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper", "--help"])
+        with pytest.raises(SystemExit):
+            cli.main()
+        captured = capsys.readouterr()
+        assert "positions" in captured.out
+        assert "orders" in captured.out
+        assert "portfolio" in captured.out
+        assert "reset" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_paper_positions_empty(self, monkeypatch, capsys):
+        """`aegis paper positions` shows no positions."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper", "positions"])
+        await cli.main_async()
+        captured = capsys.readouterr()
+        assert "No open positions" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_paper_orders_empty(self, monkeypatch, capsys):
+        """`aegis paper orders` shows no orders."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper", "orders"])
+        await cli.main_async()
+        captured = capsys.readouterr()
+        assert "No orders found" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_paper_orders_status_filter(self, monkeypatch, capsys):
+        """`aegis paper orders --status filled` works."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper", "orders", "--status", "filled"])
+        await cli.main_async()
+        captured = capsys.readouterr()
+        assert "No orders found" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_paper_portfolio(self, monkeypatch, capsys):
+        """`aegis paper portfolio` shows portfolio summary."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper", "portfolio"])
+        await cli.main_async()
+        captured = capsys.readouterr()
+        assert "Paper Trading Portfolio" in captured.out
+        assert "Cash:" in captured.out
+        assert "Equity:" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_paper_reset(self, monkeypatch, capsys):
+        """`aegis paper reset` resets state."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper", "reset"])
+        await cli.main_async()
+        captured = capsys.readouterr()
+        assert "Paper trading state reset" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_paper_no_subcommand(self, monkeypatch, capsys):
+        """`aegis paper` without subcommand shows usage."""
+        monkeypatch.setattr("sys.argv", ["aegis", "paper"])
+        await cli.main_async()
+        captured = capsys.readouterr()
+        assert "Usage: aegis paper" in captured.out
