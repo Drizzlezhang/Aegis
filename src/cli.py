@@ -1215,17 +1215,24 @@ async def main_async() -> None:
         if not args.paper_action:
             print("Usage: aegis paper {positions|orders|portfolio|reset} [args]")
             return
-        if args.paper_action == "positions":
-            await paper_positions()
-        elif args.paper_action == "orders":
-            await paper_orders(status_filter=getattr(args, "status", None))
-        elif args.paper_action == "portfolio":
-            await paper_portfolio()
-        elif args.paper_action == "reset":
-            await paper_reset()
-        else:
-            print(f"Unknown paper action: {args.paper_action}")
-            sys.exit(1)
+        # Start EventBus so PaperBroker events are dispatched
+        from src.services.event_bus import get_event_bus
+        bus = get_event_bus()
+        await bus.start()
+        try:
+            if args.paper_action == "positions":
+                await paper_positions()
+            elif args.paper_action == "orders":
+                await paper_orders(status_filter=getattr(args, "status", None))
+            elif args.paper_action == "portfolio":
+                await paper_portfolio()
+            elif args.paper_action == "reset":
+                await paper_reset()
+            else:
+                print(f"Unknown paper action: {args.paper_action}")
+                sys.exit(1)
+        finally:
+            await bus.stop()
 
 
 def main() -> None:

@@ -139,6 +139,28 @@ class PaperBroker(BrokerBase):
         logger.info("Order cancelled: id=%s", order_id)
         return True
 
+    async def reject_order(self, order_id: str, reason: str = "rejected") -> bool:
+        """Reject an order (e.g., insufficient funds, invalid symbol)."""
+        order = self._orders.get(order_id)
+        if order is None:
+            return False
+        if order.status not in (OrderStatus.PENDING, OrderStatus.SUBMITTED):
+            return False
+
+        order.status = OrderStatus.REJECTED
+        order.updated_at = datetime.now()
+
+        self._event_bus.publish(
+            OrderRejectedEvent(
+                order_id=order_id,
+                symbol=order.symbol,
+                reason=reason,
+            )
+        )
+
+        logger.info("Order rejected: id=%s reason=%s", order_id, reason)
+        return True
+
     async def get_order(self, order_id: str) -> Order | None:
         """Get an order by ID."""
         return self._orders.get(order_id)

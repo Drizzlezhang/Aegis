@@ -6,7 +6,15 @@ from uuid import uuid4
 from src.agents.base import BaseAgent
 from src.models import AgentState, DecisionEntry, DecisionType
 from src.services import DecisionLog
-from src.services.event_bus import EventBus, OrderFilledEvent, get_event_bus
+from src.services.event_bus import (
+    AlertEvent,
+    EventBus,
+    EventSeverity,
+    OrderCancelledEvent,
+    OrderFilledEvent,
+    OrderRejectedEvent,
+    get_event_bus,
+)
 
 from .monitor import AlertType, PositionMonitor
 from .position_manager import PositionManager
@@ -39,30 +47,98 @@ class PositionMonitorAgent(BaseAgent):
         await self._manager.load()
         if not self._subscribed:
             self._event_bus.subscribe("OrderFilledEvent", self._on_order_filled)
+            self._event_bus.subscribe("OrderCancelledEvent", self._on_order_cancelled)
+            self._event_bus.subscribe("OrderRejectedEvent", self._on_order_rejected)
             self._subscribed = True
-            logger.info("PositionMonitor subscribed to OrderFilledEvent")
+            logger.info("PositionMonitor subscribed to OrderFilledEvent, OrderCancelledEvent, OrderRejectedEvent")
 
     async def _on_order_filled(self, event: OrderFilledEvent) -> None:
-        """Handle OrderFilledEvent: cross-validate broker vs internal positions."""
+        """Handle OrderFilledEvent: update internal position view and cross-validate."""
         logger.info(
             "OrderFilled: id=%s symbol=%s side=%s qty=%d price=%.2f",
             event.order_id, event.symbol, event.side,
             event.filled_quantity, event.filled_avg_price,
         )
-        # Cross-validation: check if we have matching internal positions
+
+        # Update internal position view
         internal_positions = await self._manager.get_positions_by_symbol(event.symbol)
         active = [p for p in internal_positions if p.status.value == "active"]
 
-        if event.side == "buy" and not active:
-            logger.info(
-                "No active internal position for %s buy fill — broker position exists without internal match",
-                event.symbol,
-            )
-        elif event.side == "sell" and active:
-            logger.info(
-                "Sell fill for %s with %d active internal positions — cross-validating",
-                event.symbol, len(active),
-            )
+        if event.side == "buy":
+            if active:
+                pos = active[0]
+                total_qty = pos.quantity + event.filled_quantity
+                total_cost = pos.avg_cost * pos.quantity + event.filled_avg_price * event.filled_quantity
+                pos.quantity = total_qty
+                pos.avg_cost = total_cost / total_qty if total_qty > 0 else 0.0
+                logger.info(
+                    "PositionMonitor: updated %s position: qty=%d avg_cost=%.2f",
+                    event.symbol, pos.quantity, pos.avg_cost,
+                )
+            else:
+                logger.info(
+                    "No active internal position for %s buy fill — broker position exists without internal match",
+                    event.symbol,
+                )
+        elif event.side == "sell":
+            if active:
+                pos = active[0]
+                remaining = pos.quantity - event.filled_quantity
+                if remaining <= 0:
+                    pos.status = "closed"  # type: ignore[attr-defined]
+                    logger.info("PositionMonitor: closed %s position after sell fill", event.symbol)
+                else:
+                    pos.quantity = remaining
+                    logger.info(
+                        "PositionMonitor: reduced %s position: qty=%d remaining=%d",
+                        event.symbol, pos.quantity, remaining,
+                    )
+            else:
+                logger.info(
+                    "Sell fill for %s with no active internal positions — cross-validating",
+                    event.symbol,
+                )
+
+        await self._manager.save()
+
+        # Cross-validate with PaperBroker positions (drift detection)
+        try:
+            from src.agents.strategy_exec.brokers.paper import PaperBroker
+            broker = PaperBroker()
+            broker_positions = await broker.get_positions()
+            broker_pos = next((p for p in broker_positions if p.symbol == event.symbol), None)
+
+            if broker_pos:
+                internal_pos = active[0] if active else None
+                if internal_pos and abs(internal_pos.quantity - broker_pos.quantity) > 0:
+                    drift_msg = (
+                        f"Position drift detected for {event.symbol}: "
+                        f"internal qty={internal_pos.quantity}, broker qty={broker_pos.quantity}"
+                    )
+                    logger.warning(drift_msg)
+                    self._event_bus.publish(
+                        AlertEvent(
+                            rule_name="position_drift",
+                            message=drift_msg,
+                            severity=EventSeverity.WARNING,
+                        )
+                    )
+        except Exception:
+            logger.debug("Position drift check skipped (broker not available)", exc_info=True)
+
+    async def _on_order_cancelled(self, event: OrderCancelledEvent) -> None:
+        """Handle OrderCancelledEvent: remove from pending order view."""
+        logger.info(
+            "OrderCancelled: id=%s symbol=%s reason=%s",
+            event.order_id, event.symbol, event.reason,
+        )
+
+    async def _on_order_rejected(self, event: OrderRejectedEvent) -> None:
+        """Handle OrderRejectedEvent: log and remove from pending order view."""
+        logger.warning(
+            "OrderRejected: id=%s symbol=%s reason=%s",
+            event.order_id, event.symbol, event.reason,
+        )
 
     async def run(self, state: AgentState) -> AgentState:
         state.add_agent_step(self.name)

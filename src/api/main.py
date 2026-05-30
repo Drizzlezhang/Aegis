@@ -17,6 +17,7 @@ from src.config import get_config
 from src.observability.logging import setup_logging
 from src.scheduler.engine import AnalysisScheduler
 from src.services import DecisionLog, PositionService, StatsService
+from src.services.event_bus import get_event_bus
 from src.services.settings import SettingsService
 from src.services.tracking.service import TrackingService
 
@@ -67,6 +68,11 @@ async def lifespan(app_: FastAPI):
 
     log_json = config.profile.upper() == "PRODUCTION" if hasattr(config, 'profile') else False
     setup_logging(level="INFO", json_output=log_json)
+
+    # Start EventBus dispatch loop
+    bus = get_event_bus()
+    await bus.start()
+    logger.info("EventBus dispatch loop started")
 
     app_.state.realtime_manager = RealtimeManager(
         stale_threshold_seconds=config.realtime.stale_threshold_seconds
@@ -164,6 +170,13 @@ async def lifespan(app_: FastAPI):
                 await app_.state.notification_router.close()
             except Exception as e:
                 logger.warning(f"Error closing notification router: {e}")
+
+        # 6. Stop EventBus dispatch loop
+        try:
+            await get_event_bus().stop()
+            logger.info("EventBus dispatch loop stopped")
+        except Exception as e:
+            logger.warning(f"Error stopping EventBus: {e}")
 
         _orchestrator = None
 
