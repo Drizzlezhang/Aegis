@@ -1,0 +1,91 @@
+# Aegis-Trader Local Development Configuration
+# Usage: Copy to .env or set AEGIS_CONFIG_FILE=config/config.local.yaml
+
+profile: development
+environment: development
+debug: true
+log_level: DEBUG
+
+# Data sources — local dev uses yfinance only
+data_source:
+  yfinance_enabled: true
+  alpha_vantage_enabled: false
+  longbridge_enabled: false
+  futu_enabled: false
+  tiger_enabled: false
+  cache_ttl_seconds: 60
+  circuit_breaker_threshold: 3
+
+# LLM — local dev with minimal budget
+llm:
+  provider: deepseek
+  reasoning_model: deepseek-v3.2
+  quick_model: minimax-2.7
+  max_retries: 2
+  retry_base_delay: 0.5
+  enable_request_logging: true
+  governance:
+    enabled: true
+    cache_ttl_seconds: 3600
+    budget_daily_usd: 5.0
+    budget_monthly_usd: 50.0
+
+# Database — SQLite for local dev
+database:
+  url: "sqlite:///~/.aegis-trader/aegis-dev.db"
+  pool_size: 2
+  max_overflow: 5
+  echo: false
+
+# Memory — SQLite for local dev
+memory:
+  storage_type: sqlite
+  sqlite_path: "~/.aegis-trader/memory-dev.db"
+  max_memory_entries: 1000
+
+# Web — local dev ports
+web:
+  enabled: true
+  host: "127.0.0.1"
+  port: 3000
+  api_port: 8000
+
+# Auth — disabled for local dev
+auth:
+  enabled: false
+  jwt_secret: "dev-secret-do-not-use-in-production-12345678"
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+
+# Agent — single worker for local dev
+agent:
+  data_harvester_enabled: true
+  quant_brain_enabled: true
+  strategy_exec_enabled: true
+  aegis_memory_enabled: true
+  max_concurrent_agents: 2
+
+# Realtime — disabled for local dev
+realtime:
+  enabled: false
+
+# Scheduler — disabled for local dev
+scheduler:
+  enabled: false
+
+# Alerting — local rules file
+alerting:
+  rules_file: "config/alerting_rules.yaml"
+  watch_rules_file: false
+
+# Telegram — disabled for local dev
+telegram:
+  enabled: false
+
+# Core symbols — reduced set for local dev
+core_symbols:
+  - QQQ
+  - SPY
+  - AAPL
+  - NVDA

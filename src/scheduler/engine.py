@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import time
 from datetime import datetime
 
@@ -22,11 +23,15 @@ logger = logging.getLogger(__name__)
 def _build_jobstores() -> dict | None:
     """Build jobstore dict based on config. Returns None for default MemoryJobStore."""
     config = get_config().scheduler
-    if not config.persistent_jobstore:
+    if not config.enabled or not config.persistent_jobstore:
         return None
     try:
         from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
         db_url = get_config().database.url
+        if db_url.startswith("sqlite:///"):
+            path = db_url[len("sqlite:///"):]
+            path = os.path.expanduser(path)
+            db_url = f"sqlite:///{path}"
         jobstore = SQLAlchemyJobStore(url=db_url)
         logger.info("Using SQLAlchemyJobStore for scheduler persistence")
         return {"default": jobstore}
@@ -50,10 +55,10 @@ class AnalysisScheduler:
         self._running = False
 
         jobstores = _build_jobstores()
-        self._scheduler = AsyncIOScheduler(
-            jobstores=jobstores,
-            timezone=self._config.timezone,
-        )
+        scheduler_kwargs: dict = {"timezone": self._config.timezone}
+        if jobstores is not None:
+            scheduler_kwargs["jobstores"] = jobstores
+        self._scheduler = AsyncIOScheduler(**scheduler_kwargs)
 
     async def initialize(self):
         """注册定时任务。"""
