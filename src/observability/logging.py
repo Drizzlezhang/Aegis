@@ -66,7 +66,8 @@ class TraceContext:
 
     @classmethod
     def get(cls) -> dict[str, Any]:
-        return _trace_var.get().copy()
+        ctx = _trace_var.get()
+        return ctx.copy() if ctx is not None else {}
 
     @classmethod
     def clear(cls) -> None:

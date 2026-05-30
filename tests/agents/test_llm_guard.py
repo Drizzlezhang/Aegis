@@ -35,11 +35,15 @@ async def test_llm_optional_custom_fallback_value():
 
 
 @pytest.mark.asyncio
-async def test_llm_optional_logs_warning(caplog):
-    @llm_optional(fallback_value="fallback")
-    async def fails():
-        raise RuntimeError("LLM down")
+async def test_llm_optional_logs_warning():
+    from unittest.mock import patch
 
-    assert await fails() == "fallback"
-    assert "LLM call failed in fails" in caplog.text
+    with patch("src.agents.quant_brain.llm_guard.logger.warning") as mock_warning:
+        @llm_optional(fallback_value="fallback")
+        async def fails():
+            raise RuntimeError("LLM down")
+
+        assert await fails() == "fallback"
+        mock_warning.assert_called_once()
+        assert "LLM call failed" in mock_warning.call_args[0][0]
 
