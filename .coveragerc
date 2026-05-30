@@ -2,10 +2,16 @@
 source = src
 omit =
     */__init__.py
-    */_pb2.py
-    src/cli.py
+    */proto/*
+    */cli.py
+    */cli/*
+    */templates/*
 
 [report]
 exclude_lines =
     pragma: no cover
+    def __repr__
+    raise NotImplementedError
     if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
