@@ -74,6 +74,21 @@ async def lifespan(app_: FastAPI):
     await bus.start()
     logger.info("EventBus dispatch loop started")
 
+    # Paper trading broker/portfolio (app.state, single-worker)
+    import os
+    worker_count = int(os.environ.get("WEB_CONCURRENCY", os.environ.get("UVICORN_WORKERS", "1")))
+    if worker_count > 1:
+        logger.error(
+            "Paper trading does not support multiple workers (current: %d). "
+            "Each worker has an independent broker state. Set workers=1 for paper trading.",
+            worker_count,
+        )
+    from src.agents.strategy_exec.brokers.paper import PaperBroker
+    from src.services.portfolio_service import PortfolioService
+    app_.state.paper_broker = PaperBroker()
+    app_.state.paper_portfolio = PortfolioService(app_.state.paper_broker)
+    logger.info("Paper trading broker initialized on app.state")
+
     app_.state.realtime_manager = RealtimeManager(
         stale_threshold_seconds=config.realtime.stale_threshold_seconds
     )

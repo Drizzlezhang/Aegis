@@ -344,6 +344,9 @@ class Config(BaseSettings):
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     alerting: AlertingConfig = Field(default_factory=AlertingConfig)
 
+    # Paper trading
+    paper_token: str = ""  # env: AEGIS_PAPER_TOKEN
+
     # Core symbols
     core_symbols: list[str] = Field(default=[
         "QQQ", "SPY", "NVDA", "MSFT", "AAPL", "KO", "PLTR", "NFLX", "INTC", "TSM", "TSLA"

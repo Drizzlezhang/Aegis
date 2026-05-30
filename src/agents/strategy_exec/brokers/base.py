@@ -1,4 +1,8 @@
-"""Broker abstraction layer for strategy execution."""
+"""Broker abstraction layer for strategy execution.
+
+allowlist: paper-sandbox / DSS-internal — NOT a real broker adapter.
+This directory is excluded from the Sprint 16 constitution grep guard.
+"""
 
 from abc import ABC, abstractmethod
 
