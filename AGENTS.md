@@ -47,9 +47,9 @@ This section is managed by `devkit-init`. Do not edit manually.
 - 当前仓库 remote 指向 GitHub，`.devkit/project.yaml` 标记为非字节内部项目。
 - 不要默认安装或启用 `bytedcli`；只有出现明确字节内部强信号或用户显式要求时再规划。
 
-## Known Test Failures (1 FAILED, 2026-05-29)
+## Known Test Failures (0 FAILED, 2026-05-30)
 
-以下 1 个用例在 `pytest tests/ --tb=no -q` 下 FAILED，属于环境依赖问题，非代码 bug。
+All 1243 tests pass (2 skipped: E2E backtest flow, environment dependency).
 
 ### 测试运行注意事项
 - 全量测试一次性跑可能导致 `OSError: [Errno 24] Too many open files`，建议 `ulimit -n 4096` 或分批运行。
@@ -79,3 +79,40 @@ This section is managed by `devkit-init`. Do not edit manually.
 
 ### 8. ~~CLI 帮助输出（1 个用例）~~ ✅ 已修复 (2026-05-29)
 **文件**: `tests/test_cli.py::test_main_async_prints_help_without_command` — 1/1 passed。
+
+## Paper Trading (v0.15.0)
+
+Paper trading is a simulated execution environment for testing strategies without real money.
+
+### Architecture
+- **BrokerBase** (`src/agents/strategy_exec/brokers/base.py`): Abstract interface for order execution
+- **PaperBroker** (`src/agents/strategy_exec/brokers/paper.py`): In-memory simulated broker with state machine
+- **PortfolioService** (`src/services/portfolio_service.py`): Aggregates cash/positions/PnL, persists equity curve
+- **EventBus** (`src/services/event_bus.py`): Publishes OrderSubmitted/OrderFilled/OrderCancelled/OrderRejected events
+
+### Order State Machine
+```
+PENDING → SUBMITTED → FILLED / PARTIALLY_FILLED / CANCELLED / REJECTED
+```
+
+### CLI
+```
+aegis paper positions          # List positions with PnL
+aegis paper orders [--status]  # List orders with optional status filter
+aegis paper portfolio          # Portfolio summary with equity curve stats
+aegis paper reset              # Reset all paper trading state
+```
+
+### API Endpoints
+```
+GET    /api/paper/orders?status=   # List orders
+GET    /api/paper/positions        # List positions
+GET    /api/paper/portfolio        # Portfolio summary
+POST   /api/paper/orders           # Place order (market/limit/stop)
+DELETE /api/paper/orders/{id}      # Cancel order
+POST   /api/paper/reset            # Reset state
+```
+
+### Configuration
+- `agent.execution_mode` in config: `"paper"` | `"live"` | `"disabled"`
+- StrategyExecAgent auto-wires PaperBroker when `execution_mode == "paper"`
