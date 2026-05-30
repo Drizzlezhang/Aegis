@@ -18,6 +18,10 @@ export type CommonMessages = {
   scheduler: string;
   tracking: string;
   settings: string;
+  paper: string;
+  phase: string;
+  alerts: string;
+  llmCost: string;
 };
 
 export type InteractionMessages = {

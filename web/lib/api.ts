@@ -1271,3 +1271,141 @@ export async function getNotificationChannels(): Promise<Array<{ type: string; a
   const data = await res.json();
   return data.channels ?? [];
 }
+
+// ─── Paper Trading API ──────────────────────────────────────────────────────
+
+export interface PaperOrder {
+  id: string;
+  symbol: string;
+  side: string;
+  orderType: string;
+  quantity: number;
+  limitPrice: number | null;
+  stopPrice: number | null;
+  status: string;
+  filledQuantity: number;
+  filledAvgPrice: number | null;
+  createdAt: string;
+  updatedAt: string;
+  cancelledAt: string | null;
+}
+
+export interface PaperPosition {
+  symbol: string;
+  quantity: number;
+  avgCost: number;
+  marketPrice: number | null;
+  unrealizedPnl: number | null;
+  unrealizedPnlPct: number | null;
+}
+
+export interface PaperPortfolio {
+  cash: number;
+  equity: number;
+  buyingPower: number;
+  totalPnl: number;
+  totalPnlPct: number;
+  positionCount: number;
+  equityCurveSnapshots: number;
+  totalReturnPct: number;
+  maxDrawdownPct: number;
+  maxEquity: number;
+  minEquity: number;
+}
+
+export interface PlaceOrderRequest {
+  symbol: string;
+  side: string;
+  orderType?: string;
+  quantity: number;
+  limitPrice?: number;
+  stopPrice?: number;
+}
+
+export async function getPaperOrders(status?: string): Promise<{ orders: PaperOrder[]; total: number }> {
+  const params = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(buildApiUrl(`/api/paper/orders${params}`), { headers: getAuthHeaders() });
+  if (!res.ok) return { orders: [], total: 0 };
+  return res.json();
+}
+
+export async function getPaperPositions(): Promise<{ positions: PaperPosition[]; total: number }> {
+  const res = await fetch(buildApiUrl('/api/paper/positions'), { headers: getAuthHeaders() });
+  if (!res.ok) return { positions: [], total: 0 };
+  return res.json();
+}
+
+export async function getPaperPortfolio(): Promise<PaperPortfolio | null> {
+  const res = await fetch(buildApiUrl('/api/paper/portfolio'), { headers: getAuthHeaders() });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function placePaperOrder(req: PlaceOrderRequest): Promise<{ success: boolean; orderId: string; message: string } | null> {
+  const res = await fetch(buildApiUrl('/api/paper/orders'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function cancelPaperOrder(orderId: string): Promise<boolean> {
+  const res = await fetch(buildApiUrl(`/api/paper/orders/${encodeURIComponent(orderId)}`), {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  return res.ok;
+}
+
+export async function resetPaperTrading(): Promise<boolean> {
+  const res = await fetch(buildApiUrl('/api/paper/reset'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  return res.ok;
+}
+
+// ─── LLM Cost API ───────────────────────────────────────────────────────────
+
+export interface LlmCostBreakdown {
+  key: string;
+  inputTokens: number;
+  outputTokens: number;
+  cost: number;
+  calls: number;
+}
+
+export interface LlmBudgetStatus {
+  daily: { status: string; limitUsd: number; usedUsd: number; remainingUsd: number; pct: number };
+  monthly: { status: string; limitUsd: number; usedUsd: number; remainingUsd: number; pct: number };
+}
+
+export interface LlmCacheStats {
+  hits: number;
+  misses: number;
+  hitRate: number;
+  estimatedSavings: number;
+}
+
+export async function getLlmCost(period?: string, groupBy?: string): Promise<{ breakdown: LlmCostBreakdown[]; totalCost: number; totalTokens: number } | null> {
+  const params = new URLSearchParams();
+  if (period) params.set('period', period);
+  if (groupBy) params.set('group_by', groupBy);
+  const res = await fetch(buildApiUrl(`/api/llm/usage?${params}`), { headers: getAuthHeaders() });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getLlmBudget(): Promise<LlmBudgetStatus | null> {
+  const res = await fetch(buildApiUrl('/api/llm/budget'), { headers: getAuthHeaders() });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getLlmCacheStats(): Promise<LlmCacheStats | null> {
+  const res = await fetch(buildApiUrl('/api/llm/cache-stats'), { headers: getAuthHeaders() });
+  if (!res.ok) return null;
+  return res.json();
+}

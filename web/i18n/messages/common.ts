@@ -19,6 +19,10 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     scheduler: '调度',
     tracking: '策略追踪',
     settings: '设置',
+    paper: '纸交易',
+    phase: '实时面板',
+    alerts: '告警中心',
+    llmCost: 'LLM 成本',
   },
   en: {
     watchlist: 'Watchlist',
@@ -38,5 +42,9 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     scheduler: 'Scheduler',
     tracking: 'Tracking',
     settings: 'Settings',
+    paper: 'Paper Trading',
+    phase: 'Live Panel',
+    alerts: 'Alerts',
+    llmCost: 'LLM Cost',
   },
 };
