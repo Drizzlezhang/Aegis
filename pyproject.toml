@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aegis-trader"
-version = "0.1.0"
+version = "0.15.0"
 description = "Multi-Agent quant trading system for US stocks & options with left-side bottom fishing strategy"
 readme = "CLAUDE.md"
 requires-python = ">=3.12"
