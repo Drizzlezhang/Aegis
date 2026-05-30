@@ -49,6 +49,7 @@ class LLMGovernanceConfig(BaseModel):
     budget_daily_usd: float = 10.0
     budget_monthly_usd: float = 200.0
     rate_limit: dict[str, dict[str, int]] = Field(default_factory=dict)
+    middlewares: list[str] = Field(default_factory=lambda: ["cache", "rate_limit", "budget"])
 
 
 class LLMConfig(BaseModel):

@@ -14,12 +14,12 @@ from typing import Any
 from src.config import get_config
 from src.db import get_session
 
-from .middleware import GovernanceContext, Middleware
+from .middleware import GovernanceAbortError, GovernanceContext, Middleware
 
 logger = logging.getLogger(__name__)
 
 
-class BudgetExceededError(Exception):
+class BudgetExceededError(GovernanceAbortError):
     """Raised when LLM budget is exceeded and the call is blocked."""
 
     def __init__(self, period: str, limit_usd: float, used_usd: float):

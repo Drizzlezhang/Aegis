@@ -29,6 +29,18 @@ from src.config import get_config
 logger = logging.getLogger(__name__)
 
 
+# ── Governance Abort Error ───────────────────────────────────────────────────
+
+
+class GovernanceAbortError(Exception):
+    """Base exception for governance middleware that must abort the chain.
+
+    Unlike regular middleware exceptions (which are caught and skipped),
+    GovernanceAbortError and its subclasses propagate through _dispatch
+    to abort the entire LLM call.
+    """
+
+
 # ── Governance Context ──────────────────────────────────────────────────────
 
 
@@ -109,6 +121,8 @@ class GovernanceMiddlewareChain:
 
             try:
                 return await middleware.process(context, _next)
+            except GovernanceAbortError:
+                raise
             except Exception:
                 logger.exception(
                     "Middleware %s failed for request %s, skipping to next",
@@ -221,10 +235,40 @@ _chain_lock = asyncio.Lock()
 
 
 def get_governance_chain() -> GovernanceMiddlewareChain:
-    """Get or create the global governance middleware chain."""
+    """Get or create the global governance middleware chain.
+
+    Default order: Cache → RateLimit → Budget → Execute → Metrics.
+    Config `llm.governance.middlewares` can disable individual layers.
+    """
     global _governance_chain
     if _governance_chain is None:
         _governance_chain = GovernanceMiddlewareChain()
+
+        config = get_config()
+        governance = getattr(getattr(config, "llm", None), "governance", None)
+        enabled = getattr(governance, "middlewares", None) or ["cache", "rate_limit", "budget"]
+
+        if "cache" in enabled:
+            try:
+                from src.llm.cache import CacheMiddleware
+                _governance_chain.add(CacheMiddleware())
+            except Exception:
+                logger.warning("Failed to load CacheMiddleware, skipping", exc_info=True)
+
+        if "rate_limit" in enabled:
+            try:
+                from src.llm.rate_limiter import RateLimitMiddleware
+                _governance_chain.add(RateLimitMiddleware())
+            except Exception:
+                logger.warning("Failed to load RateLimitMiddleware, skipping", exc_info=True)
+
+        if "budget" in enabled:
+            try:
+                from src.llm.budget import BudgetMiddleware
+                _governance_chain.add(BudgetMiddleware())
+            except Exception:
+                logger.warning("Failed to load BudgetMiddleware, skipping", exc_info=True)
+
         # Always add Execute and Metrics as the last two middlewares
         _governance_chain.add(ExecuteMiddleware())
         _governance_chain.add(MetricsMiddleware())
