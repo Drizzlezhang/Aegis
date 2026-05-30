@@ -9,14 +9,12 @@ import pytest
 from src.llm.middleware import (
     GovernanceContext,
     GovernanceMiddlewareChain,
-    Middleware,
-    ExecuteMiddleware,
     MetricsMiddleware,
+    Middleware,
     get_governance_chain,
     llm_governed,
     reset_governance_chain,
 )
-
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 

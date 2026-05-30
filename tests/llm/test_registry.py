@@ -8,8 +8,6 @@ from src.llm.registry import (
     PromptRegistry,
     PromptRenderError,
     PromptTemplate,
-    get_prompt_registry,
-    reset_prompt_registry,
 )
 
 

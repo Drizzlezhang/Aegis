@@ -58,7 +58,7 @@ class GovernanceContext:
 
     def compute_hash(self) -> str:
         """Compute deterministic hash from prompt + model + temperature + system_prompt."""
-        sys_repr = f"<None>" if self.system_prompt is None else self.system_prompt
+        sys_repr = "<None>" if self.system_prompt is None else self.system_prompt
         raw = f"{self.prompt}|{self.model}|{self.temperature}|{sys_repr}"
         self.prompt_hash = hashlib.sha256(raw.encode()).hexdigest()
         return self.prompt_hash

@@ -65,9 +65,9 @@ class TestATRMultipleStop:
         """AC-19: ATRMultipleStop 动态阈值随波动变化."""
         rule = ATRMultipleStop(atr_lookback=14, atr_mult=2.0)
         # Low ATR bar → tight stop
-        low_atr_bar = _FakeBar(close=100.0, high=101.0, low=99.0, atr=1.0)
+        _FakeBar(close=100.0, high=101.0, low=99.0, atr=1.0)
         # High ATR bar → wide stop
-        high_atr_bar = _FakeBar(close=100.0, high=101.0, low=99.0, atr=5.0)
+        _FakeBar(close=100.0, high=101.0, low=99.0, atr=5.0)
 
         # Entry at 100, ATR=1 → stop at 100 - 2*1 = 98
         assert rule.should_exit(entry_price=100.0, current_bar=_FakeBar(close=97.0, high=98.0, low=96.0, atr=1.0))

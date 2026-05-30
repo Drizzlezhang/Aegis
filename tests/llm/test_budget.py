@@ -1,7 +1,5 @@
 """Tests for LLM budget guard (D5)."""
 
-from collections.abc import Awaitable, Callable
-from typing import Any
 
 import pytest
 
@@ -9,7 +7,6 @@ from src.llm.budget import (
     BudgetExceededError,
     BudgetMiddleware,
     BudgetTracker,
-    get_budget_tracker,
     reset_budget_tracker,
 )
 from src.llm.middleware import GovernanceContext

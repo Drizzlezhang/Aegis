@@ -80,14 +80,14 @@ class TestTimeframe:
         runner_d = BacktestRunner(
             "TEST", date(2023, 1, 2), date(2023, 1, 29), timeframe="1d",
         )
-        result_d = await runner_d.run(daily_data)
+        await runner_d.run(daily_data)
 
         # Hourly: 20 days × 6.5 hours = 130 bars
         hourly_data = _make_hourly_data(date(2023, 1, 2), 130)
         runner_h = BacktestRunner(
             "TEST", date(2023, 1, 2), date(2023, 1, 29), timeframe="1h",
         )
-        result_h = await runner_h.run(hourly_data)
+        await runner_h.run(hourly_data)
 
         # Both use buy-and-hold (buy first bar, sell last) → 1 trade each
         # The ratio test is about bar count, not trade count

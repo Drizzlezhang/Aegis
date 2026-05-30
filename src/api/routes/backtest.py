@@ -297,12 +297,12 @@ async def submit_walkforward_run(request: WalkForwardRequest) -> dict:
     if start >= end:
         raise HTTPException(status_code=400, detail="start_date must be before end_date")
 
+    # Generate demo data
+    import random
+
     from src.backtest.storage import BacktestStorage
     from src.backtest.walk_forward import WalkForwardRunner
     from src.models.backtest import WalkForwardConfig
-
-    # Generate demo data
-    import random
     random.seed(42)
 
     from dataclasses import dataclass

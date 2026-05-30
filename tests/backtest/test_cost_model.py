@@ -1,6 +1,5 @@
 """Tests for cost_model.py — commission and slippage implementations."""
 
-import math
 
 import pytest
 

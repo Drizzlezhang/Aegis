@@ -224,7 +224,6 @@ def _make_mc_histogram_html(distribution: list[float]) -> str:
     if not distribution:
         return ""
 
-    n = len(distribution)
     min_val = min(distribution)
     max_val = max(distribution)
     if max_val == min_val:

@@ -6,7 +6,6 @@ runs BacktestRunner on each fold, and aggregates out-of-sample results.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Callable
 from datetime import date, timedelta
@@ -15,8 +14,6 @@ from typing import Any
 from src.backtest.runner import BacktestRunner
 from src.models.backtest import (
     FoldResult,
-    PerformanceReport,
-    PipelineBacktestResult,
     WalkForwardConfig,
     WalkForwardResult,
 )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -37,7 +36,7 @@ class TestWalkForwardRunner:
 
     def test_import(self):
         """T04: import works."""
-        from src.backtest.walk_forward import WalkForwardRunner, WalkForwardConfig
+        from src.backtest.walk_forward import WalkForwardConfig, WalkForwardRunner
         assert WalkForwardRunner is not None
         assert WalkForwardConfig is not None
 

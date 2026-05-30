@@ -914,8 +914,9 @@ async def _handle_llm_cost(args: argparse.Namespace) -> None:
     """Show LLM cost breakdown."""
     from datetime import UTC, datetime, timedelta
 
-    from src.db import get_session
     from sqlalchemy import text
+
+    from src.db import get_session
 
     now = datetime.now(UTC)
     if args.period == "today":
@@ -975,7 +976,7 @@ async def _handle_llm_budget(args: argparse.Namespace) -> None:
     tracker = get_budget_tracker()
     status = await tracker.check()
 
-    print(f"\nLLM Budget Status")
+    print("\nLLM Budget Status")
     print(f"{'='*50}")
 
     for period in ["daily", "monthly"]:
@@ -998,15 +999,16 @@ async def _handle_llm_cache_stats(args: argparse.Namespace) -> None:
     cache = get_prompt_cache()
     hit_rate = cache.hit_rate
 
-    print(f"\nLLM Cache Statistics")
+    print("\nLLM Cache Statistics")
     print(f"{'='*40}")
     print(f"  Hits:      {cache.hits}")
     print(f"  Misses:    {cache.misses}")
     print(f"  Hit Rate:  {hit_rate:.1%}")
 
     if cache.hits > 0:
-        from src.db import get_session
         from sqlalchemy import text
+
+        from src.db import get_session
 
         async with get_session() as session:
             result = await session.execute(
@@ -1108,7 +1110,7 @@ async def main_async() -> None:
         if handler:
             await handler(args)
         else:
-            print(f"Usage: aegis llm {{cost|budget|cache-stats}} [args]")
+            print("Usage: aegis llm {cost|budget|cache-stats} [args]")
 
 
 def main() -> None:

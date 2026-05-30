@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import date, datetime as dt
+from datetime import date
+from datetime import datetime as dt
 from typing import Any
 
 from src.models.backtest import (
+    BenchmarkMetrics,
     PipelineBacktestResult,
     PipelineBacktestTrade,
 )
@@ -321,7 +323,7 @@ class MultiSymbolRunner:
         return dict(zip(self.symbols, results, strict=False))
 
 
-def _calculate_benchmark_metrics(equity_curve: list[dict[str, Any]]) -> "BenchmarkMetrics":
+def _calculate_benchmark_metrics(equity_curve: list[dict[str, Any]]) -> BenchmarkMetrics:
     """Calculate benchmark comparison metrics from equity curve.
 
     Uses the built-in benchmark values stored in each equity curve point.

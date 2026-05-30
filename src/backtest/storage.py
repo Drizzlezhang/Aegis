@@ -6,8 +6,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Session, relationship
+
+from src.models.backtest import WalkForwardResult
 
 STORAGE_DIR = Path.home() / ".aegis-trader" / "backtests"
 
@@ -198,7 +200,6 @@ class BacktestStorage:
         Returns:
             The run_id string.
         """
-        from src.models.backtest import WalkForwardResult as WFR
 
         run_id = uuid4().hex[:12]
         session = self._get_orm_session()

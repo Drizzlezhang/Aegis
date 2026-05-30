@@ -11,11 +11,11 @@ from .client import (
     get_client,
 )
 from .middleware import (
+    ExecuteMiddleware,
     GovernanceContext,
     GovernanceMiddlewareChain,
-    Middleware,
-    ExecuteMiddleware,
     MetricsMiddleware,
+    Middleware,
     get_governance_chain,
     llm_governed,
     reset_governance_chain,

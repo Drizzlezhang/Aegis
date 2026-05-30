@@ -1,16 +1,10 @@
 """Tests for LLM prompt cache (D3)."""
 
 import asyncio
-import time
-from collections.abc import Awaitable, Callable
-from typing import Any
-
-import pytest
 
 from src.llm.cache import (
     CacheMiddleware,
     PromptCache,
-    get_prompt_cache,
     reset_prompt_cache,
 )
 from src.llm.middleware import GovernanceContext
