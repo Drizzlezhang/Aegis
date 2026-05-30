@@ -45,6 +45,7 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "pytest-xdist>=3.5.0",
+    "pytest-timeout>=2.3.0",
     "httpx>=0.28.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
@@ -146,7 +147,12 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 300
+timeout_method = "thread"
 markers = [
-    "e2e: End-to-end integration tests (no network required)",
+    "unit: Fast unit tests (no DB, no network, <1s each)",
+    "integration: Integration tests (DB, fixtures, <30s each)",
+    "e2e: End-to-end tests (full pipeline, may need network)",
+    "slow: Slow tests (model download, large data, >30s)",
     "live: Live tests requiring network access (skip in CI)",
 ]

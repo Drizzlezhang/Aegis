@@ -1,0 +1,30 @@
+# Test Audit Baseline — sprint15-final-integration
+# Generated: 2026-05-30
+# 
+# Test Chunk Strategy:
+#   unit:       pytest -m unit -q        (fast, no DB/network)
+#   integration: pytest -m integration -q (DB fixtures, <30s each)
+#   e2e:        pytest -m e2e -q          (full pipeline)
+#   slow:       pytest -m slow -q         (model download, large data)
+#   live:       pytest -m live -q         (network required, skip in CI)
+#
+# Known Environment Dependencies:
+#   - tests/agents/test_vector_store.py (slow): HuggingFace model download
+#   - tests/e2e/test_backtest_flow.py (e2e): Real OHLCV data source needed
+#
+# Total: ~1204 tests, 0 code failures, 2 env-dependent
+
+## Pass/Fail Summary (2026-05-30)
+# agents:        401 passed (excl. vector_store)
+# api:            85 passed
+# backtest:      189 passed
+# cli:             9 passed
+# e2e:             5 passed (excl. backtest_flow)
+# integration:    79 passed
+# llm:           141 passed
+# observability:  15 passed
+# root:          139 passed
+# scheduler:       5 passed
+# services:      146 passed
+# skills:          1 passed
+# TOTAL:        ~1204 passed, 0 failed
