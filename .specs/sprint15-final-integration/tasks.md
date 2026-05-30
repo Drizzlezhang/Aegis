@@ -153,7 +153,7 @@
 - read_files: [src/agents/strategy_exec/brokers/base.py]
 - write_files: [src/agents/strategy_exec/brokers/paper.py, alembic/versions/*_paper_trading.py]
 - verify: `pytest tests/agents/test_paper_broker.py -v`
-- status: pending
+- status: completed
 
 #### C3: 订单状态机 + EventBus 集成
 - 描述: PENDING→SUBMITTED→FILLED/PARTIALLY_FILLED/CANCELLED/REJECTED 状态机，发布 4 种事件到 EventBus
@@ -161,7 +161,7 @@
 - read_files: [src/agents/strategy_exec/brokers/paper.py, src/services/event_bus.py]
 - write_files: [src/agents/strategy_exec/brokers/paper.py]
 - verify: `pytest tests/agents/test_paper_broker.py -v -k "state or event"`
-- status: pending
+- status: completed
 
 ---
 

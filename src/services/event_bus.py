@@ -102,6 +102,48 @@ class BudgetExceededEvent(BaseEvent):
     blocked: bool = False  # True if call was blocked (100%), False if warning (80%)
 
 
+@dataclass
+class OrderSubmittedEvent(BaseEvent):
+    """Emitted when an order is submitted to the broker."""
+
+    order_id: str = ""
+    symbol: str = ""
+    side: str = ""
+    order_type: str = ""
+    quantity: int = 0
+    limit_price: float | None = None
+
+
+@dataclass
+class OrderFilledEvent(BaseEvent):
+    """Emitted when an order is filled (fully or partially)."""
+
+    order_id: str = ""
+    symbol: str = ""
+    side: str = ""
+    filled_quantity: int = 0
+    filled_avg_price: float = 0.0
+    remaining_quantity: int = 0
+
+
+@dataclass
+class OrderCancelledEvent(BaseEvent):
+    """Emitted when an order is cancelled."""
+
+    order_id: str = ""
+    symbol: str = ""
+    reason: str = ""
+
+
+@dataclass
+class OrderRejectedEvent(BaseEvent):
+    """Emitted when an order is rejected."""
+
+    order_id: str = ""
+    symbol: str = ""
+    reason: str = ""
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 
