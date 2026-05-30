@@ -145,7 +145,7 @@
 - read_files: [src/agents/strategy_exec/agent.py]
 - write_files: [src/agents/strategy_exec/brokers/__init__.py, src/agents/strategy_exec/brokers/base.py, src/models/paper.py]
 - verify: `python3 -c "from src.agents.strategy_exec.brokers.base import BrokerBase, OrderResult, PositionSnapshot; print('OK')"`
-- status: pending
+- status: completed
 
 #### C2: PaperBroker 实现
 - 描述: 新增 `src/agents/strategy_exec/brokers/paper.py`，内存+SQLite 双写，market/limit/stop 撮合，部分成交支持
