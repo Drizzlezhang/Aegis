@@ -1,5 +1,7 @@
 """LLM module for Aegis-Trader."""
 
+from .budget import BudgetExceededError, BudgetMiddleware
+from .cache import CacheMiddleware
 from .client import (
     LLMClient,
     LLMError,
@@ -12,6 +14,7 @@ from .client import (
 )
 from .middleware import (
     ExecuteMiddleware,
+    GovernanceAbortError,
     GovernanceContext,
     GovernanceMiddlewareChain,
     MetricsMiddleware,
@@ -20,6 +23,7 @@ from .middleware import (
     llm_governed,
     reset_governance_chain,
 )
+from .rate_limiter import RateLimitMiddleware
 from .router import LLMRouter, ModelRouting, TaskType, get_router
 
 __all__ = [
@@ -40,11 +44,16 @@ __all__ = [
     "generate_stream",
 
     # Middleware
+    "GovernanceAbortError",
     "GovernanceContext",
     "GovernanceMiddlewareChain",
     "Middleware",
     "ExecuteMiddleware",
     "MetricsMiddleware",
+    "CacheMiddleware",
+    "RateLimitMiddleware",
+    "BudgetMiddleware",
+    "BudgetExceededError",
     "get_governance_chain",
     "llm_governed",
     "reset_governance_chain",

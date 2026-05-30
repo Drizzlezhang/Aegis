@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import {
   getNotifications, getPositionAlerts, getSymbols,
   markAllNotificationsRead, markNotificationRead,
@@ -29,6 +30,11 @@ export default function AlertsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [positionAlerts, setPositionAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // WebSocket for real-time alert updates
+  const { status: wsStatus } = useWebSocket('/ws/alerts', {
+    onMessage: () => { void fetchData(); },
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -88,7 +94,12 @@ export default function AlertsPage() {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-[var(--foreground)]">告警中心</h1>
-                <p className="mt-2 text-sm text-slate-500">系统通知与持仓告警</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  系统通知与持仓告警
+                  {wsStatus === 'connected' && (
+                    <Chip label="实时" size="small" color="success" sx={{ ml: 1 }} />
+                  )}
+                </p>
               </div>
               {unreadCount > 0 && (
                 <Button variant="outlined" size="small" onClick={handleMarkAllRead}>

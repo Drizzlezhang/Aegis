@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import {
   getLlmBudget, getLlmCacheStats, getLlmCost, getSymbols,
   type LlmBudgetStatus, type LlmCacheStats, type LlmCostBreakdown, type SymbolInfo,
@@ -23,6 +24,11 @@ export default function LlmCostPage() {
   const [budget, setBudget] = useState<LlmBudgetStatus | null>(null);
   const [cache, setCache] = useState<LlmCacheStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // WebSocket for real-time LLM call updates
+  const { status: wsStatus } = useWebSocket('/ws/llm', {
+    onMessage: () => { void fetchData(); },
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -64,7 +70,12 @@ export default function LlmCostPage() {
           <div className="mx-auto max-w-7xl">
             <div className="mb-6">
               <h1 className="text-3xl font-bold text-[var(--foreground)]">LLM 成本</h1>
-              <p className="mt-2 text-sm text-slate-500">LLM 调用成本治理与预算监控</p>
+              <p className="mt-2 text-sm text-slate-500">
+                LLM 调用成本治理与预算监控
+                {wsStatus === 'connected' && (
+                  <Chip label="实时" size="small" color="success" sx={{ ml: 1 }} />
+                )}
+              </p>
             </div>
 
             {/* KPI Cards */}

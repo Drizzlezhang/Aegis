@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import {
   cancelPaperOrder, getPaperOrders, getPaperPortfolio, getPaperPositions,
   getSymbols, placePaperOrder, resetPaperTrading,
@@ -45,6 +46,11 @@ export default function PaperPage() {
 
   // Reset dialog
   const [resetOpen, setResetOpen] = useState(false);
+
+  // WebSocket for real-time order updates
+  const { status: wsStatus } = useWebSocket('/paper/stream', {
+    onMessage: () => { void fetchData(); },
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -118,7 +124,12 @@ export default function PaperPage() {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-[var(--foreground)]">纸交易</h1>
-                <p className="mt-2 text-sm text-slate-500">模拟交易环境，测试策略无需真实资金</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  模拟交易环境，测试策略无需真实资金
+                  {wsStatus === 'connected' && (
+                    <Chip label="实时" size="small" color="success" sx={{ ml: 1 }} />
+                  )}
+                </p>
               </div>
               <Button variant="outlined" color="error" onClick={() => setResetOpen(true)}>
                 重置

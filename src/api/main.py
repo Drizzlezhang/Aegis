@@ -40,6 +40,9 @@ from .routes import (
     status,
     symbols,
     ws,
+    ws_alerts,
+    ws_llm,
+    ws_phase,
 )
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
@@ -243,6 +246,9 @@ app.include_router(stats.router, prefix="/api")
 app.include_router(metrics.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(ws.router)
+app.include_router(ws_phase.router)
+app.include_router(ws_alerts.router)
+app.include_router(ws_llm.router)
 app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
