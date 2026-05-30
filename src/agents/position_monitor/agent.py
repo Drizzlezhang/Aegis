@@ -6,6 +6,7 @@ from uuid import uuid4
 from src.agents.base import BaseAgent
 from src.models import AgentState, DecisionEntry, DecisionType
 from src.services import DecisionLog
+from src.services.event_bus import EventBus, OrderFilledEvent, get_event_bus
 
 from .monitor import AlertType, PositionMonitor
 from .position_manager import PositionManager
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class PositionMonitorAgent(BaseAgent):
-    def __init__(self, config: dict | None = None):
+    def __init__(self, config: dict | None = None, event_bus: EventBus | None = None):
         super().__init__(
             name="Position-Monitor",
             description="Monitors open positions for stop-loss, profit-target, and DTE warnings",
@@ -31,9 +32,37 @@ class PositionMonitorAgent(BaseAgent):
             self._manager,
             reflection_delay_hours=self.config.get("reflection_delay_hours", 720),
         )
+        self._event_bus = event_bus or get_event_bus()
+        self._subscribed = False
 
     async def initialize(self) -> None:
         await self._manager.load()
+        if not self._subscribed:
+            self._event_bus.subscribe("OrderFilledEvent", self._on_order_filled)
+            self._subscribed = True
+            logger.info("PositionMonitor subscribed to OrderFilledEvent")
+
+    async def _on_order_filled(self, event: OrderFilledEvent) -> None:
+        """Handle OrderFilledEvent: cross-validate broker vs internal positions."""
+        logger.info(
+            "OrderFilled: id=%s symbol=%s side=%s qty=%d price=%.2f",
+            event.order_id, event.symbol, event.side,
+            event.filled_quantity, event.filled_avg_price,
+        )
+        # Cross-validation: check if we have matching internal positions
+        internal_positions = await self._manager.get_positions_by_symbol(event.symbol)
+        active = [p for p in internal_positions if p.status.value == "active"]
+
+        if event.side == "buy" and not active:
+            logger.info(
+                "No active internal position for %s buy fill — broker position exists without internal match",
+                event.symbol,
+            )
+        elif event.side == "sell" and active:
+            logger.info(
+                "Sell fill for %s with %d active internal positions — cross-validating",
+                event.symbol, len(active),
+            )
 
     async def run(self, state: AgentState) -> AgentState:
         state.add_agent_step(self.name)
