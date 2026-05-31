@@ -88,6 +88,14 @@ async def lifespan(app_: FastAPI):
         )
     from src.agents.strategy_exec.brokers.paper import PaperBroker
     from src.services.portfolio_service import PortfolioService
+
+    # Warn if Paper API is running without auth in non-production
+    if not getattr(config, "paper_token", "") and config.profile.upper() != "PRODUCTION":
+        logger.warning(
+            "Paper API running in DEV mode without AEGIS_PAPER_TOKEN — "
+            "all /api/paper/* endpoints are unauthenticated. Do NOT use this profile in production."
+        )
+
     app_.state.paper_broker = PaperBroker()
     app_.state.paper_portfolio = PortfolioService(app_.state.paper_broker)
     logger.info("Paper trading broker initialized on app.state")

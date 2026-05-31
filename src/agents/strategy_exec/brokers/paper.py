@@ -83,6 +83,8 @@ class PaperBroker(BrokerBase):
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db: aiosqlite.Connection | None = None
         self._db_lock = asyncio.Lock()
+        self._price_book: dict[str, float] = {}
+        self._unknown_symbol_warned: set[str] = set()
         self._initialized = False
 
     # ── Database ────────────────────────────────────────────────────────
@@ -196,9 +198,16 @@ class PaperBroker(BrokerBase):
             )
             self._positions[pos.symbol] = pos
 
+        # Backfill _price_book from price_cache table
+        cursor = await db.execute("SELECT symbol, price FROM price_cache")
+        rows = await cursor.fetchall()
+        for row in rows:
+            self._price_book[row["symbol"]] = float(row["price"])
+
         logger.info(
-            "PaperBroker loaded from %s: orders=%d positions=%d cash=%.2f",
+            "PaperBroker loaded from %s: orders=%d positions=%d cash=%.2f prices=%d",
             self._db_path, len(self._orders), len(self._positions), self._cash,
+            len(self._price_book),
         )
 
     async def _ensure_initialized(self) -> None:
@@ -489,16 +498,36 @@ class PaperBroker(BrokerBase):
     # ── Price book ──────────────────────────────────────────────────────
 
     async def update_price(self, symbol: str, price: float) -> None:
-        """Update the cached price for a symbol (e.g., from DataService)."""
+        """Update the cached price for a symbol (e.g., from DataService).
+
+        Dual-writes to in-memory _price_book and SQLite price_cache.
+        """
         await self._ensure_initialized()
+        key = symbol.upper()
+        self._price_book[key] = price
         await self._save_price(symbol, price)
 
     def _get_simulated_price(self, symbol: str) -> float:
         """Get a simulated price with noise.
 
-        Uses reference prices with ±2% random noise for realistic simulation.
+        Priority: _price_book (from update_price) → _REFERENCE_PRICES → $100 fallback.
+        Adds ±2% random noise for realistic simulation.
+        Unknown symbols log a WARN once per symbol.
         """
-        base = _REFERENCE_PRICES.get(symbol.upper(), 100.0)
+        key = symbol.upper()
+        if key in self._price_book:
+            base = self._price_book[key]
+        elif key in _REFERENCE_PRICES:
+            base = _REFERENCE_PRICES[key]
+        else:
+            base = 100.0
+            if key not in self._unknown_symbol_warned:
+                self._unknown_symbol_warned.add(key)
+                logger.warning(
+                    "No price data for symbol %s; using fallback $100. "
+                    "Call update_price() to set a real price.",
+                    key,
+                )
         noise = random.uniform(-0.02, 0.02)
         return round(base * (1 + noise), 2)
 
@@ -611,6 +640,8 @@ class PaperBroker(BrokerBase):
         self._orders.clear()
         self._positions.clear()
         self._stop_book.clear()
+        self._price_book.clear()
+        self._unknown_symbol_warned.clear()
         self._cash = self._initial_cash
 
         db = await self._get_db()

@@ -93,12 +93,26 @@ class TestPaperEndpoint403WithWrongToken:
         assert response.status_code == 403
 
 
-class TestPaperEndpointNoTokenConfigured:
-    """Verify paper endpoints work without token configured (dev mode)."""
+class TestDevModeAllowsUnauthenticated:
+    """Verify paper endpoints allow unauthenticated access in DEVELOPMENT mode."""
 
-    def test_paper_endpoint_200_without_token_configured(self, client: TestClient, monkeypatch) -> None:
-        """GET /api/paper/orders should return 200 when no token is configured."""
+    def test_dev_mode_allows_unauthenticated(self, client: TestClient, monkeypatch) -> None:
+        """GET /api/paper/orders should return 200 in DEVELOPMENT with no token."""
         monkeypatch.setattr(get_config(), "paper_token", "")
+        monkeypatch.setattr(get_config(), "profile", "DEVELOPMENT")
 
         response = client.get("/api/paper/orders")
         assert response.status_code == 200
+
+
+class TestProductionModeRejectsUnconfiguredToken:
+    """Verify paper endpoints reject in PRODUCTION when token is not configured."""
+
+    def test_production_mode_rejects_unconfigured_token(self, client: TestClient, monkeypatch) -> None:
+        """GET /api/paper/orders should return 401 in PRODUCTION with no token."""
+        monkeypatch.setattr(get_config(), "paper_token", "")
+        monkeypatch.setattr(get_config(), "profile", "PRODUCTION")
+
+        response = client.get("/api/paper/orders")
+        assert response.status_code == 401
+        assert "production" in response.json()["detail"].lower()

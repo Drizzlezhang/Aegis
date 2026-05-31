@@ -13,18 +13,25 @@ async def verify_paper_token(request: Request) -> None:
     """Verify paper trading API token.
 
     Reads config.api.paper_token (env: AEGIS_PAPER_TOKEN).
-    If not configured, allows all requests (dev mode).
+    If not configured:
+      - PRODUCTION: rejects with 401.
+      - DEVELOPMENT / TEST: allows (dev mode, lifespan logs a one-time WARN).
     Otherwise, requires Authorization: Bearer <token> or X-Aegis-Token header.
 
     Raises:
-        HTTPException 401: Missing token.
+        HTTPException 401: Missing token (production or token required).
         HTTPException 403: Invalid token.
     """
     config = get_config()
     token = getattr(config, "paper_token", "")
+    profile = getattr(config, "profile", "DEVELOPMENT")
+    profile_str = profile.upper() if hasattr(profile, "upper") else str(profile).upper()
 
     if not token:
-        # Dev mode: no token configured, allow all
+        if profile_str == "PRODUCTION":
+            logger.error("Paper API token missing in PRODUCTION; rejecting %s", request.url.path)
+            raise HTTPException(status_code=401, detail="Paper trading token required (production)")
+        # DEV / TEST: allow unauthenticated
         return
 
     # Check Authorization: Bearer <token>
