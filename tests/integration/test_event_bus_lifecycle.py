@@ -69,7 +69,7 @@ class TestBusStartedInAppLifespan:
 class TestOrderFilledUpdatesPositionMonitor:
     """Verify PositionMonitor processes OrderFilledEvent correctly."""
 
-    async def test_order_filled_updates_position_monitor(self) -> None:
+    async def test_order_filled_updates_position_monitor(self, deterministic_full_fill) -> None:
         """PositionMonitor should update internal positions on OrderFilledEvent."""
         bus = EventBus()
         await bus.start()
@@ -90,10 +90,11 @@ class TestOrderFilledUpdatesPositionMonitor:
         # Give EventBus time to dispatch OrderFilledEvent to PositionMonitor
         await asyncio.sleep(0.2)
 
-        # Verify the order was filled
+        # Verify the order was filled (deterministic_full_fill ensures 100% fill)
         order = await broker.get_order(result.order_id)
         assert order is not None
         assert order.status.value == "filled"
+        assert order.filled_quantity == 100
 
         await bus.stop()
 
