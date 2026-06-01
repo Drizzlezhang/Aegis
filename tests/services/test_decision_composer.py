@@ -58,6 +58,8 @@ class TestDecisionComposer:
     async def test_compose_publishes_event(self):
         fusion = SignalFusionEngine()
         mock_bus = MagicMock()
+        mock_log = MagicMock()
+        mock_log.append_with_context = AsyncMock(return_value="test-decision-id-123")
         composer = DecisionComposer(fusion=fusion, event_bus=mock_bus)
 
         signals = [make_fake_signal_event(sentiment=SignalSentiment.BULLISH)]
@@ -67,9 +69,15 @@ class TestDecisionComposer:
             current_price=250.0,
             watchlist_position={},
             signals=signals,
+            decision_log=mock_log,
         )
 
         mock_bus.publish.assert_called_once()
+        # Verify decision_id is non-empty (was "" before fix)
+        call_args = mock_bus.publish.call_args[0]
+        assert len(call_args) > 0
+        event = call_args[0]
+        assert event.decision_id == "test-decision-id-123"
 
     @pytest.mark.asyncio
     async def test_compose_no_event_bus(self):
