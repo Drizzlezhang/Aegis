@@ -16,6 +16,7 @@ jobs:
           python-version: "3.12"
       - run: pip install ruff
       - run: ruff check src/ tests/
+      - run: bash scripts/constitution_grep.sh
 
   type:
     runs-on: ubuntu-latest
