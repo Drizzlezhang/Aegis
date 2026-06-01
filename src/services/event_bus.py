@@ -132,6 +132,18 @@ class SignalReceivedEvent(BaseEvent):
     signal: Any = None  # SignalEvent (lazy import to avoid circular dependency)
 
 
+@dataclass
+class DecisionGeneratedEvent(BaseEvent):
+    """Emitted when DecisionComposer produces a decision context.
+
+    Subscribed by D branch for push notification generation.
+    """
+
+    decision_id: str = ""
+    symbol: str = ""
+    context: Any = None  # DecisionContext (lazy import to avoid circular deps)
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 

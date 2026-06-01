@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint16-branch-C-decision-fusion"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-06-01T12:00:00+08:00"
+updated_at: "2026-06-01T15:15:00+08:00"
+retry_count: 0
+last_tldr: "6-SHIP completed: 7 conventional commits on sprint16-branch-C-decision-fusion"
+last_next: "push to remote / create PR (manual)"
+last_risk: "decisions 表 Alembic migration 是否已在生产环境执行"
+last_progress_note: "7 commits: C1-C5 feat/test + 2 chore"
+last_context_mode: "full"
+last_verified_at: "2026-06-01T15:10:00+08:00"
