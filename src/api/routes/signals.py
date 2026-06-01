@@ -26,19 +26,25 @@ async def list_signals(
 ) -> dict:
     try:
         async with get_session() as session:
+            # Normalize Query defaults (when called directly, not via FastAPI)
+            _source = source if isinstance(source, str) else None
+            _sentiment = sentiment if isinstance(sentiment, str) else None
+            _since = since if isinstance(since, datetime) else None
+            _limit = limit if isinstance(limit, int) else 50
+
             # Build query
             where_clauses = ["1=1"]
             params: dict = {}
 
-            if source:
+            if _source:
                 where_clauses.append("source = :source")
-                params["source"] = source
-            if sentiment:
+                params["source"] = _source
+            if _sentiment:
                 where_clauses.append("sentiment = :sentiment")
-                params["sentiment"] = sentiment
-            if since:
+                params["sentiment"] = _sentiment
+            if _since:
                 where_clauses.append("timestamp >= :since")
-                params["since"] = since.isoformat()
+                params["since"] = _since.isoformat()
 
             where_sql = " AND ".join(where_clauses)
 
@@ -50,7 +56,7 @@ async def list_signals(
             total = count_result.scalar() or 0
 
             # Fetch page
-            params["limit"] = limit
+            params["limit"] = _limit
             result = await session.execute(
                 text(
                     f"SELECT * FROM signal_events "
