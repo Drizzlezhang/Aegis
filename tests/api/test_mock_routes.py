@@ -40,6 +40,6 @@ class TestDecisionsRoute:
         data = resp.json()
         assert data["decision_id"] == "fake-id"
         assert "_mock" not in data
-        assert "context_snapshot" in data
-        assert "signal_events" in data
-        assert "fused_signal" in data
+        assert "signals" in data
+        assert "fusion" in data
+        assert "wyckoff_and_final" in data

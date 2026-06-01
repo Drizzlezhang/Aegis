@@ -80,12 +80,12 @@ if [ -n "$DECISION_ID" ] && [ "$DECISION_ID" != "ERROR" ]; then
   if echo "$TRACE_RESP" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-assert 'signal_events' in d, 'Missing signal_events'
-assert 'fused_signal' in d, 'Missing fused_signal'
-assert 'context_snapshot' in d, 'Missing context_snapshot'
+assert 'signals' in d, 'Missing signals'
+assert 'fusion' in d, 'Missing fusion'
+assert 'wyckoff_and_final' in d, 'Missing wyckoff_and_final'
 print('OK')
 " 2>&1; then
-    pass "Decision trace is complete (signal_events + fused_signal + context_snapshot)"
+    pass "Decision trace is complete (signals + fusion + wyckoff_and_final)"
   else
     fail "Decision trace is incomplete"
   fi
@@ -94,7 +94,7 @@ else
 fi
 
 # Step 6: WS client assertion (basic connectivity check)
-info "Step 6: Checking WebSocket /ws/push endpoint..."
+info "Step 6: Checking WebSocket /api/push/stream endpoint..."
 # Use Python to test WS connectivity
 WS_CHECK=$(python3 -c "
 import asyncio
@@ -107,7 +107,7 @@ except ImportError:
 
 async def check():
     try:
-        ws_url = '${API_BASE}'.replace('http://', 'ws://').replace('https://', 'wss://') + '/ws/push'
+        ws_url = '${API_BASE}'.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/push/stream'
         async with websockets.connect(ws_url, timeout=5) as ws:
             # Just verify connection is accepted
             print('CONNECTED')
@@ -118,7 +118,7 @@ asyncio.run(check())
 " 2>&1)
 
 if echo "$WS_CHECK" | grep -q "CONNECTED"; then
-  pass "WebSocket /ws/push endpoint is connectable"
+  pass "WebSocket /api/push/stream endpoint is connectable"
 elif echo "$WS_CHECK" | grep -q "SKIP"; then
   info "WebSocket check skipped (websockets package not installed)"
 else
