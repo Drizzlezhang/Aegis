@@ -23,6 +23,9 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     phase: '实时面板',
     alerts: '告警中心',
     llmCost: 'LLM 成本',
+    signals: '信号面板',
+    decisions: '决策记录',
+    pushNotification: '推送通知',
   },
   en: {
     watchlist: 'Watchlist',
@@ -46,5 +49,8 @@ export const commonMessages: Record<Locale, CommonMessages> = {
     phase: 'Live Panel',
     alerts: 'Alerts',
     llmCost: 'LLM Cost',
+    signals: 'Signals',
+    decisions: 'Decisions',
+    pushNotification: 'Push Notification',
   },
 };
