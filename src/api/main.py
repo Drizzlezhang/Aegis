@@ -79,15 +79,25 @@ async def lifespan(app_: FastAPI):
 
     # Push dispatcher — subscribe to PushEvent
     from src.config import get_config as _get_config
-    from src.services.push_adapters.telegram_stub import TelegramStubAdapter
     from src.services.push_adapters.websocket import WebSocketAdapter
     from src.services.push_dispatcher import PushDispatcher
 
     _cfg = _get_config()
     ws_adapter = WebSocketAdapter()
     push_ws_routes.set_ws_adapter(ws_adapter)
+
+    # Use real Telegram adapter when configured, otherwise fall back to stub
+    if _cfg.telegram.bot_token and _cfg.telegram.chat_id:
+        from src.services.push_adapters.telegram import TelegramAdapter
+        tg_adapter = TelegramAdapter(_cfg.telegram.bot_token, _cfg.telegram.chat_id)
+        logger.info("Telegram adapter configured for chat %s", _cfg.telegram.chat_id)
+    else:
+        from src.services.push_adapters.telegram_stub import TelegramStubAdapter
+        tg_adapter = TelegramStubAdapter()
+        logger.info("Telegram not configured — using stub adapter")
+
     dispatcher = PushDispatcher(
-        adapters={"telegram": TelegramStubAdapter(), "websocket": ws_adapter},
+        adapters={"telegram": tg_adapter, "websocket": ws_adapter},
         db_path=_cfg.memory.sqlite_path,
     )
     bus.subscribe("PushEvent", dispatcher.dispatch)
