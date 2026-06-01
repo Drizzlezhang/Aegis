@@ -83,12 +83,18 @@ class XSocialAdapter(SignalSource):
         return events
 
     async def _fetch_kol_tweets(self, kol: dict) -> list[SignalEvent]:
-        """Fetch tweets for a single KOL. Override this method for real scraper integration."""
+        """Fetch tweets for a single KOL.
+
+        TODO(Sprint17): 接入真实 X/Twitter API 或第三方爬虫服务（Apify/RapidAPI）。
+                       当前为占位实现，需要外部 API key 才能启用真实抓取。
+        """
         username = kol.get("username", "unknown")
         watch_symbols = kol.get("watch_symbols", [])
 
-        # Placeholder: in production, call Apify/RapidAPI scraper here
-        # For now, return empty — real integration requires API key
+        logger.info(
+            "XSocialAdapter._fetch_kol_tweets: stub — no real scraper configured for %s",
+            username,
+        )
         _ = (username, watch_symbols)
         return []
 
