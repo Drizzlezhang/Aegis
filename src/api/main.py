@@ -26,6 +26,7 @@ from .routes import (
     analysis,
     backtest,
     data_routes,
+    decisions,
     llm,
     market,
     memory,
@@ -33,6 +34,7 @@ from .routes import (
     notifications,
     positions,
     settings,
+    signals,
     stats,
     status,
     symbols,
@@ -235,6 +237,8 @@ app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(signals.router, prefix="/api/signals")
+app.include_router(decisions.router, prefix="/api/decisions")
 app.include_router(data_routes.router)
 app.include_router(llm.router)
 
