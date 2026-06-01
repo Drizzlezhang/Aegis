@@ -125,6 +125,13 @@ class PushEvent(BaseEvent):
     metadata: dict = field(default_factory=dict)
 
 
+@dataclass
+class SignalReceivedEvent(BaseEvent):
+    """Emitted when a new signal is received from any signal source."""
+
+    signal: Any = None  # SignalEvent (lazy import to avoid circular dependency)
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 
