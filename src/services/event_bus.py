@@ -125,6 +125,18 @@ class PushEvent(BaseEvent):
     metadata: dict = field(default_factory=dict)
 
 
+@dataclass
+class DecisionGeneratedEvent(BaseEvent):
+    """Emitted when DecisionComposer produces a decision context.
+
+    Subscribed by D branch for push notification generation.
+    """
+
+    decision_id: str = ""
+    symbol: str = ""
+    context: Any = None  # DecisionContext (lazy import to avoid circular deps)
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 

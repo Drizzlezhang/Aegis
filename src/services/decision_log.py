@@ -1,11 +1,14 @@
 """Shared append-only decision log manager."""
 
 import asyncio
+import json
 import sqlite3
+from dataclasses import asdict
 from pathlib import Path
+from uuid import uuid4
 
 from src.config import get_config
-from src.models.decision import DecisionEntry, DecisionOutcome
+from src.models.decision import DecisionEntry, DecisionOutcome, DecisionType
 
 
 class DecisionLog:
@@ -249,6 +252,117 @@ class DecisionLog:
                 "SELECT * FROM decisions WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?",
                 (symbol, limit)
             ).fetchall()
+
+    # ── Sprint16 Branch C: context-aware append ──────────────────────────────
+
+    async def append_with_context(
+        self,
+        context,  # DecisionContext
+        action: str,
+        rationale: str,
+    ) -> str:
+        """Append a decision with full DecisionContext trace data.
+
+        Writes to the 3 new columns (signal_sources_json, fused_signal_json,
+        context_snapshot_json) if they exist; degrades gracefully otherwise.
+        """
+        decision_id = str(uuid4())
+
+        # Map action string to DecisionType
+        try:
+            decision_type = DecisionType(action.lower())
+        except ValueError:
+            decision_type = DecisionType.HOLD
+
+        entry = DecisionEntry(
+            id=decision_id,
+            timestamp=context.timestamp,
+            symbol=context.symbol,
+            decision_type=decision_type,
+            current_price=context.current_price or 0.0,
+            confidence=context.fused_signal.fusion_confidence,
+            reasoning=rationale,
+            outcome=DecisionOutcome.PENDING,
+        )
+
+        async with self._write_lock:
+            await asyncio.to_thread(
+                self._append_with_context_sqlite,
+                entry,
+                context,
+            )
+            self._append_markdown(entry)
+
+        return decision_id
+
+    def _append_with_context_sqlite(self, entry: DecisionEntry, context) -> None:
+        """INSERT into decisions with context columns if available."""
+        from src.contracts.decision_context import DecisionContext
+
+        with sqlite3.connect(str(self._db_path)) as conn:
+            existing_cols = self._get_table_columns(conn, "decisions")
+
+            signal_sources = json.dumps(
+                [asdict(s) for s in context.signal_events], default=str
+            )
+            fused_signal = json.dumps(asdict(context.fused_signal))
+            context_snapshot = json.dumps(context.context_snapshot)
+
+            # Build column list and values dynamically
+            cols = ["id", "timestamp", "symbol", "decision_type", "data_json",
+                    "outcome", "actual_pnl", "reflection"]
+            vals = [
+                entry.id,
+                entry.timestamp.isoformat(),
+                entry.symbol.upper(),
+                entry.decision_type.value,
+                entry.model_dump_json(),
+                entry.outcome.value,
+                entry.actual_pnl,
+                entry.reflection,
+            ]
+
+            if "signal_sources_json" in existing_cols:
+                cols.append("signal_sources_json")
+                vals.append(signal_sources)
+            if "fused_signal_json" in existing_cols:
+                cols.append("fused_signal_json")
+                vals.append(fused_signal)
+            if "context_snapshot_json" in existing_cols:
+                cols.append("context_snapshot_json")
+                vals.append(context_snapshot)
+
+            placeholders = ", ".join("?" for _ in vals)
+            sql = f"INSERT INTO decisions ({', '.join(cols)}) VALUES ({placeholders})"
+            conn.execute(sql, vals)
+            conn.commit()
+
+    async def get_decision_by_id(self, decision_id: str) -> dict | None:
+        """Get a single decision row by ID (for trace API)."""
+        return await asyncio.to_thread(self._get_decision_by_id_sqlite, decision_id)
+
+    def _get_decision_by_id_sqlite(self, decision_id: str) -> dict | None:
+        with sqlite3.connect(str(self._db_path)) as conn:
+            existing_cols = self._get_table_columns(conn, "decisions")
+            cols = ["id", "timestamp", "symbol", "decision_type", "data_json",
+                    "outcome", "actual_pnl", "reflection"]
+            for extra in ("signal_sources_json", "fused_signal_json", "context_snapshot_json"):
+                if extra in existing_cols:
+                    cols.append(extra)
+            sql = f"SELECT {', '.join(cols)} FROM decisions WHERE id = ?"
+            row = conn.execute(sql, (decision_id,)).fetchone()
+            if row is None:
+                return None
+            result = {}
+            for i, col in enumerate(cols):
+                result[col] = row[i]
+            return result
+
+    @staticmethod
+    def _get_table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+        """Return the set of column names for a table."""
+        cursor = conn.execute(f"PRAGMA table_info({table})")
+        return {row[1] for row in cursor.fetchall()}
 
     @staticmethod
     def _row_to_dict(row: tuple) -> dict:
