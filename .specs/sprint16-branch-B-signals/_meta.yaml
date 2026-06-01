@@ -1,0 +1,22 @@
+schema_version: 2
+change_id: "sprint16-branch-B-signals"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-06-01T10:45:00+08:00"
+updated_at: "2026-06-01T11:30:00+08:00"
+retry_count: 0
+last_tldr: "6-SHIP completed: 8 commits, 50 tests pass, constitution grep pass"
+last_next: "push to remote / create PR"
+last_verified_at: "2026-06-01T11:30:00+08:00"
+last_risk: ""
+last_progress_note: "all waves done, 50 tests pass, constitution grep pass"
+last_context_mode: "full"
