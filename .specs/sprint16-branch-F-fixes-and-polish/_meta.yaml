@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint16-branch-F-fixes-and-polish"
+size: "M"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "5-VERIFY"
+status: "active"
+created_at: "2026-06-01T16:50:00+08:00"
+updated_at: "2026-06-01T17:35:00+08:00"
+retry_count: 0
+last_tldr: "VERIFY complete: 12/12 ACs passed, 21 tests 0 failed, constitution grep clean"
+last_next: "进入 6-SHIP，commit/push/merge"
+last_risk: "Telegram adapter 需外部 API key 端到端验证（非阻塞）"
+last_progress_note: "VERIFY complete: all 12 ACs passed, 21 tests green, verification.md created"
+last_context_mode: "full"
+last_verified_at: "2026-06-01T17:35:00+08:00"
