@@ -88,6 +88,7 @@ async def lifespan(app_: FastAPI):
         DecisionLog(),
         PositionService(position_manager),
     )
+    app_.state.decision_log = DecisionLog()
     app_.state.settings_service = SettingsService()
 
     # Notification router
