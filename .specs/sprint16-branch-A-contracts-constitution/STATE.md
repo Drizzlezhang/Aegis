@@ -6,12 +6,12 @@
 ## Current
 - **change_id**: sprint16-branch-A-contracts-constitution
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
+- **current_stage**: 6-SHIP
+- **status**: completed
 - **updated_at**: 2026-06-01T10:05:00+08:00
 
 ## Next Action
-进入 6-SHIP，生成 conventional commits
+push to remote / create PR
 
 ## Open Questions
 - [ ] 契约字段是否需要 B/C/D/E owner 在场确认（建议 A merge 前 1h 全员评审）
@@ -28,6 +28,7 @@
 - [2026-06-01T10:15:00+08:00] 3-PLAN → tasks.md created, 18 tasks in 4 waves
 - [2026-06-01T10:30:00+08:00] 4-BUILD → 18/18 tasks done, 28 tests pass, constitution grep pass
 - [2026-06-01T10:35:00+08:00] 5-VERIFY → 13/13 AC pass, verification.md created
+- [2026-06-01T10:40:00+08:00] 6-SHIP → 7 commits on sprint16-branch-A, completed
 
 ## Notes
 Sprint16 Branch A: Contracts & Constitution。一次性产出跨分支共享契约 + 宪法 + grep 守卫。需求文档来源: /Users/bytedance/Downloads/branch_A_contracts_and_constitution.md
