@@ -1,0 +1,10 @@
+# X (Twitter) KOL configuration for signal scraping
+# Each KOL has a username and a list of symbols they're associated with
+
+kols:
+  - username: "elonmusk"
+    watch_symbols: ["TSLA", "DOGE"]
+  - username: "CathieDWood"
+    watch_symbols: ["TSLA", "COIN", "SQ", "ROKU"]
+  - username: "novogratz"
+    watch_symbols: ["BTC", "ETH", "SOL"]
