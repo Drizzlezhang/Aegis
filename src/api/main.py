@@ -45,6 +45,7 @@ from .routes import (
 )
 from .routes import analyze as analyze_routes
 from .routes import analyze_stream as analyze_stream_routes
+from .routes import push_ws as push_ws_routes
 from .routes import scheduler as scheduler_routes
 from .routes import tracking as tracking_routes
 from .routes import watchlist as watchlist_routes
@@ -75,6 +76,22 @@ async def lifespan(app_: FastAPI):
     bus = get_event_bus()
     await bus.start()
     logger.info("EventBus dispatch loop started")
+
+    # Push dispatcher — subscribe to PushEvent
+    from src.config import get_config as _get_config
+    from src.services.push_adapters.telegram_stub import TelegramStubAdapter
+    from src.services.push_adapters.websocket import WebSocketAdapter
+    from src.services.push_dispatcher import PushDispatcher
+
+    _cfg = _get_config()
+    ws_adapter = WebSocketAdapter()
+    push_ws_routes.set_ws_adapter(ws_adapter)
+    dispatcher = PushDispatcher(
+        adapters={"telegram": TelegramStubAdapter(), "websocket": ws_adapter},
+        db_path=_cfg.memory.sqlite_path,
+    )
+    bus.subscribe("PushEvent", dispatcher.dispatch)
+    logger.info("PushDispatcher registered on EventBus")
 
     logger.info("Aegis API running in private deployment mode (no auth)")
 
@@ -233,6 +250,7 @@ app.include_router(ws.router)
 app.include_router(ws_phase.router)
 app.include_router(ws_alerts.router)
 app.include_router(ws_llm.router)
+app.include_router(push_ws_routes.router)
 app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
