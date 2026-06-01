@@ -189,17 +189,6 @@ class WebConfig(BaseModel):
     api_port: int = 8000
 
 
-class AuthConfig(BaseModel):
-    """Authentication configuration."""
-    enabled: bool = False
-    jwt_secret: str = ""
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
-    api_key_header: str = "X-API-Key"
-    api_keys: list[str] = []
-    cors_origins: list[str] = ["http://localhost:3000"]
-
-
 class DatabaseConfig(BaseModel):
     """Database configuration."""
     url: str = "sqlite:///~/.aegis-trader/aegis.db"
@@ -333,7 +322,6 @@ class Config(BaseSettings):
     algorithm: AlgorithmConfig = Field(default_factory=AlgorithmConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     web: WebConfig = Field(default_factory=WebConfig)
-    auth: AuthConfig = Field(default_factory=AuthConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
     debate: DebateConfig = Field(default_factory=DebateConfig)
@@ -344,12 +332,16 @@ class Config(BaseSettings):
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     alerting: AlertingConfig = Field(default_factory=AlertingConfig)
 
-    # Paper trading
-    paper_token: str = ""  # env: AEGIS_PAPER_TOKEN
+    # LLM (single provider, OpenAI-compatible)
+    llm_base_url: str = ""  # env: AEGIS_LLM_BASE_URL
+    llm_api_key: str = ""  # env: AEGIS_LLM_API_KEY
+    llm_default_model: str = "gpt-4o-mini"  # env: AEGIS_LLM_DEFAULT_MODEL
+    llm_timeout_seconds: float = 60.0  # env: AEGIS_LLM_TIMEOUT_SECONDS
+    llm_monthly_budget_usd: float = 200.0  # env: AEGIS_LLM_MONTHLY_BUDGET_USD
 
     # Core symbols
     core_symbols: list[str] = Field(default=[
-        "QQQ", "SPY", "NVDA", "MSFT", "AAPL", "KO", "PLTR", "NFLX", "INTC", "TSM", "TSLA"
+        "QQQ", "SPY", "NVDA", "MSFT", "AAPL", "KO", "PLTR", "NFLX", "INTC", "TSM", "TSLA", "ORCL", "HOOD"
     ])
 
     # Strategy
@@ -403,24 +395,14 @@ class Config(BaseSettings):
         """Validate that critical secrets are configured."""
         issues: list[str] = []
 
-        # JWT secret must be set and non-trivial
-        if not self.auth.jwt_secret or len(self.auth.jwt_secret) < 16:
+        # LLM base URL and API key are required
+        if not self.llm_base_url:
             issues.append(
-                "AUTH_JWT_SECRET must be set (min 16 chars). "
-                "Generate one: python -c \"import secrets; print(secrets.token_hex(32))\""
+                "AEGIS_LLM_BASE_URL must be set (e.g. https://api.openai.com/v1)"
             )
-
-        # At least one LLM provider must have an API key
-        has_llm_key = bool(self.llm.api_key)
-        if not has_llm_key:
-            for cred in self.llm.providers.values():
-                if cred.api_key:
-                    has_llm_key = True
-                    break
-        if not has_llm_key:
+        if not self.llm_api_key:
             issues.append(
-                "At least one LLM API key must be set: "
-                "LLM_API_KEY or a provider in LLM__PROVIDERS"
+                "AEGIS_LLM_API_KEY must be set"
             )
 
         object.__setattr__(self, "_validation_warnings", issues)

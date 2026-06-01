@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from src.llm import TaskType, generate
+from src.llm import generate
 from src.models import AgentState, GEXWall, SupportResistanceLevel, ValuationRange, VolumeProfile
 
 from .llm_guard import llm_optional
@@ -66,7 +66,6 @@ async def generate_llm_enhanced_report(
         report = await generate(
             prompt=prompt,
             system_prompt=SYSTEM_PROMPT_ANALYST,
-            task_type=TaskType.REASONING,
             max_tokens=1500,
             temperature=0.3,
         )
@@ -140,7 +139,6 @@ IMPORTANT: Incorporate the macro market context (VIX level, market sentiment, po
 You have deep expertise in technical analysis, options pricing, and risk management.
 Provide professional, data-driven insights suitable for institutional investors.
 Always factor in the macro market context (VIX, SPX/NDX trend) when making recommendations.""",
-        task_type=TaskType.ANALYSIS,
         max_tokens=4000,
         temperature=0.3,
     )

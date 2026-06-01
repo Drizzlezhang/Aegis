@@ -1,21 +1,29 @@
-"""Tests for Sprint 16 constitution grep guard (P0-4 hotfix)."""
+"""Tests for Sprint 16 constitution grep guard (P0-4 hotfix).
+
+Updated sprint15-hotfix-v0.15.2: PaperBroker removed, guard now scans for
+forbidden paper trading terms across the entire src/ directory.
+"""
 
 import subprocess
 from pathlib import Path
 
 
 class TestConstitutionGrepGuard:
-    """Verify that broker method names are only in the whitelisted directory."""
+    """Verify that forbidden paper trading terms are absent from src/."""
 
-    def test_grep_guard_whitelist_effective(self) -> None:
-        """grep for def place_order|def cancel_order outside brokers/ should return empty."""
+    FORBIDDEN_PATTERN = (
+        r"(PaperBroker|submit_order|place_order|modify_order|cancel_order)"
+    )
+
+    def test_no_paper_broker_references_in_src(self) -> None:
+        """grep for PaperBroker|submit_order|place_order|modify_order|cancel_order in src/ should return empty."""
         repo_root = Path(__file__).parent.parent.parent
         src_dir = repo_root / "src"
 
         result = subprocess.run(
             [
                 "grep", "-rE",
-                r"def (place_order|submit_order|modify_order|cancel_order)\b",
+                self.FORBIDDEN_PATTERN,
                 str(src_dir),
                 "--include=*.py",
             ],
@@ -23,29 +31,22 @@ class TestConstitutionGrepGuard:
             text=True,
         )
 
-        # Filter out whitelisted directory and paper API routes
         lines = result.stdout.strip().split("\n") if result.stdout.strip() else []
-        violations = [
-            line for line in lines
-            if "src/agents/strategy_exec/brokers/" not in line
-            and "src/api/routes/paper.py" not in line
-        ]
-
-        if violations:
-            violation_list = "\n".join(violations)
+        if lines:
+            violation_list = "\n".join(lines)
             raise AssertionError(
-                f"Constitution grep guard violation: found broker method definitions outside whitelist:\n{violation_list}"
+                f"Constitution grep guard violation: found forbidden paper trading terms:\n{violation_list}"
             )
 
-    def test_grep_guard_returns_zero_when_whitelist_applied(self) -> None:
-        """The grep guard should produce 0 hits when whitelist is applied."""
+    def test_grep_guard_returns_zero_violations(self) -> None:
+        """The grep guard should produce 0 hits."""
         repo_root = Path(__file__).parent.parent.parent
         src_dir = repo_root / "src"
 
         result = subprocess.run(
             [
                 "grep", "-rE",
-                r"def (place_order|submit_order|modify_order|cancel_order)\b",
+                self.FORBIDDEN_PATTERN,
                 str(src_dir),
                 "--include=*.py",
             ],
@@ -54,10 +55,4 @@ class TestConstitutionGrepGuard:
         )
 
         lines = result.stdout.strip().split("\n") if result.stdout.strip() else []
-        violations = [
-            line for line in lines
-            if "src/agents/strategy_exec/brokers/" not in line
-            and "src/api/routes/paper.py" not in line
-        ]
-
-        assert len(violations) == 0, f"Expected 0 violations, got {len(violations)}"
+        assert len(lines) == 0, f"Expected 0 violations, got {len(lines)}"

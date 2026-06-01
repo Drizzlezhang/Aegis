@@ -53,17 +53,16 @@ class SystemHealthAggregator:
             except Exception:
                 pass
 
-        # LLM Provider 健康
+        # LLM health (single provider)
         llm_health: dict[str, bool] = {}
         if llm_client is not None:
             try:
-                from src.llm.client import LLMProvider
-                for provider in LLMProvider:
-                    try:
-                        healthy = await llm_client.health_check(provider)
-                        llm_health[provider.value] = healthy
-                    except Exception:
-                        llm_health[provider.value] = False
+                from src.config import get_config
+                cfg = get_config()
+                if cfg.llm_base_url and cfg.llm_api_key:
+                    llm_health["llm"] = True
+                else:
+                    llm_health["llm"] = False
             except Exception:
                 pass
 

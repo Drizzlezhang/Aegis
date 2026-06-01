@@ -132,6 +132,8 @@ _SYMBOLS: list[dict[str, Any]] = [
     {"symbol": "INTC", "name": "Intel Corp", "price": 19.85, "change": -0.42, "changePercent": -2.07, "volume": 89200000, "trend": "down", "analysisStatus": "error"},
     {"symbol": "TSM", "name": "Taiwan Semiconductor", "price": 186.72, "change": 1.18, "changePercent": 0.64, "volume": 15600000, "trend": "up", "analysisStatus": "completed"},
     {"symbol": "TSLA", "name": "Tesla Inc", "price": 342.18, "change": -8.45, "changePercent": -2.41, "volume": 98200000, "trend": "down", "analysisStatus": "completed"},
+    {"symbol": "ORCL", "name": "Oracle Corp", "price": 178.50, "change": 1.25, "changePercent": 0.71, "volume": 8500000, "trend": "up", "analysisStatus": "completed"},
+    {"symbol": "HOOD", "name": "Robinhood Markets", "price": 42.30, "change": -0.85, "changePercent": -1.97, "volume": 12500000, "trend": "down", "analysisStatus": "completed"},
 ]
 
 

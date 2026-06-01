@@ -1,0 +1,15 @@
+schema_version: 2
+change_id: "sprint15-hotfix-v0.15.2"
+size: "L"
+stages: ["0-CHANGE", "1-SPEC", "2-DESIGN", "3-PLAN", "4-BUILD", "5-VERIFY", "6-SHIP"]
+current_stage: "3-PLAN"
+status: "active"
+created_at: "2026-05-31T19:45:00+08:00"
+updated_at: "2026-05-31T20:00:00+08:00"
+retry_count: 0
+last_tldr: "5 个 wave 任务清单完成：Wave1 F1 .env / Wave2 F2 LLM / Wave3 F3 auth / Wave4 F4 paper / Wave5 F5 sidebar + 全量验证，每个任务带 verify 命令"
+last_next: "Size L 需经过 post-plan gate 确认后再进入 4-BUILD"
+last_risk: "F4 牵连面最大，集成测试改不动时允许 mark skip + TODO"
+last_progress_note: ""
+last_context_mode: "full"
+last_verified_at: ""

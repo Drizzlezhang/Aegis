@@ -1,5 +1,5 @@
 const LOCAL_DEV_FALLBACKS = new Set(['localhost', '127.0.0.1']);
-const DEFAULT_SERVER_API_PORT = '8001';
+const DEFAULT_SERVER_API_PORT = '8000';
 
 function normalizeBase(value: string): string {
   return value.replace(/\/$/, '');
@@ -33,5 +33,6 @@ export function getServerApiBase(): string {
     return localFallback;
   }
 
-  throw new Error('API base URL is not configured. Set API_BASE_URL for server-side requests.');
+  // Last resort: default to localhost:8000 for local dev
+  return `http://localhost:${DEFAULT_SERVER_API_PORT}`;
 }

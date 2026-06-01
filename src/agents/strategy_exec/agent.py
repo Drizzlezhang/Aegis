@@ -1,17 +1,16 @@
 """Strategy-Execution Agent implementation."""
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from src.agents.base import BaseAgent
 from src.config import get_config
 from src.models import AgentState
 from src.models.debate import JudgeVerdict
-from src.models.paper import OrderSide, OrderType
+from src.services.event_bus import StrategySignalEvent, get_event_bus
 
 from .anti_whipsaw import AntiWhipsaw
-from .brokers.base import BrokerBase
-from .brokers.paper import PaperBroker
 from .market_context import adjust_position_for_phase, analyze_strategy_market_context
 from .report import create_action_report
 from .strategies import discover_strategies
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 class StrategyExecAgent(BaseAgent):
     """Strategy-Execution Agent: Generates options strategy recommendations."""
 
-    def __init__(self, config: dict[str, Any] | None = None, broker: BrokerBase | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(
             name="Strategy-Execution",
             description="Generates options strategy recommendations based on support/resistance levels and valuation",
@@ -34,54 +33,10 @@ class StrategyExecAgent(BaseAgent):
             cooldown_hours=self.config.get("whipsaw_cooldown_hours", 24),
             state_file=self.config.get("whipsaw_state_file", "~/.aegis-trader/whipsaw_state.json"),
         )
-        self._execution_mode = self._config.agent.execution_mode
-        self._broker = broker
-        if self._broker is None and self._execution_mode == "paper":
-            self._broker = PaperBroker()
 
     async def initialize(self) -> None:
         """Initialize strategy execution resources."""
         pass
-
-    async def execute_signal(
-        self,
-        symbol: str,
-        side: OrderSide,
-        quantity: int,
-        order_type: OrderType = OrderType.MARKET,
-        limit_price: float | None = None,
-    ) -> str | None:
-        """Execute a trading signal through the broker.
-
-        Args:
-            symbol: Trading symbol.
-            side: Buy or sell.
-            quantity: Number of shares/contracts.
-            order_type: Market, limit, or stop.
-            limit_price: Required for limit orders.
-
-        Returns:
-            Order ID if execution mode is paper/live, None if disabled.
-        """
-        if self._execution_mode == "disabled" or self._broker is None:
-            logger.debug("Execution disabled, skipping signal for %s", symbol)
-            return None
-
-        result = await self._broker.place_order(
-            symbol=symbol,
-            side=side,
-            quantity=quantity,
-            order_type=order_type,
-            limit_price=limit_price,
-        )
-        if result.success:
-            logger.info(
-                "Signal executed: %s %s %d %s → %s",
-                symbol, side.value, quantity, order_type.value, result.order_id,
-            )
-            return result.order_id
-        logger.warning("Signal execution failed: %s", result.message)
-        return None
 
     async def run(self, state: AgentState) -> AgentState:
         """Execute strategy generation for the given symbol."""
@@ -170,6 +125,22 @@ class StrategyExecAgent(BaseAgent):
         state.strategy_result = state.snapshot_strategy()
         if recommendations:
             self._anti_whipsaw.record_decision(symbol, decision_direction)
+
+        # Emit strategy signal event (read-only suggestion)
+        if recommendations:
+            action = "BUY_SUGGEST" if decision_direction == "bullish" else "SELL_SUGGEST"
+        else:
+            action = "HOLD"
+        try:
+            bus = get_event_bus()
+            bus.publish(StrategySignalEvent(
+                symbol=symbol,
+                action=action,
+                rationale=f"{len(recommendations)} strategies generated, direction={decision_direction}",
+                emitted_at=datetime.now(UTC),
+            ))
+        except Exception:
+            logger.debug("Failed to publish StrategySignalEvent", exc_info=True)
 
         state.add_agent_step(self.name)
         logger.info(f"Strategy-Execution completed for {symbol}, generated {len(recommendations)} recommendations")

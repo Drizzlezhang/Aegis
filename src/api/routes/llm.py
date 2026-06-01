@@ -6,14 +6,18 @@ All endpoints require admin role authentication.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from src.db import get_session
 from src.llm.budget import get_budget_tracker
 from src.llm.cache import get_prompt_cache
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
@@ -42,22 +46,32 @@ async def get_usage(
     col_map = {"agent": "agent_name", "model": "model", "day": "DATE(timestamp)"}
     col = col_map.get(group_by, "agent_name")
 
-    async with get_session() as session:
-        result = await session.execute(
-            text(
-                f"SELECT {col} as group_key, "
-                "SUM(input_tokens) as total_input, "
-                "SUM(output_tokens) as total_output, "
-                "SUM(cost_usd) as total_cost, "
-                "COUNT(*) as calls "
-                "FROM llm_call_log "
-                "WHERE timestamp >= :since AND success = 1 "
-                f"GROUP BY {col} "
-                "ORDER BY total_cost DESC"
-            ),
-            {"since": since.isoformat()},
-        )
-        rows = result.fetchall()
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                text(
+                    f"SELECT {col} as group_key, "
+                    "SUM(input_tokens) as total_input, "
+                    "SUM(output_tokens) as total_output, "
+                    "SUM(cost_usd) as total_cost, "
+                    "COUNT(*) as calls "
+                    "FROM llm_call_log "
+                    "WHERE timestamp >= :since AND success = 1 "
+                    f"GROUP BY {col} "
+                    "ORDER BY total_cost DESC"
+                ),
+                {"since": since.isoformat()},
+            )
+            rows = result.fetchall()
+    except OperationalError:
+        logger.debug("llm_call_log table not available, returning empty usage")
+        return {
+            "period": period,
+            "group_by": group_by,
+            "total_cost_usd": 0.0,
+            "total_tokens": 0,
+            "items": [],
+        }
 
     items = []
     total_cost = 0.0
@@ -86,8 +100,15 @@ async def get_usage(
 @router.get("/budget")
 async def get_budget(_admin: None = Depends(_require_admin)) -> dict:
     """Get current LLM budget status."""
-    tracker = get_budget_tracker()
-    return await tracker.check()
+    try:
+        tracker = get_budget_tracker()
+        return await tracker.check()
+    except OperationalError:
+        logger.debug("llm_call_log table not available, returning empty budget")
+        return {
+            "daily": {"limit_usd": 10.0, "used_usd": 0.0, "remaining_usd": 10.0, "pct": 0.0, "status": "ok"},
+            "monthly": {"limit_usd": 200.0, "used_usd": 0.0, "remaining_usd": 200.0, "pct": 0.0, "status": "ok"},
+        }
 
 
 @router.get("/calls")
@@ -99,26 +120,30 @@ async def get_calls(
     """Get paginated LLM call history."""
     offset = (page - 1) * size
 
-    async with get_session() as session:
-        # Get total count
-        count_result = await session.execute(
-            text("SELECT COUNT(*) FROM llm_call_log")
-        )
-        total = count_result.fetchone()[0]
+    try:
+        async with get_session() as session:
+            # Get total count
+            count_result = await session.execute(
+                text("SELECT COUNT(*) FROM llm_call_log")
+            )
+            total = count_result.fetchone()[0]
 
-        # Get page
-        result = await session.execute(
-            text(
-                "SELECT id, request_id, agent_name, provider, model, "
-                "input_tokens, output_tokens, cost_usd, latency_ms, "
-                "cache_hit, prompt_version, success, error_msg, timestamp "
-                "FROM llm_call_log "
-                "ORDER BY timestamp DESC "
-                "LIMIT :limit OFFSET :offset"
-            ),
-            {"limit": size, "offset": offset},
-        )
-        rows = result.fetchall()
+            # Get page
+            result = await session.execute(
+                text(
+                    "SELECT id, request_id, agent_name, model, "
+                    "input_tokens, output_tokens, cost_usd, latency_ms, "
+                    "cache_hit, prompt_version, success, error_msg, timestamp "
+                    "FROM llm_call_log "
+                    "ORDER BY timestamp DESC "
+                    "LIMIT :limit OFFSET :offset"
+                ),
+                {"limit": size, "offset": offset},
+            )
+            rows = result.fetchall()
+    except OperationalError:
+        logger.debug("llm_call_log table not available, returning empty calls")
+        return {"page": page, "size": size, "total": 0, "items": []}
 
     items = []
     for row in rows:
@@ -126,17 +151,16 @@ async def get_calls(
             "id": row[0],
             "request_id": row[1],
             "agent_name": row[2],
-            "provider": row[3],
-            "model": row[4],
-            "input_tokens": row[5],
-            "output_tokens": row[6],
-            "cost_usd": round(row[7], 8),
-            "latency_ms": row[8],
-            "cache_hit": bool(row[9]),
-            "prompt_version": row[10],
-            "success": bool(row[11]),
-            "error_msg": row[12],
-            "timestamp": row[13].isoformat() if row[13] else None,
+            "model": row[3],
+            "input_tokens": row[4],
+            "output_tokens": row[5],
+            "cost_usd": round(row[6], 8),
+            "latency_ms": row[7],
+            "cache_hit": bool(row[8]),
+            "prompt_version": row[9],
+            "success": bool(row[10]),
+            "error_msg": row[11],
+            "timestamp": row[12].isoformat() if row[12] else None,
         })
 
     return {
@@ -154,12 +178,15 @@ async def get_cache_stats(_admin: None = Depends(_require_admin)) -> dict:
 
     estimated_savings = 0.0
     if cache.hits > 0:
-        async with get_session() as session:
-            result = await session.execute(
-                text("SELECT COALESCE(AVG(cost_usd), 0) FROM llm_call_log WHERE cache_hit = 0")
-            )
-            avg_cost = result.fetchone()[0]
-            estimated_savings = round(cache.hits * avg_cost, 6)
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    text("SELECT COALESCE(AVG(cost_usd), 0) FROM llm_call_log WHERE cache_hit = 0")
+                )
+                avg_cost = result.fetchone()[0]
+                estimated_savings = round(cache.hits * avg_cost, 6)
+        except OperationalError:
+            logger.debug("llm_call_log table not available for cache stats")
 
     return {
         "hits": cache.hits,

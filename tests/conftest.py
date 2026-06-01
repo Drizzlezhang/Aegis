@@ -9,21 +9,6 @@ from src.models.market import OHLCV
 
 
 @pytest.fixture
-def deterministic_full_fill(monkeypatch):
-    """Force PaperBroker._get_simulated_liquidity to always return full quantity.
-
-    Use this fixture in tests that need deterministic MARKET order fills
-    (e.g., integration tests that assert status == "filled").
-    """
-    from src.agents.strategy_exec.brokers.paper import PaperBroker
-
-    def _full_liquidity(self, symbol: str, requested: int) -> int:
-        return requested
-
-    monkeypatch.setattr(PaperBroker, "_get_simulated_liquidity", _full_liquidity)
-
-
-@pytest.fixture
 def mock_ohlcv_linear_up() -> list[OHLCV]:
     """60 bars: close linearly rises from 100 to 110."""
     bars = []

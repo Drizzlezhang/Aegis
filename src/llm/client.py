@@ -1,31 +1,18 @@
-"""Unified LLM client for multi-provider support."""
+"""Single-provider LLM client (OpenAI-compatible API)."""
 
-import asyncio
+from __future__ import annotations
+
 import json
 import logging
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
-from enum import StrEnum
+from dataclasses import dataclass, field
 from typing import Any
 
-import aiohttp
+import httpx
 
 from src.config import get_config
 
-from .router import ModelRouting, TaskType, get_router
-
 logger = logging.getLogger(__name__)
-
-
-class LLMProvider(StrEnum):
-    """LLM provider enumeration."""
-    DEEPSEEK = "deepseek"
-    GLM = "glm"
-    KIMI = "kimi"
-    GEMINI = "gemini"
-    MINIMAX = "minimax"
-    NEWAPI = "newapi"
-    CUSTOM = "custom"
 
 
 @dataclass
@@ -33,12 +20,14 @@ class LLMRequest:
     """LLM request configuration."""
     prompt: str
     system_prompt: str | None = None
-    max_tokens: int | None = None
-    temperature: float | None = None
+    model: str | None = None
+    max_tokens: int = 1024
+    temperature: float = 0.0
     top_p: float | None = None
     stream: bool = False
     stop: list[str] | None = None
     tools: list[dict[str, Any]] | None = None
+    extra_params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,379 +46,139 @@ class LLMError(Exception):
 
 
 class LLMClient:
-    """Unified client for multiple LLM providers."""
+    """Single-provider LLM client using OpenAI-compatible API."""
 
-    # Provider API endpoints (using NewAPI as unified gateway)
-    PROVIDER_ENDPOINTS = {
-        LLMProvider.DEEPSEEK: "https://api.deepseek.com/v1/chat/completions",
-        LLMProvider.GLM: "https://api.glm.ai/v1/chat/completions",
-        LLMProvider.KIMI: "https://api.kimi.ai/v1/chat/completions",
-        LLMProvider.GEMINI: "https://api.gemini.com/v1/chat/completions",
-        LLMProvider.MINIMAX: "https://api.minimax.com/v1/chat/completions",
-        LLMProvider.NEWAPI: "",
-        LLMProvider.CUSTOM: "",
-    }
-
-    def __init__(self, config: dict[str, Any] | None = None):
-        """Initialize LLM client."""
-        self.config = config or {}
-        self.router = get_router()
-        self._session: aiohttp.ClientSession | None = None
-        self._provider_configs = self._load_provider_configs()
-
-    async def __aenter__(self) -> "LLMClient":
-        """Async context manager entry."""
-        await self.initialize()
-        return self
-
-    async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
-        """Async context manager exit."""
-        await self.close()
-
-    async def initialize(self) -> None:
-        """Initialize client resources."""
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
+    def __init__(self, base_url: str, api_key: str, timeout: float = 60.0):
+        self._base_url = base_url.rstrip("/")
+        self._client = httpx.AsyncClient(
+            base_url=self._base_url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "Aegis/1.0",
+            },
+            timeout=httpx.Timeout(timeout),
+        )
 
     async def close(self) -> None:
-        """Close client resources."""
-        if self._session:
-            await self._session.close()
-            self._session = None
+        await self._client.aclose()
 
-    def _load_provider_configs(self) -> dict[LLMProvider, dict[str, Any]]:
-        """Load provider configurations with per-provider credential support."""
+    async def generate(self, req: LLMRequest) -> LLMResponse:
+        """Generate a completion (non-streaming)."""
+        payload = self._build_payload(req)
+        endpoint = "/chat/completions"
+
+        response = await self._client.post(endpoint, json=payload)
+        if response.status_code >= 400:
+            text = response.text
+            logger.error("LLM API error %s: %s", response.status_code, text)
+            raise LLMError(f"API error {response.status_code}: {text}")
+
+        data = response.json()
+        choice = data["choices"][0]
+        message = choice["message"]
+
+        return LLMResponse(
+            content=message.get("content", ""),
+            model=data.get("model", req.model or "unknown"),
+            usage=data.get("usage", {}),
+            finish_reason=choice.get("finish_reason"),
+            tool_calls=message.get("tool_calls"),
+        )
+
+    async def generate_stream(self, req: LLMRequest) -> AsyncGenerator[str, None]:
+        """Generate a streaming completion."""
+        payload = self._build_payload(req)
+        payload["stream"] = True
+        endpoint = "/chat/completions"
+
+        async with self._client.stream("POST", endpoint, json=payload) as response:
+            if response.status_code >= 400:
+                text = await response.aread()
+                raise LLMError(f"API error {response.status_code}: {text.decode()}")
+
+            async for line in response.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                data_str = line[6:]
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                    delta = chunk["choices"][0].get("delta", {})
+                    if "content" in delta:
+                        yield delta["content"]
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    logger.debug("Failed to parse stream chunk: %s", data_str)
+
+    def _build_payload(self, req: LLMRequest) -> dict[str, Any]:
         config = get_config()
-        llm_config = config.llm
-        base_config = {
-            "api_key": llm_config.api_key,
-            "api_base_url": None,
-            "timeout": 30,
-            "max_retries": llm_config.max_retries,
-            "retry_base_delay": llm_config.retry_base_delay,
-        }
+        model = req.model or config.llm_default_model
 
-        provider_map = {
-            "deepseek": LLMProvider.DEEPSEEK,
-            "glm": LLMProvider.GLM,
-            "kimi": LLMProvider.KIMI,
-            "gemini": LLMProvider.GEMINI,
-            "minimax": LLMProvider.MINIMAX,
-            "newapi": LLMProvider.NEWAPI,
-            "custom": LLMProvider.CUSTOM,
-        }
+        messages: list[dict[str, str]] = []
+        if req.system_prompt:
+            messages.append({"role": "system", "content": req.system_prompt})
+        messages.append({"role": "user", "content": req.prompt})
 
-        configs: dict[LLMProvider, dict[str, Any]] = {}
-        for provider_name, provider_enum in provider_map.items():
-            provider_conf = {**base_config}
-            # 全局 api_base_url 只应用于与全局 provider 匹配的 provider
-            if llm_config.api_base_url and llm_config.provider and provider_name == llm_config.provider:
-                provider_conf["api_base_url"] = llm_config.api_base_url
-            cred = llm_config.providers.get(provider_name)
-            if cred:
-                if cred.api_key:
-                    provider_conf["api_key"] = cred.api_key
-                if cred.api_base_url:
-                    provider_conf["api_base_url"] = cred.api_base_url
-            configs[provider_enum] = provider_conf
-
-        return configs
-
-    async def generate(self, request: LLMRequest,
-                      task_type: TaskType | str | None = None,
-                      model_name: str | None = None) -> LLMResponse | AsyncGenerator[str, None]:
-        """
-        Generate text using appropriate LLM.
-
-        Args:
-            request: LLM request configuration
-            task_type: Optional task type for model selection
-            model_name: Optional specific model name to use
-
-        Returns:
-            LLMResponse or async generator for streaming
-        """
-        # Select model
-        if model_name:
-            model_config = self.router.get_model_by_name(model_name)
-            if not model_config:
-                raise LLMError(f"Unknown model: {model_name}")
-        elif task_type:
-            model_config = self.router.get_model_for_task(task_type)
-        else:
-            # Auto-detect based on prompt
-            model_config = self.router.get_recommendation(request.prompt)
-
-        # Prepare request
-        payload = self._prepare_payload(request, model_config)
-
-        # Make API call
-        try:
-            if request.stream:
-                return self._generate_stream(payload, model_config)
-            else:
-                return await self._generate_completion(payload, model_config)
-        except Exception as e:
-            logger.error(f"LLM generation failed: {e}")
-            raise LLMError(f"LLM generation failed: {e}") from e
-
-    def _prepare_payload(self, request: LLMRequest,
-                        model_config: ModelRouting) -> dict[str, Any]:
-        """Prepare API payload."""
-        messages = []
-
-        # Add system prompt if provided
-        if request.system_prompt:
-            messages.append({
-                "role": "system",
-                "content": request.system_prompt
-            })
-
-        # Add user prompt
-        messages.append({
-            "role": "user",
-            "content": request.prompt
-        })
-
-        payload = {
-            "model": model_config.model_name,
+        payload: dict[str, Any] = {
+            "model": model,
             "messages": messages,
-            "max_tokens": request.max_tokens or model_config.max_tokens,
-            "temperature": request.temperature or model_config.temperature,
-            "stream": request.stream
+            "max_tokens": req.max_tokens,
+            "temperature": req.temperature,
         }
-
-        # Optional parameters
-        if request.top_p is not None:
-            payload["top_p"] = request.top_p
-        if request.stop:
-            payload["stop"] = request.stop
-        if request.tools:
-            payload["tools"] = request.tools
-
+        if req.top_p is not None:
+            payload["top_p"] = req.top_p
+        if req.stop:
+            payload["stop"] = req.stop
+        if req.tools:
+            payload["tools"] = req.tools
+        if req.extra_params:
+            payload.update(req.extra_params)
         return payload
 
-    async def _generate_completion(self, payload: dict[str, Any],
-                                  model_config: ModelRouting) -> LLMResponse:
-        """Generate completion (non-streaming) with retry logic."""
-        provider = LLMProvider(model_config.provider)
-        endpoint = self._get_endpoint(provider)
-        headers = self._get_headers(provider)
-        provider_conf = self._provider_configs[provider]
-        max_retries = provider_conf.get("max_retries", 3)
-        base_delay = provider_conf.get("retry_base_delay", 1.0)
 
-        if self._session is None:
-            await self.initialize()
-        assert self._session is not None  # noqa: S101
+# ── Global client ────────────────────────────────────────────────────────────
 
-        last_error: Exception | None = None
-        for attempt in range(max_retries):
-            try:
-                async with self._session.post(endpoint, json=payload, headers=headers) as response:
-                    if response.status == 429:
-                        retry_after = float(response.headers.get("Retry-After", base_delay * (2 ** attempt)))
-                        logger.warning(f"Rate limited, retry after {retry_after}s (attempt {attempt+1}/{max_retries})")
-                        await asyncio.sleep(retry_after)
-                        continue
-                    if response.status >= 500:
-                        delay = base_delay * (2 ** attempt)
-                        logger.warning(f"Server error {response.status}, retry after {delay}s (attempt {attempt+1}/{max_retries})")
-                        await asyncio.sleep(delay)
-                        continue
-                    if response.status >= 400:
-                        error_text = await response.text()
-                        raise LLMError(f"API error {response.status}: {error_text}")
-
-                    data = await response.json()
-                    choice = data["choices"][0]
-                    message = choice["message"]
-
-                    return LLMResponse(
-                        content=message.get("content", ""),
-                        model=data["model"],
-                        usage=data.get("usage", {}),
-                        finish_reason=choice.get("finish_reason"),
-                        tool_calls=message.get("tool_calls")
-                    )
-            except (TimeoutError, aiohttp.ClientError) as e:
-                last_error = e
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
-                    logger.warning(f"Request failed: {e}, retry after {delay}s (attempt {attempt+1}/{max_retries})")
-                    await asyncio.sleep(delay)
-
-        raise LLMError(f"All {max_retries} retries exhausted" + (f": {last_error}" if last_error else ""))
-
-    async def _generate_stream(self, payload: dict[str, Any],
-                              model_config: ModelRouting) -> AsyncGenerator[str, None]:
-        """Generate streaming response."""
-        provider = LLMProvider(model_config.provider)
-        endpoint = self._get_endpoint(provider)
-        headers = self._get_headers(provider)
-
-        # 确保 session 已初始化
-        if self._session is None:
-            await self.initialize()
-        assert self._session is not None  # noqa: S101
-
-        async with self._session.post(endpoint, json=payload, headers=headers) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise LLMError(f"API error {response.status}: {error_text}")
-
-            async for line in response.content:
-                if line:
-                    line_text = line.decode('utf-8').strip()
-                    if line_text.startswith("data: "):
-                        data = line_text[6:]
-                        if data == "[DONE]":
-                            break
-
-                        try:
-                            chunk = json.loads(data)
-                            choice = chunk["choices"][0]
-                            delta = choice.get("delta", {})
-                            if "content" in delta:
-                                yield delta["content"]
-                        except json.JSONDecodeError:
-                            logger.warning(f"Failed to parse chunk: {data}")
-
-    def _get_endpoint(self, provider: LLMProvider) -> str:
-        """Get API endpoint for provider."""
-        # Use config override if available
-        config = self._provider_configs[provider]
-        if config.get("api_base_url"):
-            return f"{config['api_base_url']}/chat/completions"
-
-        # Fallback to default endpoints
-        return self.PROVIDER_ENDPOINTS[provider]
-
-    def _get_headers(self, provider: LLMProvider) -> dict[str, str]:
-        """Get headers for API request."""
-        config = self._provider_configs[provider]
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Aegis-Trader/0.1.0"
-        }
-
-        # Add API key if available
-        api_key = config.get("api_key")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
-        return headers
-
-    async def health_check(self, provider: LLMProvider | None = None) -> bool:
-        """
-        Check health of LLM provider(s).
-
-        Args:
-            provider: Optional specific provider to check
-
-        Returns:
-            True if healthy, False otherwise
-        """
-        providers_to_check = [provider] if provider else list(LLMProvider)
-
-        for prov in providers_to_check:
-            try:
-                endpoint = self._get_endpoint(prov)
-                headers = self._get_headers(prov)
-
-                # Simple health check request
-                health_payload = {
-                    "model": "test",
-                    "messages": [{"role": "user", "content": "ping"}],
-                    "max_tokens": 1
-                }
-
-                # 确保 session 已初始化
-                if self._session is None:
-                    await self.initialize()
-                assert self._session is not None  # noqa: S101
-
-                async with self._session.post(endpoint, json=health_payload,
-                                            headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                    if response.status == 200:
-                        logger.info(f"Provider {prov} health check passed")
-                    else:
-                        logger.warning(f"Provider {prov} health check failed: {response.status}")
-                        return False
-
-            except Exception as e:
-                logger.warning(f"Provider {prov} health check error: {e}")
-                return False
-
-        return True
-
-
-# Global client instance
-_client: LLMClient | None = None
+_default_client: LLMClient | None = None
 
 
 def get_client() -> LLMClient:
-    """Get the global LLM client instance."""
-    global _client
-    if _client is None:
+    """Get or create the global LLM client."""
+    global _default_client
+    if _default_client is None:
         config = get_config()
-        _client = LLMClient(config.model_dump())
-    return _client
+        _default_client = LLMClient(
+            base_url=config.llm_base_url,
+            api_key=config.llm_api_key,
+            timeout=config.llm_timeout_seconds,
+        )
+    return _default_client
 
 
-async def generate(prompt: str,
-                  system_prompt: str | None = None,
-                  task_type: TaskType | str | None = None,
-                  model_name: str | None = None,
-                  **kwargs: Any) -> str:
-    """
-    Convenience function for simple text generation.
-
-    Args:
-        prompt: User prompt
-        system_prompt: Optional system prompt
-        task_type: Optional task type for model selection
-        model_name: Optional specific model name
-        **kwargs: Additional LLMRequest parameters
-
-    Returns:
-        Generated text
-    """
-    request = LLMRequest(prompt=prompt, system_prompt=system_prompt, **kwargs)
+async def generate(
+    prompt: str,
+    system_prompt: str | None = None,
+    model: str | None = None,
+    **kwargs: Any,
+) -> str:
+    """Convenience function for simple text generation."""
+    req = LLMRequest(prompt=prompt, system_prompt=system_prompt, model=model, **kwargs)
     client = get_client()
-
-    async with client:
-        response = await client.generate(request, task_type, model_name)
-        assert isinstance(response, LLMResponse)  # noqa: S101
+    try:
+        response = await client.generate(req)
         return response.content
+    finally:
+        pass  # client is shared, don't close
 
 
-async def generate_stream(prompt: str,
-                         system_prompt: str | None = None,
-                         task_type: TaskType | str | None = None,
-                         model_name: str | None = None,
-                         **kwargs: Any) -> AsyncGenerator[str, None]:
-    """
-    Convenience function for streaming text generation.
-
-    Args:
-        prompt: User prompt
-        system_prompt: Optional system prompt
-        task_type: Optional task type for model selection
-        model_name: Optional specific model name
-        **kwargs: Additional LLMRequest parameters
-
-    Yields:
-        Generated text chunks
-    """
-    request = LLMRequest(prompt=prompt, system_prompt=system_prompt,
-                        stream=True, **kwargs)
+async def generate_stream(
+    prompt: str,
+    system_prompt: str | None = None,
+    model: str | None = None,
+    **kwargs: Any,
+) -> AsyncGenerator[str, None]:
+    """Convenience function for streaming text generation."""
+    req = LLMRequest(prompt=prompt, system_prompt=system_prompt, model=model, **kwargs)
     client = get_client()
-
-    async with client:
-        result = await client.generate(request, task_type, model_name)
-        if hasattr(result, '__aiter__'):
-            async for chunk in result:
-                yield chunk
-        elif isinstance(result, LLMResponse):
-            yield result.content
+    async for chunk in client.generate_stream(req):
+        yield chunk

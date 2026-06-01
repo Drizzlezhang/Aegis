@@ -48,7 +48,6 @@ async def test_generate_report_llm_unavailable_returns_empty(monkeypatch):
 @pytest.mark.asyncio
 async def test_generate_report_success_mock(monkeypatch):
     async def fake_generate(**kwargs):
-        assert kwargs["task_type"] == llm_integration.TaskType.REASONING
         assert "标的: AAPL" in kwargs["prompt"]
         return "LLM report"
 

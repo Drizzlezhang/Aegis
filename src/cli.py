@@ -509,85 +509,6 @@ async def run_mc(args: argparse.Namespace) -> None:
 # ── Paper Trading CLI ──────────────────────────────────────────────────
 
 
-async def paper_positions() -> None:
-    """List paper trading positions."""
-    from src.agents.strategy_exec.brokers.paper import PaperBroker
-
-    broker = PaperBroker()
-    positions = await broker.get_positions()
-
-    if not positions:
-        print("No open positions")
-        return
-
-    print(f"{'Symbol':<8} {'Qty':>6} {'Avg Cost':>10} {'Market':>10} {'Unreal. PnL':>12} {'PnL %':>8}")
-    print("-" * 60)
-    for p in positions:
-        pnl = p.unrealized_pnl or 0.0
-        pnl_pct = p.unrealized_pnl_pct or 0.0
-        print(f"{p.symbol:<8} {p.quantity:>6} {p.avg_cost:>10.2f} "
-              f"{p.market_price or 0.0:>10.2f} {pnl:>12.2f} {pnl_pct:>7.2f}%")
-
-
-async def paper_orders(status_filter: str | None = None) -> None:
-    """List paper trading orders."""
-    from src.agents.strategy_exec.brokers.paper import PaperBroker
-
-    broker = PaperBroker()
-    orders = await broker.get_orders(status=status_filter)
-
-    if not orders:
-        print("No orders found")
-        return
-
-    print(f"{'Order ID':<14} {'Symbol':<8} {'Side':<6} {'Type':<8} {'Qty':>6} "
-          f"{'Filled':>6} {'Status':<16} {'Created'}")
-    print("-" * 90)
-    for o in orders:
-        print(f"{o.id:<14} {o.symbol:<8} {o.side.value:<6} {o.order_type.value:<8} "
-              f"{o.quantity:>6} {o.filled_quantity:>6} {o.status.value:<16} "
-              f"{o.created_at.strftime('%Y-%m-%d %H:%M')}")
-
-
-async def paper_portfolio() -> None:
-    """Show paper trading portfolio summary."""
-    from src.agents.strategy_exec.brokers.paper import PaperBroker
-    from src.services.portfolio_service import PortfolioService
-
-    broker = PaperBroker()
-    svc = PortfolioService(broker)
-
-    snapshot = await svc.get_snapshot()
-    stats = await svc.get_stats()
-
-    print("Paper Trading Portfolio\n")
-    print(f"  Cash:         ${snapshot.cash:,.2f}")
-    print(f"  Equity:       ${snapshot.equity:,.2f}")
-    print(f"  Buying Power: ${snapshot.buying_power:,.2f}")
-    print(f"  Total PnL:    ${snapshot.total_pnl:,.2f} ({snapshot.total_pnl_pct:.2f}%)")
-    print(f"  Positions:    {len(snapshot.positions)}")
-
-    if stats["total_snapshots"] > 0:
-        print(f"\n  Equity Curve Snapshots: {stats['total_snapshots']}")
-        print(f"  Total Return:           {stats['total_return_pct']:.2f}%")
-        print(f"  Max Drawdown:           {stats['max_drawdown_pct']:.2f}%")
-        print(f"  Max Equity:             ${stats['max_equity']:,.2f}")
-        print(f"  Min Equity:             ${stats['min_equity']:,.2f}")
-
-
-async def paper_reset() -> None:
-    """Reset paper trading state (orders, positions, cash, equity curve)."""
-    from src.agents.strategy_exec.brokers.paper import PaperBroker
-    from src.services.portfolio_service import PortfolioService
-
-    broker = PaperBroker()
-    svc = PortfolioService(broker)
-
-    await broker.reset()
-    await svc.reset()
-    print("Paper trading state reset: orders, positions, cash, and equity curve cleared.")
-
-
 async def run_sensitivity(args: argparse.Namespace) -> None:
     """Run parameter sensitivity analysis."""
     from datetime import date as dt_date
@@ -947,23 +868,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="策略名称 (默认: pipeline)",
     )
 
-    # paper 命令
-    paper_parser = subparsers.add_parser("paper", help="Paper trading (dev/ops tool)")
-    paper_sub = paper_parser.add_subparsers(dest="paper_action", help="操作")
-
-    paper_sub.add_parser("positions", help="列出所有持仓")
-
-    orders_parser = paper_sub.add_parser("orders", help="列出所有订单")
-    orders_parser.add_argument(
-        "--status",
-        choices=["pending", "submitted", "filled", "partially_filled", "cancelled", "rejected"],
-        help="按状态过滤",
-    )
-
-    paper_sub.add_parser("portfolio", help="显示投资组合摘要")
-
-    paper_sub.add_parser("reset", help="重置纸交易状态")
-
     # llm 命令
     llm_parser = subparsers.add_parser("llm", help="LLM cost governance")
     llm_sub = llm_parser.add_subparsers(dest="llm_action", title="llm commands")
@@ -1210,30 +1114,6 @@ async def main_async() -> None:
             await handler(args)
         else:
             print("Usage: aegis llm {cost|budget|cache-stats} [args]")
-
-    elif args.command == "paper":
-        if not args.paper_action:
-            print("Usage: aegis paper {positions|orders|portfolio|reset} [args]")
-            return
-        # Start EventBus so PaperBroker events are dispatched
-        from src.services.event_bus import get_event_bus
-        bus = get_event_bus()
-        await bus.start()
-        try:
-            if args.paper_action == "positions":
-                await paper_positions()
-            elif args.paper_action == "orders":
-                await paper_orders(status_filter=getattr(args, "status", None))
-            elif args.paper_action == "portfolio":
-                await paper_portfolio()
-            elif args.paper_action == "reset":
-                await paper_reset()
-            else:
-                print(f"Unknown paper action: {args.paper_action}")
-                sys.exit(1)
-        finally:
-            await bus.stop()
-
 
 def main() -> None:
     """主函数."""

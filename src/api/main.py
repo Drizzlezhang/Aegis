@@ -21,11 +21,9 @@ from src.services.event_bus import get_event_bus
 from src.services.settings import SettingsService
 from src.services.tracking.service import TrackingService
 
-from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from .routes import (
     analysis,
-    auth,
     backtest,
     data_routes,
     llm,
@@ -33,7 +31,6 @@ from .routes import (
     memory,
     metrics,
     notifications,
-    paper,
     positions,
     settings,
     stats,
@@ -77,28 +74,7 @@ async def lifespan(app_: FastAPI):
     await bus.start()
     logger.info("EventBus dispatch loop started")
 
-    # Paper trading broker/portfolio (app.state, single-worker)
-    import os
-    worker_count = int(os.environ.get("WEB_CONCURRENCY", os.environ.get("UVICORN_WORKERS", "1")))
-    if worker_count > 1:
-        logger.error(
-            "Paper trading does not support multiple workers (current: %d). "
-            "Each worker has an independent broker state. Set workers=1 for paper trading.",
-            worker_count,
-        )
-    from src.agents.strategy_exec.brokers.paper import PaperBroker
-    from src.services.portfolio_service import PortfolioService
-
-    # Warn if Paper API is running without auth in non-production
-    if not getattr(config, "paper_token", "") and config.profile.upper() != "PRODUCTION":
-        logger.warning(
-            "Paper API running in DEV mode without AEGIS_PAPER_TOKEN — "
-            "all /api/paper/* endpoints are unauthenticated. Do NOT use this profile in production."
-        )
-
-    app_.state.paper_broker = PaperBroker()
-    app_.state.paper_portfolio = PortfolioService(app_.state.paper_broker)
-    logger.info("Paper trading broker initialized on app.state")
+    logger.info("Aegis API running in private deployment mode (no auth)")
 
     app_.state.realtime_manager = RealtimeManager(
         stale_threshold_seconds=config.realtime.stale_threshold_seconds
@@ -235,12 +211,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security middleware — rate limit before auth
+# Security middleware — rate limit
 app.add_middleware(RateLimitMiddleware, rate=120, per=60)
-app.add_middleware(AuthMiddleware)
 
 # Include routers
-app.include_router(auth.router, prefix="/api")
 app.include_router(symbols.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
@@ -261,7 +235,6 @@ app.include_router(watchlist_routes.router, prefix="/api")
 app.include_router(scheduler_routes.router, prefix="/api")
 app.include_router(tracking_routes.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
-app.include_router(paper.router, prefix="/api")
 app.include_router(data_routes.router)
 app.include_router(llm.router)
 

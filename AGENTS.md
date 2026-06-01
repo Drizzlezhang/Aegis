@@ -47,9 +47,9 @@ This section is managed by `devkit-init`. Do not edit manually.
 - 当前仓库 remote 指向 GitHub，`.devkit/project.yaml` 标记为非字节内部项目。
 - 不要默认安装或启用 `bytedcli`；只有出现明确字节内部强信号或用户显式要求时再规划。
 
-## Known Test Failures (0 FAILED, 2026-05-30)
+## Known Test Failures (1 FAILED, 2026-06-01)
 
-All 1243 tests pass (2 skipped: E2E backtest flow, environment dependency).
+All tests pass or skip (1 pre-existing failure: middleware global state isolation).
 
 ### 测试运行注意事项
 - 全量测试一次性跑可能导致 `OSError: [Errno 24] Too many open files`，建议 `ulimit -n 4096` 或分批运行。
@@ -80,39 +80,16 @@ All 1243 tests pass (2 skipped: E2E backtest flow, environment dependency).
 ### 8. ~~CLI 帮助输出（1 个用例）~~ ✅ 已修复 (2026-05-29)
 **文件**: `tests/test_cli.py::test_main_async_prints_help_without_command` — 1/1 passed。
 
-## Paper Trading (v0.15.0)
+## Sprint15 Hotfix v0.15.2 (2026-06-01)
 
-Paper trading is a simulated execution environment for testing strategies without real money.
+Paper trading 已完全移除，系统转为单用户私有回测决策助手：
 
-### Architecture
-- **BrokerBase** (`src/agents/strategy_exec/brokers/base.py`): Abstract interface for order execution
-- **PaperBroker** (`src/agents/strategy_exec/brokers/paper.py`): In-memory simulated broker with state machine
-- **PortfolioService** (`src/services/portfolio_service.py`): Aggregates cash/positions/PnL, persists equity curve
-- **EventBus** (`src/services/event_bus.py`): Publishes OrderSubmitted/OrderFilled/OrderCancelled/OrderRejected events
+- **F1**: credentials via .env + agent.md ✓
+- **F2**: LLM 统一为 New API（移除多 provider 抽象）✓
+- **F3**: 移除 login/JWT（开放 API）✓
+- **F4**: 移除 paper trading（仅保留 backtest）✓
+- **F5**: 侧边栏添加 /phase、/alerts、/llm-cost ✓
 
-### Order State Machine
-```
-PENDING → SUBMITTED → FILLED / PARTIALLY_FILLED / CANCELLED / REJECTED
-```
-
-### CLI
-```
-aegis paper positions          # List positions with PnL
-aegis paper orders [--status]  # List orders with optional status filter
-aegis paper portfolio          # Portfolio summary with equity curve stats
-aegis paper reset              # Reset all paper trading state
-```
-
-### API Endpoints
-```
-GET    /api/paper/orders?status=   # List orders
-GET    /api/paper/positions        # List positions
-GET    /api/paper/portfolio        # Portfolio summary
-POST   /api/paper/orders           # Place order (market/limit/stop)
-DELETE /api/paper/orders/{id}      # Cancel order
-POST   /api/paper/reset            # Reset state
-```
-
-### Configuration
-- `agent.execution_mode` in config: `"paper"` | `"live"` | `"disabled"`
-- StrategyExecAgent auto-wires PaperBroker when `execution_mode == "paper"`
+### 已知问题
+- `llm_call_log` 表尚未创建，LLM 成本页面返回空数据（不报错）
+- WebSocket 端点 `/ws/alerts`、`/ws/llm` 可用，前端已配置直连 backend:8000

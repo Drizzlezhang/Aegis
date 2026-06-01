@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from src.llm import TaskType, generate
+from src.llm import generate
 from src.models import MacroRegime
 
 from .llm_guard import llm_optional
@@ -154,7 +154,6 @@ class MacroRegimeAnalyzer:
         response = await generate(
             prompt=self._build_macro_prompt(regime, market_data),
             system_prompt="你是宏观经济分析师。基于提供的市场数据，用 1 段话描述当前宏观环境及其对期权策略的影响。",
-            task_type=TaskType.QUERY,
             max_tokens=500,
             temperature=0.2,
         )

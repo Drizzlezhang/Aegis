@@ -1,11 +1,10 @@
-"""LLM module for Aegis-Trader."""
+"""LLM module for Aegis."""
 
 from .budget import BudgetExceededError, BudgetMiddleware
 from .cache import CacheMiddleware
 from .client import (
     LLMClient,
     LLMError,
-    LLMProvider,
     LLMRequest,
     LLMResponse,
     generate,
@@ -24,17 +23,9 @@ from .middleware import (
     reset_governance_chain,
 )
 from .rate_limiter import RateLimitMiddleware
-from .router import LLMRouter, ModelRouting, TaskType, get_router
 
 __all__ = [
-    # Router
-    "TaskType",
-    "ModelRouting",
-    "LLMRouter",
-    "get_router",
-
     # Client
-    "LLMProvider",
     "LLMRequest",
     "LLMResponse",
     "LLMError",

@@ -117,11 +117,17 @@ class AnalysisScheduler:
 
     @property
     def status(self) -> dict:
-        jobs = self._scheduler.get_jobs()
+        next_run = None
+        try:
+            jobs = self._scheduler.get_jobs()
+            if jobs:
+                next_run = str(jobs[0].next_run_time) if hasattr(jobs[0], 'next_run_time') else None
+        except Exception:
+            pass
         return {
             "enabled": self._config.enabled,
             "running": self._running,
-            "next_run": str(jobs[0].next_run_time) if jobs else None,
+            "next_run": next_run,
             "last_run": self._last_run,
         }
 

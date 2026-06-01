@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getToken } from '@/lib/auth';
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -15,6 +14,18 @@ interface UseWebSocketReturn {
   lastMessage: any | null;
   sendMessage: (data: string | object) => void;
   reconnect: () => void;
+}
+
+function resolveWebSocketUrl(path: string): string {
+  if (path.startsWith('ws://') || path.startsWith('wss://')) {
+    return path;
+  }
+  if (typeof window !== 'undefined') {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const wsBase = apiBase.replace(/^http/, 'ws');
+    return `${wsBase}${path}`;
+  }
+  return path;
 }
 
 export function useWebSocket(
@@ -56,12 +67,7 @@ export function useWebSocket(
     cleanup();
     setStatus('connecting');
 
-    const token = getToken();
-    const wsUrl = token
-      ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`
-      : url;
-
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(resolveWebSocketUrl(url));
     wsRef.current = ws;
 
     ws.onopen = () => {

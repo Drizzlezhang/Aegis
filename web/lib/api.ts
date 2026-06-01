@@ -1,10 +1,4 @@
 import { getServerApiBase } from '@/utils/server-api-base';
-import { getToken } from '@/lib/auth';
-
-function getAuthHeaders(): HeadersInit {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 function resolveApiBase(): string {
   if (typeof window !== 'undefined') {
@@ -162,7 +156,6 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeaders(),
       ...options?.headers,
     },
   });
@@ -585,7 +578,6 @@ export async function runAnalysisStream(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...getAuthHeaders(),
       },
       body: JSON.stringify({ symbols }),
       signal,
@@ -1197,7 +1189,7 @@ export async function updateSettings(settings: Partial<SettingsData>): Promise<S
 export async function testTelegramConnection(token: string, chatId: string): Promise<boolean> {
   const res = await fetch(buildApiUrl('/api/settings/test-telegram'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bot_token: token, chat_id: chatId }),
   });
   return res.ok;
@@ -1223,9 +1215,7 @@ export async function getNotifications(limit?: number, category?: string): Promi
   const params = new URLSearchParams();
   if (limit) params.set('limit', String(limit));
   if (category) params.set('category', category);
-  const res = await fetch(buildApiUrl(`/api/notifications?${params}`), {
-    headers: getAuthHeaders(),
-  });
+  const res = await fetch(buildApiUrl(`/api/notifications?${params}`));
   if (!res.ok) return { notifications: [], unreadCount: 0 };
   const data = await res.json();
   return {
@@ -1250,7 +1240,6 @@ function mapNotification(item: Record<string, unknown>): NotificationItem {
 export async function markNotificationRead(id: string): Promise<boolean> {
   const res = await fetch(buildApiUrl(`/api/notifications/${encodeURIComponent(id)}/read`), {
     method: 'POST',
-    headers: getAuthHeaders(),
   });
   return res.ok;
 }
@@ -1258,113 +1247,15 @@ export async function markNotificationRead(id: string): Promise<boolean> {
 export async function markAllNotificationsRead(): Promise<boolean> {
   const res = await fetch(buildApiUrl('/api/notifications/mark-all-read'), {
     method: 'POST',
-    headers: getAuthHeaders(),
   });
   return res.ok;
 }
 
 export async function getNotificationChannels(): Promise<Array<{ type: string; available: boolean }>> {
-  const res = await fetch(buildApiUrl('/api/notifications/channels'), {
-    headers: getAuthHeaders(),
-  });
+  const res = await fetch(buildApiUrl('/api/notifications/channels'));
   if (!res.ok) return [];
   const data = await res.json();
   return data.channels ?? [];
-}
-
-// ─── Paper Trading API ──────────────────────────────────────────────────────
-
-export interface PaperOrder {
-  id: string;
-  symbol: string;
-  side: string;
-  orderType: string;
-  quantity: number;
-  limitPrice: number | null;
-  stopPrice: number | null;
-  status: string;
-  filledQuantity: number;
-  filledAvgPrice: number | null;
-  createdAt: string;
-  updatedAt: string;
-  cancelledAt: string | null;
-}
-
-export interface PaperPosition {
-  symbol: string;
-  quantity: number;
-  avgCost: number;
-  marketPrice: number | null;
-  unrealizedPnl: number | null;
-  unrealizedPnlPct: number | null;
-}
-
-export interface PaperPortfolio {
-  cash: number;
-  equity: number;
-  buyingPower: number;
-  totalPnl: number;
-  totalPnlPct: number;
-  positionCount: number;
-  equityCurveSnapshots: number;
-  totalReturnPct: number;
-  maxDrawdownPct: number;
-  maxEquity: number;
-  minEquity: number;
-}
-
-export interface PlaceOrderRequest {
-  symbol: string;
-  side: string;
-  orderType?: string;
-  quantity: number;
-  limitPrice?: number;
-  stopPrice?: number;
-}
-
-export async function getPaperOrders(status?: string): Promise<{ orders: PaperOrder[]; total: number }> {
-  const params = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await fetch(buildApiUrl(`/api/paper/orders${params}`), { headers: getAuthHeaders() });
-  if (!res.ok) return { orders: [], total: 0 };
-  return res.json();
-}
-
-export async function getPaperPositions(): Promise<{ positions: PaperPosition[]; total: number }> {
-  const res = await fetch(buildApiUrl('/api/paper/positions'), { headers: getAuthHeaders() });
-  if (!res.ok) return { positions: [], total: 0 };
-  return res.json();
-}
-
-export async function getPaperPortfolio(): Promise<PaperPortfolio | null> {
-  const res = await fetch(buildApiUrl('/api/paper/portfolio'), { headers: getAuthHeaders() });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-export async function placePaperOrder(req: PlaceOrderRequest): Promise<{ success: boolean; orderId: string; message: string } | null> {
-  const res = await fetch(buildApiUrl('/api/paper/orders'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify(req),
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-export async function cancelPaperOrder(orderId: string): Promise<boolean> {
-  const res = await fetch(buildApiUrl(`/api/paper/orders/${encodeURIComponent(orderId)}`), {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  });
-  return res.ok;
-}
-
-export async function resetPaperTrading(): Promise<boolean> {
-  const res = await fetch(buildApiUrl('/api/paper/reset'), {
-    method: 'POST',
-    headers: getAuthHeaders(),
-  });
-  return res.ok;
 }
 
 // ─── LLM Cost API ───────────────────────────────────────────────────────────
@@ -1393,19 +1284,52 @@ export async function getLlmCost(period?: string, groupBy?: string): Promise<{ b
   const params = new URLSearchParams();
   if (period) params.set('period', period);
   if (groupBy) params.set('group_by', groupBy);
-  const res = await fetch(buildApiUrl(`/api/llm/usage?${params}`), { headers: getAuthHeaders() });
+  const res = await fetch(buildApiUrl(`/api/llm/usage?${params}`));
   if (!res.ok) return null;
-  return res.json();
+  const data = await res.json();
+  return {
+    breakdown: (data.items ?? []).map((item: Record<string, unknown>) => ({
+      key: item.key as string,
+      inputTokens: item.input_tokens as number,
+      outputTokens: item.output_tokens as number,
+      cost: item.cost_usd as number,
+      calls: item.calls as number,
+    })),
+    totalCost: data.total_cost_usd as number,
+    totalTokens: data.total_tokens as number,
+  };
 }
 
 export async function getLlmBudget(): Promise<LlmBudgetStatus | null> {
-  const res = await fetch(buildApiUrl('/api/llm/budget'), { headers: getAuthHeaders() });
+  const res = await fetch(buildApiUrl('/api/llm/budget'));
   if (!res.ok) return null;
-  return res.json();
+  const data = await res.json();
+  return {
+    daily: {
+      status: data.daily.status as string,
+      limitUsd: data.daily.limit_usd as number,
+      usedUsd: data.daily.used_usd as number,
+      remainingUsd: data.daily.remaining_usd as number,
+      pct: data.daily.pct as number,
+    },
+    monthly: {
+      status: data.monthly.status as string,
+      limitUsd: data.monthly.limit_usd as number,
+      usedUsd: data.monthly.used_usd as number,
+      remainingUsd: data.monthly.remaining_usd as number,
+      pct: data.monthly.pct as number,
+    },
+  };
 }
 
 export async function getLlmCacheStats(): Promise<LlmCacheStats | null> {
-  const res = await fetch(buildApiUrl('/api/llm/cache-stats'), { headers: getAuthHeaders() });
+  const res = await fetch(buildApiUrl('/api/llm/cache-stats'));
   if (!res.ok) return null;
-  return res.json();
+  const data = await res.json();
+  return {
+    hits: data.hits as number,
+    misses: data.misses as number,
+    hitRate: data.hit_rate as number,
+    estimatedSavings: data.estimated_savings_usd as number,
+  };
 }

@@ -3,7 +3,7 @@
 from typing import Any
 
 from src.agents.quant_brain.llm_guard import llm_optional
-from src.llm import TaskType, generate
+from src.llm import generate
 from src.models import RecommendedOption, SupportResistanceLevel
 
 from .market_context import StrategyMarketContext, format_strategy_market_summary
@@ -23,7 +23,6 @@ async def generate_strategy_reasoning(
     response = await generate(
         prompt=prompt,
         system_prompt=SYSTEM_PROMPT_STRATEGIST,
-        task_type=TaskType.QUERY,
         max_tokens=600,
         temperature=0.3,
     )

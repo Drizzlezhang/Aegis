@@ -13,7 +13,7 @@ from typing import Any
 from src.agents.base import BaseAgent
 from src.agents.quant_brain.report_templates import FULL_ANALYSIS, build_structured_report
 from src.config import get_config
-from src.llm import TaskType, generate
+from src.llm import generate
 from src.models import AgentState
 from src.observability.logging import TraceContext
 from src.observability.metrics import PipelineMetrics
@@ -398,7 +398,6 @@ Please provide:
 
 Focus on clarity, conciseness, and actionable insights.""",
                 system_prompt="You are a senior quantitative analyst at a hedge fund. You specialize in options trading and market analysis.",
-                task_type=TaskType.REPORT,
             )
             return enhanced_report
         except Exception as e:

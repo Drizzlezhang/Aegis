@@ -56,36 +56,44 @@ class BudgetTracker:
         now = datetime.now(UTC)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        async with get_session() as session:
-            from sqlalchemy import text
+        try:
+            async with get_session() as session:
+                from sqlalchemy import text
 
-            result = await session.execute(
-                text(
-                    "SELECT COALESCE(SUM(cost_usd), 0) FROM llm_call_log "
-                    "WHERE timestamp >= :start AND success = 1"
-                ),
-                {"start": today_start.isoformat()},
-            )
-            row = result.fetchone()
-            return float(row[0]) if row else 0.0
+                result = await session.execute(
+                    text(
+                        "SELECT COALESCE(SUM(cost_usd), 0) FROM llm_call_log "
+                        "WHERE timestamp >= :start AND success = 1"
+                    ),
+                    {"start": today_start.isoformat()},
+                )
+                row = result.fetchone()
+                return float(row[0]) if row else 0.0
+        except Exception:
+            logger.debug("llm_call_log table not available for daily usage")
+            return 0.0
 
     async def get_monthly_usage(self) -> float:
         """Get total USD spent this month (UTC)."""
         now = datetime.now(UTC)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        async with get_session() as session:
-            from sqlalchemy import text
+        try:
+            async with get_session() as session:
+                from sqlalchemy import text
 
-            result = await session.execute(
-                text(
-                    "SELECT COALESCE(SUM(cost_usd), 0) FROM llm_call_log "
-                    "WHERE timestamp >= :start AND success = 1"
-                ),
-                {"start": month_start.isoformat()},
-            )
-            row = result.fetchone()
-            return float(row[0]) if row else 0.0
+                result = await session.execute(
+                    text(
+                        "SELECT COALESCE(SUM(cost_usd), 0) FROM llm_call_log "
+                        "WHERE timestamp >= :start AND success = 1"
+                    ),
+                    {"start": month_start.isoformat()},
+                )
+                row = result.fetchone()
+                return float(row[0]) if row else 0.0
+        except Exception:
+            logger.debug("llm_call_log table not available for monthly usage")
+            return 0.0
 
     async def check(self) -> dict[str, Any]:
         """Check budget status. Returns dict with daily and monthly status."""

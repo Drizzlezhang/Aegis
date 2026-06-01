@@ -103,45 +103,13 @@ class BudgetExceededEvent(BaseEvent):
 
 
 @dataclass
-class OrderSubmittedEvent(BaseEvent):
-    """Emitted when an order is submitted to the broker."""
+class StrategySignalEvent(BaseEvent):
+    """Emitted when strategy_exec produces a trading signal (read-only suggestion)."""
 
-    order_id: str = ""
     symbol: str = ""
-    side: str = ""
-    order_type: str = ""
-    quantity: int = 0
-    limit_price: float | None = None
-
-
-@dataclass
-class OrderFilledEvent(BaseEvent):
-    """Emitted when an order is filled (fully or partially)."""
-
-    order_id: str = ""
-    symbol: str = ""
-    side: str = ""
-    filled_quantity: int = 0
-    filled_avg_price: float = 0.0
-    remaining_quantity: int = 0
-
-
-@dataclass
-class OrderCancelledEvent(BaseEvent):
-    """Emitted when an order is cancelled."""
-
-    order_id: str = ""
-    symbol: str = ""
-    reason: str = ""
-
-
-@dataclass
-class OrderRejectedEvent(BaseEvent):
-    """Emitted when an order is rejected."""
-
-    order_id: str = ""
-    symbol: str = ""
-    reason: str = ""
+    action: str = ""  # BUY_SUGGEST / SELL_SUGGEST / HOLD
+    rationale: str = ""
+    emitted_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]

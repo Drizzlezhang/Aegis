@@ -6,7 +6,7 @@ export async function GET() {
   // Check backend connectivity
   let backendStatus = 'unknown';
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const res = await fetch(`${backendUrl}/api/status`, {
       signal: AbortSignal.timeout(5000),
     });
