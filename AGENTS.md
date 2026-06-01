@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## 宪法第一原则
+
+> Aegis-Trader 是**交易决策辅助系统**，不是自动交易系统。系统**永不自动下单**。
+> 详见 [docs/system-positioning.md](docs/system-positioning.md)
+
 <!-- devkit-managed:start version=1 generated_at=2026-05-16T10:17:36.971Z -->
 ## DevKit Configuration
 

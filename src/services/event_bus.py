@@ -112,6 +112,19 @@ class StrategySignalEvent(BaseEvent):
     emitted_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
+@dataclass
+class PushEvent(BaseEvent):
+    """Emitted when a push notification needs to be sent (Telegram / WebSocket)."""
+
+    event_id: str = ""  # business-unique id for dedup
+    push_type: str = ""  # PushEventType value
+    title: str = ""  # ≤ 80 chars
+    body_markdown: str = ""  # Telegram MarkdownV2 compatible
+    related_symbols: list[str] = field(default_factory=list)
+    trace_url: str | None = None
+    metadata: dict = field(default_factory=dict)
+
+
 EventHandler = Callable[[BaseEvent], Coroutine[Any, Any, None]]
 
 

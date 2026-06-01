@@ -11,6 +11,7 @@ from src.services.event_bus import (
     EventBus,
     EventSeverity,
     PhaseEvent,
+    PushEvent,
     get_event_bus,
 )
 
@@ -151,3 +152,37 @@ class TestEventBus:
         assert evt.event_type == "DataEvent"
         assert evt.provider == "yfinance"
         assert not evt.success
+
+    @pytest.mark.asyncio
+    async def test_push_event_fields(self):
+        """PushEvent has correct fields and event_type."""
+        evt = PushEvent(
+            event_id="abc-123",
+            push_type="decision_generated",
+            title="[AAPL] 决策建议",
+            body_markdown="*Hello*",
+            related_symbols=["AAPL"],
+            trace_url="http://localhost:3000/decision/abc-123",
+        )
+        assert evt.event_type == "PushEvent"
+        assert evt.event_id == "abc-123"
+        assert evt.push_type == "decision_generated"
+        assert evt.related_symbols == ["AAPL"]
+
+    @pytest.mark.asyncio
+    async def test_push_event_subscribe_publish(self, bus):
+        """PushEvent can be subscribed and published via EventBus."""
+        received: list[PushEvent] = []
+
+        async def push_handler(event: BaseEvent):
+            received.append(event)  # type: ignore[arg-type]
+
+        bus.subscribe("PushEvent", push_handler)
+        await bus.start()
+
+        bus.publish(PushEvent(event_id="test-1", push_type="signal_received", title="Test"))
+        await asyncio.sleep(0.1)
+        await bus.stop()
+
+        assert len(received) == 1
+        assert received[0].event_id == "test-1"

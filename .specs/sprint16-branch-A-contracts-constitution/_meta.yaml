@@ -1,0 +1,23 @@
+schema_version: 2
+change_id: "sprint16-branch-A-contracts-constitution"
+size: "M"
+stages:
+  - "0-CHANGE"
+  - "1-SPEC"
+  - "2-DESIGN"
+  - "3-PLAN"
+  - "4-BUILD"
+  - "5-VERIFY"
+  - "6-SHIP"
+current_stage: "6-SHIP"
+status: "completed"
+created_at: "2026-06-01T10:00:00+08:00"
+updated_at: "2026-06-01T10:30:00+08:00"
+retry_count: 0
+last_tldr: "6-SHIP completed, 7 commits on sprint16-branch-A"
+last_next: "push to remote / create PR"
+last_verified_at: "2026-06-01T10:35:00+08:00"
+last_risk: "契约字段不全可能导致后续分支要求扩展"
+last_progress_note: "all waves done, constitution grep pass"
+last_context_mode: "full"
+last_verified_at: ""
