@@ -6,17 +6,17 @@
 ## Current
 - **change_id**: sprint16-branch-D-push-dispatch
 - **size**: M
-- **current_stage**: 5-VERIFY
-- **status**: in_progress
-- **updated_at**: 2026-06-01T11:10:00+08:00
+- **current_stage**: 6-SHIP
+- **status**: completed
+- **updated_at**: 2026-06-01T11:15:00+08:00
 
 ## Next Action
-进入 6-SHIP，生成 conventional commits 并提交
+可 push 到 remote 或创建 PR 合并到 master
 
 ## Open Questions
 
 ## Risks
-- 无阻塞风险
+- 无
 
 ## Recent Changes
 - [2026-06-01T10:45:00+08:00] 0-CHANGE → created proposal.md, _meta.yaml, STATE.md
@@ -25,6 +25,7 @@
 - [2026-06-01T11:00:00+08:00] 3-PLAN → tasks.md created (4 waves, 6 tasks with verify commands)
 - [2026-06-01T11:05:00+08:00] 4-BUILD → all 6 tasks done, 13/13 tests passing
 - [2026-06-01T11:10:00+08:00] 5-VERIFY → verification.md completed, 5-full mode, all AC passed
+- [2026-06-01T11:15:00+08:00] 6-SHIP → 7 commits (D1-D6 + chore), status: completed
 
 ## Notes
 需求来源：/Users/bytedance/Downloads/branch_D_push_dispatch.md
