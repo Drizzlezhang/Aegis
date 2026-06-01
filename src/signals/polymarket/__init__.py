@@ -1,0 +1,1 @@
+"""Polymarket signal source adapter."""
