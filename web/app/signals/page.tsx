@@ -48,12 +48,14 @@ export default function SignalsPage() {
   const [loading, setLoading] = useState(true);
   const [sourceFilter, setSourceFilter] = useState<string>('');
   const [sentimentFilter, setSentimentFilter] = useState<string>('');
+  const [sinceFilter, setSinceFilter] = useState<string>('');
 
   const fetchSignals = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (sourceFilter) params.set('source', sourceFilter);
       if (sentimentFilter) params.set('sentiment', sentimentFilter);
+      if (sinceFilter) params.set('since', sinceFilter);
       params.set('limit', '50');
 
       const res = await fetch(`/api/signals?${params.toString()}`);
@@ -63,7 +65,7 @@ export default function SignalsPage() {
       // graceful degradation
     }
     setLoading(false);
-  }, [sourceFilter, sentimentFilter]);
+  }, [sourceFilter, sentimentFilter, sinceFilter]);
 
   useEffect(() => {
     void fetchSignals();
@@ -132,6 +134,24 @@ export default function SignalsPage() {
                   <MenuItem value="BEARISH">Bearish</MenuItem>
                   <MenuItem value="NEUTRAL">Neutral</MenuItem>
                 </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <Typography variant="body2" sx={{ mb: 0.5, color: 'text.secondary' }}>
+                  Since
+                </Typography>
+                <input
+                  type="datetime-local"
+                  value={sinceFilter}
+                  onChange={(e) => setSinceFilter(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--mui-palette-divider)',
+                    background: 'transparent',
+                    color: 'inherit',
+                    fontSize: '14px',
+                  }}
+                />
               </FormControl>
             </Paper>
 
