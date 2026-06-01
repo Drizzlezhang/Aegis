@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Query
 from sqlalchemy import text
@@ -19,10 +20,10 @@ router = APIRouter(tags=["signals"])
 
 @router.get("")
 async def list_signals(
-    source: str | None = Query(None),
-    sentiment: str | None = Query(None),
-    since: datetime | None = Query(None),
-    limit: int = Query(50, le=200),
+    source: Annotated[str | None, Query()] = None,
+    sentiment: Annotated[str | None, Query()] = None,
+    since: Annotated[datetime | None, Query()] = None,
+    limit: Annotated[int, Query(le=200)] = 50,
 ) -> dict:
     try:
         async with get_session() as session:

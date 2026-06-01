@@ -22,6 +22,9 @@ export type CommonMessages = {
   phase: string;
   alerts: string;
   llmCost: string;
+  signals: string;
+  decisions: string;
+  pushNotification: string;
 };
 
 export type InteractionMessages = {

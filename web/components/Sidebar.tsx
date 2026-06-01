@@ -17,6 +17,8 @@ const NAV_ITEMS = [
   { href: '/positions', key: 'common.positions' as const },
   { href: '/backtest', key: 'common.backtest' as const },
   { href: '/alerts', key: 'common.alerts' as const },
+  { href: '/signals', key: 'common.signals' as const },
+  { href: '/decisions', key: 'common.decisions' as const },
   { href: '/llm-cost', key: 'common.llmCost' as const },
   { href: '/history', key: 'common.history' as const },
   { href: '/scheduler', key: 'common.scheduler' as const },

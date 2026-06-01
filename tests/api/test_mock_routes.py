@@ -1,4 +1,4 @@
-"""Test mock API routes return 200 with correct shape."""
+"""Test API routes return 200 with correct shape — Sprint16 Branch E."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,8 +16,8 @@ class TestSignalsRoute:
         resp = client.get("/api/signals")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["items"] == []
-        assert data["_mock"] is True
+        assert len(data["items"]) > 0
+        assert "_mock" not in data
         assert "total" in data
         assert "has_more" in data
 
@@ -31,15 +31,15 @@ class TestDecisionsRoute:
         resp = client.get("/api/decisions")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["items"] == []
-        assert data["_mock"] is True
+        assert len(data["items"]) > 0
+        assert "_mock" not in data
 
     def test_decision_trace_returns_200(self, client):
         resp = client.get("/api/decisions/fake-id/trace")
         assert resp.status_code == 200
         data = resp.json()
         assert data["decision_id"] == "fake-id"
-        assert data["_mock"] is True
+        assert "_mock" not in data
         assert "context_snapshot" in data
         assert "signal_events" in data
         assert "fused_signal" in data
