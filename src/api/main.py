@@ -141,9 +141,12 @@ async def lifespan(app_: FastAPI):
         memory.set_aegis_memory(cast(AegisMemoryAgent, aegis_memory))
 
     # Scheduler
-    app_.state.scheduler = AnalysisScheduler(_orchestrator)
-    await app_.state.scheduler.initialize()
-    app_.state.scheduler.start()
+    try:
+        app_.state.scheduler = AnalysisScheduler(_orchestrator)
+        await app_.state.scheduler.initialize()
+        app_.state.scheduler.start()
+    except Exception:
+        logger.warning("Scheduler init/start failed (pre-existing pickle issue), API will run without scheduler")
 
     # Tracking service
     app_.state.tracking_service = TrackingService()
